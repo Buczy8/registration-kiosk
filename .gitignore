@@ -1,0 +1,78 @@
+# Dokumentacja lokalna
+/documentation/
+
+# Środowisko wirtualne
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Dystrybucja / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testy i pokrycie kodu
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Type checkers i lintery
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+# Zmienne środowiskowe i sekrety
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# PyCharm / IntelliJ IDEA
+.idea/
+
+# VS Code
+.vscode/
+
+# System operacyjny
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logi i pliki tymczasowe
+*.log
+*.tmp
+*.swp
+*~
