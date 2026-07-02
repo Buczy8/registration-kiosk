@@ -76,3 +76,6 @@ desktop.ini
 *.tmp
 *.swp
 *~
+
+# Lokalne pliki aplikacji (PDF, podpisy)
+storage/
