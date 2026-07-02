@@ -1,3 +1,3 @@
-from app.core.config import settings
+from app.core.config import get_database_url, get_settings
 
-__all__ = ["settings"]
+__all__ = ["get_database_url", "get_settings"]

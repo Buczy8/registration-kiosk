@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -6,6 +7,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DATABASE_URL = "postgresql+psycopg://kiosk:kiosk@localhost:5432/kiosk"
 
 
 class Settings(BaseSettings):
@@ -27,7 +29,7 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # --- Baza danych ---
-    database_url: str = "postgresql+psycopg://kiosk:kiosk@localhost:5432/kiosk"
+    database_url: str = DEFAULT_DATABASE_URL
 
     # --- Redis / Celery ---
     redis_url: str = "redis://localhost:6379/0"
@@ -107,9 +109,19 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    settings = Settings()
-    settings.ensure_storage_dirs()
-    return settings
+    return Settings()
 
 
-settings = get_settings()
+def get_database_url() -> str:
+    """URL bazy bez pelnej walidacji Settings (np. dla Alembica)."""
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_ROOT / ".env")
+    return (
+        os.getenv("DATABASE_URL")
+        or os.getenv("database_url")
+        or DEFAULT_DATABASE_URL
+    )
+
+
+__all__ = ["Settings", "get_database_url", "get_settings"]
