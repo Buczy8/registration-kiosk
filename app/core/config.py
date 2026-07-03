@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 from functools import lru_cache
 import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATABASE_URL = "postgresql+psycopg://kiosk:kiosk@localhost:5432/kiosk"
+PLACEHOLDER_KIOSK_TOKEN = "change-me-kiosk-token-min-16-chars"
+PLACEHOLDER_JWT_SECRET_KEY = "change-me-jwt-secret-key-min-32-characters-long"
 
 
 class Settings(BaseSettings):
@@ -105,6 +109,22 @@ class Settings(BaseSettings):
             self.form_templates_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
+
+    @model_validator(mode="after")
+    def validate_production_safety(self) -> Settings:
+        if self.app_env != "production":
+            return self
+
+        errors: list[str] = []
+        if self.debug:
+            errors.append("DEBUG must be false in production")
+        if self.kiosk_token == PLACEHOLDER_KIOSK_TOKEN:
+            errors.append("KIOSK_TOKEN must be changed in production")
+        if self.jwt_secret_key == PLACEHOLDER_JWT_SECRET_KEY:
+            errors.append("JWT_SECRET_KEY must be changed in production")
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
 
 
 @lru_cache
