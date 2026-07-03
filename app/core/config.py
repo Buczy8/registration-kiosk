@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # --- Aplikacja ---
     app_name: str = "KioskAPI"
+    app_version: str = "0.1.0"
     app_env: Literal["development", "staging", "production"] = "development"
     debug: bool = False
     api_v1_prefix: str = "/api/v1"

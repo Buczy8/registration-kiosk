@@ -11,6 +11,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import CoreSecurityMiddleware
+from app.core.openapi import fastapi_openapi_kwargs
 from app.db.session import engine
 
 
@@ -19,9 +20,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging(debug=settings.debug)
 
     app = FastAPI(
-        title=settings.app_name,
         debug=settings.debug,
         lifespan=create_lifespan(settings),
+        **fastapi_openapi_kwargs(settings),
     )
     app.dependency_overrides[get_settings] = lambda: settings
 

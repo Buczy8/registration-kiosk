@@ -8,7 +8,11 @@ from app.db.session import get_db
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health")
+@router.get(
+    "/health",
+    summary="Health check",
+    description="Zwraca stan aplikacji i polaczenia z baza danych.",
+)
 def health(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
