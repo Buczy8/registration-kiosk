@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import PROJECT_ROOT
-from app.models.enums import SubmissionMode
+from app.models.enums import ParticipantRole, SubmissionMode
 from app.models.submission import Submission
 
 
@@ -27,6 +27,15 @@ GUARDIAN_RELATION_FIELDS = {
     "parent": "checkbox_19pppm",
     "guardian": "checkbox_20jfuy",
     "authorized_person": "checkbox_21iohl",
+}
+PRIVACY_CONSENT_FIELD = "checkbox_22zynj"
+IMAGE_PUBLICATION_CONSENT_FIELD = "checkbox_23dbga"
+MANAGED_CHECKBOX_FIELDS = {
+    *ROLE_FIELDS.values(),
+    *VEHICLE_FIELDS.values(),
+    *GUARDIAN_RELATION_FIELDS.values(),
+    PRIVACY_CONSENT_FIELD,
+    IMAGE_PUBLICATION_CONSENT_FIELD,
 }
 
 
@@ -54,13 +63,14 @@ def _guest_template_values(submission: Submission) -> tuple[dict[str, str], set[
         ROLE_FIELDS[submission.participant_role.value],
         VEHICLE_FIELDS[submission.vehicle_type.value],
     }
-    guardian_relation = payload.get("guardian_relation")
-    if guardian_relation in GUARDIAN_RELATION_FIELDS:
-        checked_fields.add(GUARDIAN_RELATION_FIELDS[guardian_relation])
+    if submission.participant_role == ParticipantRole.LEGAL_GUARDIAN:
+        guardian_relation = payload.get("guardian_relation")
+        if guardian_relation in GUARDIAN_RELATION_FIELDS:
+            checked_fields.add(GUARDIAN_RELATION_FIELDS[guardian_relation])
     if consents.get("privacy"):
-        checked_fields.add("checkbox_22zynj")
+        checked_fields.add(PRIVACY_CONSENT_FIELD)
     if consents.get("image_publication") or consents.get("media") or consents.get("marketing"):
-        checked_fields.add("checkbox_23dbga")
+        checked_fields.add(IMAGE_PUBLICATION_CONSENT_FIELD)
 
     return (
         {
@@ -103,8 +113,11 @@ def fill_guest_submission_template(submission: Submission) -> bytes:
                 if widget.field_name in text_values:
                     widget.field_value = text_values[widget.field_name]
                     widget.update()
-                elif widget.field_name in checked_fields:
-                    widget.field_value = widget.on_state() or "Yes"
+                elif widget.field_name in MANAGED_CHECKBOX_FIELDS:
+                    if widget.field_name in checked_fields:
+                        widget.field_value = widget.on_state() or "Yes"
+                    else:
+                        widget.field_value = ""
                     widget.update()
         return doc.write(garbage=4, deflate=True)
     finally:
