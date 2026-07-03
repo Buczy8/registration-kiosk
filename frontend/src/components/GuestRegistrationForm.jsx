@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { FORM_SUBTITLE } from "../content/participantDeclarations.js";
 import DeclarationsPanel from "./DeclarationsPanel.jsx";
+import SignaturePad from "./SignaturePad.jsx";
 
 const PARTICIPANT_ROLES = [
   { value: "driver", label: "Kierowca" },
@@ -140,6 +141,7 @@ function validateForm({
   declarationsReviewed,
   identityDocumentType,
   minors,
+  signatureImageBase64,
 }) {
   const errors = [];
 
@@ -177,6 +179,9 @@ function validateForm({
   }
   if (!payload[SIGNATURE_PLACE_FIELD]?.trim()) {
     errors.push("Podaj datę i miejscowość.");
+  }
+  if (!signatureImageBase64) {
+    errors.push("Złóż podpis w polu podpisu.");
   }
 
   return errors;
@@ -229,6 +234,7 @@ function buildSubmissionPayload({
   participantRole,
   vehicleType,
   consents,
+  signatureImageBase64,
 }) {
   const payloadJson = { ...basePayload };
   if (participantRole === "legal_guardian" && minor) {
@@ -247,6 +253,7 @@ function buildSubmissionPayload({
       image_publication: consents.image_publication,
     },
     declarations_accepted: true,
+    signature_image_base64: signatureImageBase64,
   };
 }
 
@@ -354,6 +361,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
   const [consents, setConsents] = useState({ privacy: false, image_publication: false });
   const [declarationsReviewed, setDeclarationsReviewed] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [signatureImageBase64, setSignatureImageBase64] = useState(null);
 
   function updateField(fieldName, value) {
     setFormData((current) => ({ ...current, [fieldName]: value }));
@@ -424,6 +432,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
       declarationsReviewed,
       identityDocumentType,
       minors,
+      signatureImageBase64,
     });
 
     if (errors.length > 0) {
@@ -442,6 +451,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
             participantRole,
             vehicleType,
             consents,
+            signatureImageBase64,
           }),
         ),
       );
@@ -454,6 +464,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
         participantRole,
         vehicleType,
         consents,
+        signatureImageBase64,
       }),
     );
   }
@@ -666,6 +677,11 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
             required
           />
         </label>
+      </fieldset>
+
+      <fieldset className="form-card">
+        <legend>Podpis</legend>
+        <SignaturePad onChange={setSignatureImageBase64} disabled={submitting} />
       </fieldset>
 
       {validationErrors.length > 0 && (
