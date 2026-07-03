@@ -8,10 +8,17 @@ import fitz
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import PROJECT_ROOT
+from app.core.config import PROJECT_ROOT, Settings, get_settings
 from app.models.enums import SubmissionMode
 from app.models.submission import Submission
-from app.services.pdf_mapping import MANAGED_CHECKBOX_FIELDS, PdfFieldMapping, get_guest_submission_pdf_mapping
+from app.services.pdf_mapping import (
+    MANAGED_CHECKBOX_FIELDS,
+    SIGNATURE_PDF_PAGE,
+    SIGNATURE_PDF_RECT,
+    PdfFieldMapping,
+    get_guest_submission_pdf_mapping,
+)
+from app.services.signatures import load_submission_signature_bytes
 
 
 def _resolve_template_path(template_path: str) -> Path:
@@ -35,7 +42,26 @@ def _write_pdf_fields(doc: fitz.Document, mapping: PdfFieldMapping) -> None:
                 widget.update()
 
 
-def fill_guest_submission_template(submission: Submission) -> bytes:
+def _embed_signature_image(
+    doc: fitz.Document,
+    submission: Submission,
+    settings: Settings | None,
+) -> None:
+    if settings is None or not submission.signature_path:
+        return
+
+    image_bytes = load_submission_signature_bytes(settings, submission.signature_path)
+    if not image_bytes:
+        return
+
+    if SIGNATURE_PDF_PAGE >= len(doc):
+        return
+
+    page = doc[SIGNATURE_PDF_PAGE]
+    page.insert_image(SIGNATURE_PDF_RECT, stream=image_bytes, keep_proportion=True)
+
+
+def fill_guest_submission_template(submission: Submission, *, settings: Settings | None = None) -> bytes:
     if submission.form is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Submission form not loaded")
 
@@ -49,6 +75,7 @@ def fill_guest_submission_template(submission: Submission) -> bytes:
         if hasattr(doc, "need_appearances"):
             doc.need_appearances(True)
         _write_pdf_fields(doc, mapping)
+        _embed_signature_image(doc, submission, settings)
         return doc.write(garbage=4, deflate=True)
     finally:
         doc.close()
@@ -59,7 +86,8 @@ def generate_guest_submission_pdf(db: Session, submission_id: UUID) -> tuple[Sub
     if submission is None or submission.mode != SubmissionMode.GUEST:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
-    pdf_bytes = fill_guest_submission_template(submission)
+    settings = get_settings()
+    pdf_bytes = fill_guest_submission_template(submission, settings=settings)
     submission.pdf_path = f"generated://submissions/{submission.id}.pdf"
     db.add(submission)
     db.commit()

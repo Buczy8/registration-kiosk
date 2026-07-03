@@ -3,10 +3,12 @@ import uuid
 
 import fitz
 
+from app.core.config import Settings
 from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.models.form import Form
 from app.models.submission import Submission
 from app.services.pdf import fill_guest_submission_template
+from tests.signature_samples import sample_signature_png
 
 
 def _template_pdf(path):
@@ -140,3 +142,54 @@ def test_fill_guest_submission_template_does_not_check_guardian_for_driver(tmp_p
     assert values["checkbox_19pppm"] in ("", "Off")
     assert values["checkbox_20jfuy"] in ("", "Off")
     assert values["checkbox_21iohl"] in ("", "Off")
+
+
+def test_fill_guest_submission_template_embeds_signature_image(tmp_path):
+    template_path = tmp_path / "guest-registration.pdf"
+    _template_pdf(template_path)
+    form = Form(
+        id=uuid.uuid4(),
+        code="guest-registration",
+        name="Rejestracja gościa",
+        version="1.0",
+        schema_json={},
+        pdf_template_path=str(template_path),
+        is_active=True,
+    )
+    signature_path = tmp_path / "signatures" / "submission.png"
+    signature_path.parent.mkdir(parents=True)
+    signature_bytes = sample_signature_png()
+    signature_path.write_bytes(signature_bytes)
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=12,
+        sequence_date=date(2026, 7, 3),
+        payload_json={"first_name": "Jan", "last_name": "Kowalski"},
+        consents_json={"privacy": True},
+        declarations_accepted=True,
+        signature_path="signatures/submission.png",
+        signature_hash="hash",
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+    settings = Settings(
+        kiosk_token="test-kiosk-token-16c",
+        jwt_secret_key="test-jwt-secret-key-min-32-chars-long",
+        storage_root=tmp_path,
+    )
+
+    pdf_bytes = fill_guest_submission_template(submission, settings=settings)
+
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    images = document[0].get_images(full=True)
+    document.close()
+    assert images
