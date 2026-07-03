@@ -40,11 +40,19 @@ def error_response(
     return JSONResponse(status_code=status_code, content=body, headers=headers)
 
 
+def _error_code_for_status(status_code: int) -> str:
+    if status_code == HTTPStatus.NOT_FOUND:
+        return "not_found"
+    if status_code == HTTPStatus.UNAUTHORIZED:
+        return "unauthorized"
+    return "http_error"
+
+
 async def http_exception_handler(
     request: Request,
     exc: StarletteHTTPException,
 ) -> JSONResponse:
-    code = "not_found" if exc.status_code == HTTPStatus.NOT_FOUND else "http_error"
+    code = _error_code_for_status(exc.status_code)
     message = exc.detail if isinstance(exc.detail, str) else HTTPStatus(exc.status_code).phrase
     return error_response(
         request=request,
