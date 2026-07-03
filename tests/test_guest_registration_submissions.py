@@ -45,6 +45,11 @@ class _SubmissionDb:
     def add(self, submission: Submission) -> None:
         self.added.append(submission)
 
+    def flush(self) -> None:
+        for submission in self.added:
+            if submission.id is None:
+                submission.id = uuid.uuid4()
+
     def commit(self) -> None:
         pass
 
@@ -56,11 +61,12 @@ class _SubmissionDb:
 
 
 @pytest.fixture
-def kiosk_settings() -> Settings:
+def kiosk_settings(tmp_path) -> Settings:
     return Settings(
         kiosk_token=TEST_KIOSK_TOKEN,
         jwt_secret_key=TEST_JWT_SECRET,
         start_number_timezone="Europe/Warsaw",
+        storage_root=tmp_path,
     )
 
 

@@ -12,6 +12,7 @@ class GuestSubmissionCreate(BaseModel):
     payload_json: dict = Field(min_length=1)
     consents_json: dict = Field(min_length=1)
     declarations_accepted: bool
+    signature_image_base64: str = Field(min_length=1)
 
     @field_validator("declarations_accepted")
     @classmethod

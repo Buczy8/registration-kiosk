@@ -1,6 +1,7 @@
 import uuid
 
 from app.models.form import Form
+from tests.signature_samples import sample_signature_base64
 
 GUEST_REGISTRATION_SCHEMA = {
     "required": [
@@ -158,6 +159,10 @@ SAMPLE_GUEST_SUBMISSIONS: list[dict] = [
         "declarations_accepted": True,
     },
 ]
+
+
+for _submission in SAMPLE_GUEST_SUBMISSIONS:
+    _submission["signature_image_base64"] = sample_signature_base64()
 
 
 def guest_registration_form() -> Form:

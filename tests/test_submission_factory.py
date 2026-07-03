@@ -23,6 +23,7 @@ def test_build_guest_submission_populates_guest_submission_fields():
         payload_json={"first_name": "Jan"},
         consents_json={"privacy": True},
         declarations_accepted=True,
+        signature_image_base64="dGVzdA==",
     )
 
     submission = build_guest_submission(

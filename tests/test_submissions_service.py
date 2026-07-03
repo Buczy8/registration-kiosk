@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -14,6 +15,7 @@ from app.services.submissions import (
     get_next_start_number,
     get_sequence_date,
 )
+from tests.signature_samples import sample_signature_base64
 
 TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
 TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
@@ -66,6 +68,11 @@ class _SubmissionDb:
     def add(self, submission: Submission) -> None:
         self.added.append(submission)
 
+    def flush(self) -> None:
+        for submission in self.added:
+            if submission.id is None:
+                submission.id = uuid.uuid4()
+
     def commit(self) -> None:
         if self.commit_raises is not None:
             raise self.commit_raises
@@ -78,11 +85,12 @@ class _SubmissionDb:
         self.refreshed.append(submission)
 
 
-def _settings() -> Settings:
+def _settings(storage_root: Path | None = None) -> Settings:
     return Settings(
         kiosk_token=TEST_KIOSK_TOKEN,
         jwt_secret_key=TEST_JWT_SECRET,
         start_number_timezone="Europe/Warsaw",
+        storage_root=storage_root or Path.cwd() / "storage",
     )
 
 
@@ -113,6 +121,7 @@ def _guest_data(**overrides) -> GuestSubmissionCreate:
         "payload_json": {"first_name": "Jan", "last_name": "Kowalski"},
         "consents_json": {"terms": True},
         "declarations_accepted": True,
+        "signature_image_base64": sample_signature_base64(),
     }
     payload.update(overrides)
     return GuestSubmissionCreate(**payload)
@@ -167,10 +176,10 @@ def test_get_next_start_number_uses_next_start_number_query():
     assert db.last_params == {"sequence_date": sequence_date}
 
 
-def test_create_guest_submission_creates_guest_submission():
+def test_create_guest_submission_creates_guest_submission(tmp_path):
     db = _SubmissionDb(_form(), start_number=7)
 
-    submission = create_guest_submission(db, _guest_data(), _settings())
+    submission = create_guest_submission(db, _guest_data(), _settings(tmp_path))
 
     assert submission.mode == SubmissionMode.GUEST
     assert submission.user_id is None
@@ -178,6 +187,9 @@ def test_create_guest_submission_creates_guest_submission():
     assert submission.form_version == "1.0"
     assert submission.start_number == 7
     assert submission.status == SubmissionStatus.SUBMITTED
+    assert submission.signature_path is not None
+    assert submission.signature_hash is not None
+    assert submission.signed_at is not None
     assert db.committed is True
     assert db.refreshed == [submission]
 
@@ -201,10 +213,10 @@ def test_create_guest_submission_does_not_persist_when_required_fields_missing()
     assert db.committed is False
 
 
-def test_create_guest_submission_rolls_back_when_commit_fails():
+def test_create_guest_submission_rolls_back_when_commit_fails(tmp_path):
     db = _SubmissionDb(_form(), start_number=7, commit_raises=RuntimeError("db error"))
 
     with pytest.raises(RuntimeError, match="db error"):
-        create_guest_submission(db, _guest_data(), _settings())
+        create_guest_submission(db, _guest_data(), _settings(tmp_path))
 
     assert db.rolled_back is True

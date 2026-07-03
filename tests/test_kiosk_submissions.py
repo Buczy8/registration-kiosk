@@ -13,6 +13,7 @@ from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, 
 from app.models.form import Form
 from app.models.submission import Submission
 from main import app
+from tests.signature_samples import sample_signature_base64
 
 TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
 TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
@@ -45,6 +46,10 @@ class _SubmissionDb:
 
     def add(self, submission: Submission) -> None:
         self._submission = submission
+
+    def flush(self) -> None:
+        if hasattr(self, "_submission") and self._submission.id is None:
+            self._submission.id = uuid.uuid4()
 
     def commit(self) -> None:
         pass
@@ -98,16 +103,18 @@ def _valid_payload(**overrides) -> dict:
         "payload_json": {"first_name": "Jan", "last_name": "Kowalski"},
         "consents_json": {"terms": True},
         "declarations_accepted": True,
+        "signature_image_base64": sample_signature_base64(),
         **overrides,
     }
 
 
 @pytest.fixture
-def kiosk_settings() -> Settings:
+def kiosk_settings(tmp_path) -> Settings:
     return Settings(
         kiosk_token=TEST_KIOSK_TOKEN,
         jwt_secret_key=TEST_JWT_SECRET,
         start_number_timezone="Europe/Warsaw",
+        storage_root=tmp_path,
     )
 
 
@@ -153,6 +160,9 @@ def test_create_guest_submission_returns_201_for_valid_request(client: TestClien
     assert payload["sequence_date"]
     assert payload["status"] == "submitted"
     assert payload["mode"] == "guest"
+    assert db._submission.signature_path is not None
+    assert db._submission.signature_hash is not None
+    assert db._submission.signed_at is not None
 
 
 def test_create_guest_submission_returns_422_for_invalid_enum(client: TestClient):

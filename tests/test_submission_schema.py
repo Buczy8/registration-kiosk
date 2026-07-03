@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.core.errors import register_exception_handlers
 from app.schemas.submission import GuestSubmissionCreate
+from tests.signature_samples import sample_signature_base64
 
 
 def _valid_payload(**overrides) -> dict:
@@ -14,6 +15,7 @@ def _valid_payload(**overrides) -> dict:
         "payload_json": {"first_name": "Jan", "last_name": "Kowalski"},
         "consents_json": {"terms": True},
         "declarations_accepted": True,
+        "signature_image_base64": sample_signature_base64(),
         **overrides,
     }
 

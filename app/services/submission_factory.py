@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from app.models.enums import SubmissionMode, SubmissionStatus
 from app.models.form import Form
@@ -12,6 +12,9 @@ def build_guest_submission(
     data: GuestSubmissionCreate,
     start_number: int,
     sequence_date: date,
+    signature_path: str | None = None,
+    signature_hash: str | None = None,
+    signed_at: datetime | None = None,
 ) -> Submission:
     return Submission(
         form_id=form.id,
@@ -26,9 +29,9 @@ def build_guest_submission(
         payload_json=data.payload_json,
         consents_json=data.consents_json,
         declarations_accepted=data.declarations_accepted,
-        signature_path=None,
-        signature_hash=None,
-        signed_at=None,
+        signature_path=signature_path,
+        signature_hash=signature_hash,
+        signed_at=signed_at,
         pdf_path=None,
         status=SubmissionStatus.SUBMITTED,
     )
