@@ -3,11 +3,13 @@ from collections.abc import Generator
 from datetime import date
 
 import pytest
+import fitz
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings, get_settings
 from app.core.deps import KIOSK_TOKEN_HEADER
 from app.db.session import get_db
+from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.models.form import Form
 from app.models.submission import Submission
 from main import app
@@ -28,14 +30,17 @@ class _Result:
 
 
 class _SubmissionDb:
-    def __init__(self, form: Form, *, start_number: int = 42):
+    def __init__(self, form: Form, *, start_number: int = 42, existing_submission: Submission | None = None):
         self.form = form
         self.start_number = start_number
         self.sequence_date = date(2026, 7, 3)
+        self._existing_submission = existing_submission
 
     def execute(self, statement, params=None):
         if "next_start_number" in str(statement):
             return _Result(self.start_number)
+        if "FROM submissions" in str(statement):
+            return _Result(self._existing_submission)
         return _Result(self.form)
 
     def add(self, submission: Submission) -> None:
@@ -67,6 +72,23 @@ def _form() -> Form:
         pdf_template_path="templates/forms/guest-registration-v1.pdf",
         is_active=True,
     )
+
+
+def _template_pdf(path) -> None:
+    doc = fitz.open()
+    page = doc.new_page()
+    for field_name, rect, field_type in [
+        ("checkbox_26aqhm", fitz.Rect(10, 10, 20, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("checkbox_29pnyu", fitz.Rect(30, 10, 40, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("text_8fpaj", fitz.Rect(10, 40, 180, 60), fitz.PDF_WIDGET_TYPE_TEXT),
+    ]:
+        widget = fitz.Widget()
+        widget.field_name = field_name
+        widget.field_type = field_type
+        widget.rect = rect
+        page.add_widget(widget)
+    doc.save(path)
+    doc.close()
 
 
 def _valid_payload(**overrides) -> dict:
@@ -179,3 +201,83 @@ def test_create_guest_submission_returns_400_when_required_fields_missing(client
             "request_id": response.headers["x-request-id"],
         }
     }
+
+
+def test_generate_guest_pdf_requires_token(client: TestClient):
+    response = client.get(f"/api/v1/kiosk/submissions/{uuid.uuid4()}/pdf")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_generate_guest_pdf_returns_pdf_for_guest_submission(client: TestClient, tmp_path):
+    template_path = tmp_path / "guest-registration.pdf"
+    _template_pdf(template_path)
+    form = _form()
+    form.pdf_template_path = str(template_path)
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=77,
+        sequence_date=date(2026, 7, 3),
+        payload_json={"first_name": "Jan", "last_name": "Kowalski"},
+        consents_json={"terms": True},
+        declarations_accepted=True,
+        signature_path=None,
+        signature_hash=None,
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+    db = _SubmissionDb(form, existing_submission=submission)
+    app.dependency_overrides[get_db] = _fake_get_db(db)
+
+    response = client.get(
+        f"/api/v1/kiosk/submissions/{submission.id}/pdf",
+        headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert 'attachment; filename="submission-77.pdf"' == response.headers["content-disposition"]
+    assert response.content.startswith(b"%PDF-")
+
+
+def test_generate_guest_pdf_returns_404_for_account_submission(client: TestClient):
+    form = _form()
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form_version=form.version,
+        user_id=uuid.uuid4(),
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.ACCOUNT,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=90,
+        sequence_date=date(2026, 7, 3),
+        payload_json={"first_name": "Jan", "last_name": "Kowalski"},
+        consents_json={"terms": True},
+        declarations_accepted=True,
+        signature_path=None,
+        signature_hash=None,
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+    app.dependency_overrides[get_db] = _fake_get_db(_SubmissionDb(form, existing_submission=submission))
+
+    response = client.get(
+        f"/api/v1/kiosk/submissions/{submission.id}/pdf",
+        headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"

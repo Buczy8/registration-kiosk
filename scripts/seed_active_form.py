@@ -60,7 +60,10 @@ ACTIVE_FORM_DATA = {
         },
         "identity_document_rule": "pesel_or_id_card",
     },
-    "pdf_template_path": "templates/forms/guest-registration-v1.pdf",
+    "pdf_template_path": (
+        "documentation/Uniwersalne Oświadczenie Uczestnika - Autodrom Biłgoraj V2 "
+        "(Auta_Moto_Gokarty) (3) (2).pdf"
+    ),
     "is_active": True,
 }
 
