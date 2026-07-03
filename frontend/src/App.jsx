@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  createGuestSubmission,
-  downloadSubmissionPdf,
-  getActiveForm,
-} from "./api/kiosk.js";
+import { createGuestSubmission, getActiveForm } from "./api/kiosk.js";
 import GuestRegistrationForm from "./components/GuestRegistrationForm.jsx";
 import SubmissionResult from "./components/SubmissionResult.jsx";
 
@@ -14,8 +10,6 @@ export default function App() {
   const [submissions, setSubmissions] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [downloadingId, setDownloadingId] = useState(null);
-  const [downloadErrors, setDownloadErrors] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -62,27 +56,9 @@ export default function App() {
     }
   }
 
-  async function handleDownloadPdf(submissionId) {
-    setDownloadingId(submissionId);
-    setDownloadErrors((current) => {
-      const next = { ...current };
-      delete next[submissionId];
-      return next;
-    });
-    try {
-      await downloadSubmissionPdf(submissionId);
-    } catch (error) {
-      setDownloadErrors((current) => ({ ...current, [submissionId]: error.message }));
-    } finally {
-      setDownloadingId(null);
-    }
-  }
-
   function handleNewSubmission() {
     setSubmissions(null);
     setSubmitError(null);
-    setDownloadErrors({});
-    setDownloadingId(null);
   }
 
   if (loading) {
@@ -99,15 +75,7 @@ export default function App() {
   }
 
   if (submissions) {
-    return (
-      <SubmissionResult
-        submissions={submissions}
-        onDownloadPdf={handleDownloadPdf}
-        downloadingId={downloadingId}
-        downloadErrors={downloadErrors}
-        onNewSubmission={handleNewSubmission}
-      />
-    );
+    return <SubmissionResult submissions={submissions} onNewSubmission={handleNewSubmission} />;
   }
 
   return (

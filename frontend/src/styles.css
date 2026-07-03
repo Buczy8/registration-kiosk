@@ -221,6 +221,24 @@ select {
   background: #f9fafb;
 }
 
+.pdf-preview-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.pdf-preview-panel h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.pdf-preview-frame {
+  width: 100%;
+  min-height: 70vh;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .field input,
 .field select {
   width: 100%;

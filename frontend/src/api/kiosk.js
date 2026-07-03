@@ -48,19 +48,9 @@ export async function createGuestSubmission(payload) {
   return response.json();
 }
 
-export async function downloadSubmissionPdf(submissionId) {
+export async function fetchSubmissionPdfBlob(submissionId) {
   const response = await request(`/kiosk/submissions/${submissionId}/pdf`, {
     headers: getHeaders(null),
   });
-  const blob = await response.blob();
-  const contentDisposition = response.headers.get("Content-Disposition") || "";
-  const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-  const filename = filenameMatch?.[1] || `submission-${submissionId}.pdf`;
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  return response.blob();
 }
