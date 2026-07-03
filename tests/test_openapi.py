@@ -48,6 +48,18 @@ def test_openapi_schema_contains_kiosk_security_scheme():
     assert {"KioskToken": []} in ping_path["security"]
 
 
+def test_openapi_schema_contains_kiosk_guest_endpoints():
+    client = TestClient(create_app(_dev_settings()))
+
+    schema = client.get("/openapi.json").json()
+
+    forms_path = schema["paths"]["/api/v1/kiosk/forms/active"]["get"]
+    assert {"KioskToken": []} in forms_path["security"]
+
+    submissions_path = schema["paths"]["/api/v1/kiosk/submissions"]["post"]
+    assert {"KioskToken": []} in submissions_path["security"]
+
+
 def test_openapi_docs_are_disabled_in_production():
     client = TestClient(create_app(_prod_settings()))
 

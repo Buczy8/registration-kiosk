@@ -48,6 +48,8 @@ def _error_code_for_status(status_code: int) -> str:
         return "unauthorized"
     if status_code == HTTPStatus.BAD_REQUEST:
         return "bad_request"
+    if status_code == HTTPStatus.CONFLICT:
+        return "conflict"
     return "http_error"
 
 
