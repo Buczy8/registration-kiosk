@@ -11,3 +11,12 @@ dependencies = [
     "alembic>=1.18.4",
     "psycopg[binary]>=3.3.3",
 ]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
