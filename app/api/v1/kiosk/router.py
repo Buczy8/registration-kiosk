@@ -1,10 +1,12 @@
 from fastapi import APIRouter
 
 from app.api.v1.kiosk.forms import router as forms_router
+from app.api.v1.kiosk.submissions import router as submissions_router
 from app.core.deps import KioskAuth
 
 router = APIRouter(prefix="/kiosk", tags=["kiosk"])
 router.include_router(forms_router)
+router.include_router(submissions_router)
 
 
 @router.get(

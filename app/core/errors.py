@@ -5,6 +5,7 @@ from http import HTTPStatus
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -45,6 +46,8 @@ def _error_code_for_status(status_code: int) -> str:
         return "not_found"
     if status_code == HTTPStatus.UNAUTHORIZED:
         return "unauthorized"
+    if status_code == HTTPStatus.BAD_REQUEST:
+        return "bad_request"
     return "http_error"
 
 
@@ -72,7 +75,7 @@ async def validation_exception_handler(
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         code="validation_error",
         message="Request validation failed",
-        details=exc.errors(),
+        details=jsonable_encoder(exc.errors()),
     )
 
 
