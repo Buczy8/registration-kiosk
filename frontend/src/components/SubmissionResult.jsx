@@ -1,41 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { fetchSubmissionPdfBlob } from "../api/kiosk.js";
+import PdfPreview from "./PdfPreview.jsx";
 
 export default function SubmissionResult({ submissions, onNewSubmission }) {
   const isMultiple = submissions.length > 1;
   const [activeSubmissionId, setActiveSubmissionId] = useState(submissions[0]?.id ?? null);
-  const [pdfUrls, setPdfUrls] = useState({});
+  const [pdfBlobs, setPdfBlobs] = useState({});
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [previewError, setPreviewError] = useState(null);
-  const objectUrlsRef = useRef([]);
 
   useEffect(() => {
     let cancelled = false;
-    const createdUrls = [];
 
     async function loadPreviews() {
       setLoadingPreview(true);
       setPreviewError(null);
-      setPdfUrls({});
+      setPdfBlobs({});
 
       try {
-        const nextUrls = {};
+        const nextBlobs = {};
         for (const submission of submissions) {
           const blob = await fetchSubmissionPdfBlob(submission.id);
           if (cancelled) {
             return;
           }
-          const url = URL.createObjectURL(blob);
-          createdUrls.push(url);
-          nextUrls[submission.id] = url;
+          nextBlobs[submission.id] = blob;
         }
-        objectUrlsRef.current = createdUrls;
         if (!cancelled) {
-          setPdfUrls(nextUrls);
+          setPdfBlobs(nextBlobs);
         }
       } catch (error) {
-        createdUrls.forEach((url) => URL.revokeObjectURL(url));
         if (!cancelled) {
           setPreviewError(error.message);
         }
@@ -50,15 +45,13 @@ export default function SubmissionResult({ submissions, onNewSubmission }) {
 
     return () => {
       cancelled = true;
-      createdUrls.forEach((url) => URL.revokeObjectURL(url));
-      objectUrlsRef.current = [];
     };
   }, [submissions]);
 
-  const activePdfUrl = activeSubmissionId ? pdfUrls[activeSubmissionId] : null;
+  const activePdfBlob = activeSubmissionId ? pdfBlobs[activeSubmissionId] : null;
 
   return (
-    <section className="result-card">
+    <section className="result-card result-screen">
       <h1>Rejestracja zakończona</h1>
       {isMultiple ? (
         <p>Utworzono {submissions.length} zgłoszenia. Podgląd dokumentu dla każdego podopiecznego.</p>
@@ -95,12 +88,8 @@ export default function SubmissionResult({ submissions, onNewSubmission }) {
             Nie udało się wyświetlić PDF: {previewError}
           </p>
         )}
-        {!loadingPreview && !previewError && activePdfUrl && (
-          <iframe
-            className="pdf-preview-frame"
-            src={activePdfUrl}
-            title="Podgląd zgłoszenia PDF"
-          />
+        {!loadingPreview && !previewError && activePdfBlob && (
+          <PdfPreview blob={activePdfBlob} title="Podgląd zgłoszenia PDF" />
         )}
       </div>
 
