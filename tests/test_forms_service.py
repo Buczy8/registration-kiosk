@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 import pytest
@@ -5,22 +6,7 @@ from fastapi import HTTPException
 
 from app.models.form import Form
 from app.services.forms import get_active_form
-
-
-class _Result:
-    def __init__(self, value):
-        self._value = value
-
-    def scalar_one_or_none(self):
-        return self._value
-
-
-class _FakeDb:
-    def __init__(self, value):
-        self._value = value
-
-    def execute(self, _statement):
-        return _Result(self._value)
+from tests.fakes.async_db import FakeAsyncDb
 
 
 def _form() -> Form:
@@ -38,11 +24,13 @@ def _form() -> Form:
 def test_get_active_form_returns_form_when_db_has_one():
     form = _form()
 
-    assert get_active_form(_FakeDb(form)) is form
+    result = asyncio.run(get_active_form(FakeAsyncDb(form)))
+
+    assert result is form
 
 
 def test_get_active_form_raises_404_when_db_returns_none():
     with pytest.raises(HTTPException) as exc_info:
-        get_active_form(_FakeDb(None))
+        asyncio.run(get_active_form(FakeAsyncDb(None)))
 
     assert exc_info.value.status_code == 404

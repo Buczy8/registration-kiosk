@@ -6,15 +6,11 @@ from app.core.config import Settings
 from app.core.security import constant_time_equals, generate_secret, sha256_hex
 from app.db.session import get_db
 from main import app
-
-
-class HealthyDb:
-    def execute(self, _statement):
-        return None
+from tests.fakes.async_db import FakeHealthyDb, async_get_db_override
 
 
 def test_health_is_available_under_api_v1_and_adds_security_headers():
-    app.dependency_overrides[get_db] = lambda: HealthyDb()
+    app.dependency_overrides[get_db] = async_get_db_override(FakeHealthyDb())
     client = TestClient(app)
 
     try:

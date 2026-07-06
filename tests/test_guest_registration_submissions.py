@@ -1,5 +1,5 @@
+import asyncio
 import uuid
-from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,9 +7,10 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings, get_settings
 from app.core.deps import KIOSK_TOKEN_HEADER
 from app.db.session import get_db
-from app.models.submission import Submission
+from app.schemas.submission import GuestSubmissionCreate
 from app.services.submissions import create_guest_submission, get_missing_required_fields
 from main import app
+from tests.fakes.async_db import FakeAsyncSubmissionDb, async_get_db_override
 from tests.guest_registration_samples import (
     GUEST_REGISTRATION_SCHEMA,
     SAMPLE_GUEST_SUBMISSIONS,
@@ -18,46 +19,6 @@ from tests.guest_registration_samples import (
 
 TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
 TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
-
-
-class _Result:
-    def __init__(self, value):
-        self._value = value
-
-    def scalar_one_or_none(self):
-        return self._value
-
-    def scalar_one(self):
-        return self._value
-
-
-class _SubmissionDb:
-    def __init__(self, form, *, start_number: int = 1):
-        self.form = form
-        self.start_number = start_number
-        self.added: list[Submission] = []
-
-    def execute(self, statement, params=None):
-        if "next_start_number" in str(statement):
-            return _Result(self.start_number)
-        return _Result(self.form)
-
-    def add(self, submission: Submission) -> None:
-        self.added.append(submission)
-
-    def flush(self) -> None:
-        for submission in self.added:
-            if submission.id is None:
-                submission.id = uuid.uuid4()
-
-    def commit(self) -> None:
-        pass
-
-    def rollback(self) -> None:
-        pass
-
-    def refresh(self, submission: Submission) -> None:
-        submission.id = uuid.uuid4()
 
 
 @pytest.fixture
@@ -77,13 +38,6 @@ def client(kiosk_settings: Settings) -> TestClient:
         yield test_client
     app.dependency_overrides.pop(get_settings, None)
     app.dependency_overrides.pop(get_db, None)
-
-
-def _fake_get_db(db: _SubmissionDb):
-    def override_get_db() -> Generator[_SubmissionDb, None, None]:
-        yield db
-
-    return override_get_db
 
 
 @pytest.mark.parametrize("submission_payload", SAMPLE_GUEST_SUBMISSIONS)
@@ -106,8 +60,8 @@ def test_create_guest_submission_accepts_full_registration_payload(
 ):
     form = guest_registration_form()
     start_number = index + 1
-    db = _SubmissionDb(form, start_number=start_number)
-    app.dependency_overrides[get_db] = _fake_get_db(db)
+    db = FakeAsyncSubmissionDb(form, start_number=start_number)
+    app.dependency_overrides[get_db] = async_get_db_override(db)
 
     response = client.post(
         "/api/v1/kiosk/submissions",
@@ -130,7 +84,7 @@ def test_create_guest_submission_returns_400_for_incomplete_registration_payload
     client: TestClient,
 ):
     form = guest_registration_form()
-    app.dependency_overrides[get_db] = _fake_get_db(_SubmissionDb(form))
+    app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncSubmissionDb(form))
     incomplete_payload = {
         **SAMPLE_GUEST_SUBMISSIONS[0],
         "payload_json": {
@@ -153,13 +107,14 @@ def test_create_guest_submission_returns_400_for_incomplete_registration_payload
 
 def test_create_guest_submission_service_persists_full_payload(kiosk_settings: Settings):
     form = guest_registration_form()
-    db = _SubmissionDb(form, start_number=7)
-    from app.schemas.submission import GuestSubmissionCreate
+    db = FakeAsyncSubmissionDb(form, start_number=7)
 
-    submission = create_guest_submission(
-        db=db,
-        data=GuestSubmissionCreate(**SAMPLE_GUEST_SUBMISSIONS[0]),
-        settings=kiosk_settings,
+    submission = asyncio.run(
+        create_guest_submission(
+            db=db,
+            data=GuestSubmissionCreate(**SAMPLE_GUEST_SUBMISSIONS[0]),
+            settings=kiosk_settings,
+        )
     )
 
     assert submission.mode.value == "guest"

@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import date
 from pathlib import Path
@@ -8,6 +9,7 @@ from fastapi import HTTPException
 from app.core.config import Settings
 from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.models.form import Form
+from app.models.submission import Submission
 from app.schemas.submission import GuestSubmissionCreate
 from app.services.submissions import (
     create_guest_submission,
@@ -15,74 +17,11 @@ from app.services.submissions import (
     get_next_start_number,
     get_sequence_date,
 )
+from tests.fakes.async_db import FakeAsyncDb, FakeAsyncSubmissionDb
 from tests.signature_samples import sample_signature_base64
 
 TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
 TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
-
-
-class _Result:
-    def __init__(self, value):
-        self._value = value
-
-    def scalar_one_or_none(self):
-        return self._value
-
-    def scalar_one(self):
-        return self._value
-
-
-class _FakeDb:
-    def __init__(self, value):
-        self._value = value
-        self.last_statement = None
-        self.last_params = None
-
-    def execute(self, statement, params=None):
-        self.last_statement = statement
-        self.last_params = params
-        return _Result(self._value)
-
-
-class _SubmissionDb:
-    def __init__(
-        self,
-        form: Form,
-        *,
-        start_number: int = 42,
-        commit_raises: Exception | None = None,
-    ):
-        self.form = form
-        self.start_number = start_number
-        self.commit_raises = commit_raises
-        self.added: list[Submission] = []
-        self.committed = False
-        self.rolled_back = False
-        self.refreshed: list[Submission] = []
-
-    def execute(self, statement, params=None):
-        if "next_start_number" in str(statement):
-            return _Result(self.start_number)
-        return _Result(self.form)
-
-    def add(self, submission: Submission) -> None:
-        self.added.append(submission)
-
-    def flush(self) -> None:
-        for submission in self.added:
-            if submission.id is None:
-                submission.id = uuid.uuid4()
-
-    def commit(self) -> None:
-        if self.commit_raises is not None:
-            raise self.commit_raises
-        self.committed = True
-
-    def rollback(self) -> None:
-        self.rolled_back = True
-
-    def refresh(self, submission: Submission) -> None:
-        self.refreshed.append(submission)
 
 
 def _settings(storage_root: Path | None = None) -> Settings:
@@ -161,25 +100,29 @@ def test_get_sequence_date_accepts_europe_warsaw_timezone():
 
 
 def test_get_next_start_number_returns_int_from_db():
-    db = _FakeDb(7)
+    db = FakeAsyncDb(7)
 
-    assert get_next_start_number(db, date(2026, 7, 3)) == 7
+    result = asyncio.run(get_next_start_number(db, date(2026, 7, 3)))
+
+    assert result == 7
 
 
 def test_get_next_start_number_uses_next_start_number_query():
-    db = _FakeDb(7)
+    db = FakeAsyncDb(7)
     sequence_date = date(2026, 7, 3)
 
-    get_next_start_number(db, sequence_date)
+    asyncio.run(get_next_start_number(db, sequence_date))
 
     assert "next_start_number" in str(db.last_statement)
     assert db.last_params == {"sequence_date": sequence_date}
 
 
 def test_create_guest_submission_creates_guest_submission(tmp_path):
-    db = _SubmissionDb(_form(), start_number=7)
+    db = FakeAsyncSubmissionDb(_form(), start_number=7)
 
-    submission = create_guest_submission(db, _guest_data(), _settings(tmp_path))
+    submission = asyncio.run(
+        create_guest_submission(db, _guest_data(), _settings(tmp_path))
+    )
 
     assert submission.mode == SubmissionMode.GUEST
     assert submission.user_id is None
@@ -195,16 +138,18 @@ def test_create_guest_submission_creates_guest_submission(tmp_path):
 
 
 def test_create_guest_submission_does_not_persist_when_required_fields_missing():
-    db = _SubmissionDb(
+    db = FakeAsyncSubmissionDb(
         _form(schema_json={"required": ["first_name", "last_name"]}),
         start_number=7,
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        create_guest_submission(
-            db,
-            _guest_data(payload_json={"first_name": "Jan"}),
-            _settings(),
+        asyncio.run(
+            create_guest_submission(
+                db,
+                _guest_data(payload_json={"first_name": "Jan"}),
+                _settings(),
+            )
         )
 
     assert exc_info.value.status_code == 400
@@ -214,9 +159,13 @@ def test_create_guest_submission_does_not_persist_when_required_fields_missing()
 
 
 def test_create_guest_submission_rolls_back_when_commit_fails(tmp_path):
-    db = _SubmissionDb(_form(), start_number=7, commit_raises=RuntimeError("db error"))
+    db = FakeAsyncSubmissionDb(
+        _form(),
+        start_number=7,
+        commit_raises=RuntimeError("db error"),
+    )
 
     with pytest.raises(RuntimeError, match="db error"):
-        create_guest_submission(db, _guest_data(), _settings(tmp_path))
+        asyncio.run(create_guest_submission(db, _guest_data(), _settings(tmp_path)))
 
     assert db.rolled_back is True

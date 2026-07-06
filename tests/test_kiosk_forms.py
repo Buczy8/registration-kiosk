@@ -1,5 +1,4 @@
 import uuid
-from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,25 +8,10 @@ from app.core.deps import KIOSK_TOKEN_HEADER
 from app.db.session import get_db
 from app.models.form import Form
 from main import app
+from tests.fakes.async_db import FakeAsyncDb, async_get_db_override
 
 TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
 TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
-
-
-class _Result:
-    def __init__(self, value):
-        self._value = value
-
-    def scalar_one_or_none(self):
-        return self._value
-
-
-class _FakeDb:
-    def __init__(self, value):
-        self._value = value
-
-    def execute(self, _statement):
-        return _Result(self._value)
 
 
 def _form() -> Form:
@@ -65,13 +49,6 @@ def client(kiosk_settings: Settings) -> TestClient:
     app.dependency_overrides.pop(get_db, None)
 
 
-def _fake_get_db(value):
-    def override_get_db() -> Generator[_FakeDb, None, None]:
-        yield _FakeDb(value)
-
-    return override_get_db
-
-
 def test_active_form_requires_token(client: TestClient):
     response = client.get("/api/v1/kiosk/forms/active")
 
@@ -87,7 +64,7 @@ def test_active_form_requires_token(client: TestClient):
 
 def test_active_form_returns_active_form_without_pdf_template_path(client: TestClient):
     form = _form()
-    app.dependency_overrides[get_db] = _fake_get_db(form)
+    app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncDb(form))
 
     response = client.get(
         "/api/v1/kiosk/forms/active",
@@ -107,7 +84,7 @@ def test_active_form_returns_active_form_without_pdf_template_path(client: TestC
 
 
 def test_active_form_returns_404_when_no_active_form(client: TestClient):
-    app.dependency_overrides[get_db] = _fake_get_db(None)
+    app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncDb(None))
 
     response = client.get(
         "/api/v1/kiosk/forms/active",

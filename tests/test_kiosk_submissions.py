@@ -1,5 +1,4 @@
 import uuid
-from collections.abc import Generator
 from datetime import date
 
 import pytest
@@ -13,52 +12,11 @@ from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, 
 from app.models.form import Form
 from app.models.submission import Submission
 from main import app
+from tests.fakes.async_db import FakeAsyncSubmissionDb, async_get_db_override
 from tests.signature_samples import sample_signature_base64
 
 TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
 TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
-
-
-class _Result:
-    def __init__(self, value):
-        self._value = value
-
-    def scalar_one_or_none(self):
-        return self._value
-
-    def scalar_one(self):
-        return self._value
-
-
-class _SubmissionDb:
-    def __init__(self, form: Form, *, start_number: int = 42, existing_submission: Submission | None = None):
-        self.form = form
-        self.start_number = start_number
-        self.sequence_date = date(2026, 7, 3)
-        self._existing_submission = existing_submission
-
-    def execute(self, statement, params=None):
-        if "next_start_number" in str(statement):
-            return _Result(self.start_number)
-        if "FROM submissions" in str(statement):
-            return _Result(self._existing_submission)
-        return _Result(self.form)
-
-    def add(self, submission: Submission) -> None:
-        self._submission = submission
-
-    def flush(self) -> None:
-        if hasattr(self, "_submission") and self._submission.id is None:
-            self._submission.id = uuid.uuid4()
-
-    def commit(self) -> None:
-        pass
-
-    def rollback(self) -> None:
-        pass
-
-    def refresh(self, submission: Submission) -> None:
-        submission.id = uuid.uuid4()
 
 
 def _form() -> Form:
@@ -127,13 +85,6 @@ def client(kiosk_settings: Settings) -> TestClient:
     app.dependency_overrides.pop(get_db, None)
 
 
-def _fake_get_db(db: _SubmissionDb):
-    def override_get_db() -> Generator[_SubmissionDb, None, None]:
-        yield db
-
-    return override_get_db
-
-
 def test_create_guest_submission_requires_token(client: TestClient):
     response = client.post("/api/v1/kiosk/submissions", json=_valid_payload())
 
@@ -143,8 +94,8 @@ def test_create_guest_submission_requires_token(client: TestClient):
 
 def test_create_guest_submission_returns_201_for_valid_request(client: TestClient):
     form = _form()
-    db = _SubmissionDb(form, start_number=42)
-    app.dependency_overrides[get_db] = _fake_get_db(db)
+    db = FakeAsyncSubmissionDb(form, start_number=42)
+    app.dependency_overrides[get_db] = async_get_db_override(db)
 
     response = client.post(
         "/api/v1/kiosk/submissions",
@@ -167,7 +118,7 @@ def test_create_guest_submission_returns_201_for_valid_request(client: TestClien
 
 def test_create_guest_submission_returns_422_for_invalid_enum(client: TestClient):
     form = _form()
-    app.dependency_overrides[get_db] = _fake_get_db(_SubmissionDb(form))
+    app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncSubmissionDb(form))
 
     response = client.post(
         "/api/v1/kiosk/submissions",
@@ -181,7 +132,7 @@ def test_create_guest_submission_returns_422_for_invalid_enum(client: TestClient
 
 def test_create_guest_submission_returns_422_when_declarations_not_accepted(client: TestClient):
     form = _form()
-    app.dependency_overrides[get_db] = _fake_get_db(_SubmissionDb(form))
+    app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncSubmissionDb(form))
 
     response = client.post(
         "/api/v1/kiosk/submissions",
@@ -195,7 +146,7 @@ def test_create_guest_submission_returns_422_when_declarations_not_accepted(clie
 
 def test_create_guest_submission_returns_400_when_required_fields_missing(client: TestClient):
     form = _form()
-    app.dependency_overrides[get_db] = _fake_get_db(_SubmissionDb(form))
+    app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncSubmissionDb(form))
 
     response = client.post(
         "/api/v1/kiosk/submissions",
@@ -246,8 +197,8 @@ def test_generate_guest_pdf_returns_pdf_for_guest_submission(client: TestClient,
         pdf_path=None,
         status=SubmissionStatus.SUBMITTED,
     )
-    db = _SubmissionDb(form, existing_submission=submission)
-    app.dependency_overrides[get_db] = _fake_get_db(db)
+    db = FakeAsyncSubmissionDb(form, existing_submission=submission)
+    app.dependency_overrides[get_db] = async_get_db_override(db)
 
     response = client.get(
         f"/api/v1/kiosk/submissions/{submission.id}/pdf",
@@ -282,7 +233,9 @@ def test_generate_guest_pdf_returns_404_for_account_submission(client: TestClien
         pdf_path=None,
         status=SubmissionStatus.SUBMITTED,
     )
-    app.dependency_overrides[get_db] = _fake_get_db(_SubmissionDb(form, existing_submission=submission))
+    app.dependency_overrides[get_db] = async_get_db_override(
+        FakeAsyncSubmissionDb(form, existing_submission=submission)
+    )
 
     response = client.get(
         f"/api/v1/kiosk/submissions/{submission.id}/pdf",
