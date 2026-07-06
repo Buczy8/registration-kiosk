@@ -7,6 +7,11 @@ from secrets import token_urlsafe
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
+import jwt
+from datetime import datetime, timedelta, UTC
+from uuid import UUID
+from app.core.config import Settings
+
 _password_hasher = PasswordHasher()
 
 
@@ -35,3 +40,18 @@ def verify_password(plain: str, hashed: str) -> bool:
     except VerifyMismatchError:
         return False
     return True
+
+
+def create_access_token(user_id: UUID, settings: Settings) -> str:
+    """
+    Tworzy token JWT dla podanego user_id, korzystając z konfiguracji aplikacji.
+    """
+    expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
+
+    to_encode = {"sub": str(user_id), "exp": expire}
+
+    return jwt.encode(
+        to_encode,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm
+    )
