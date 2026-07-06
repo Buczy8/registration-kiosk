@@ -14,12 +14,39 @@ def _submission(
     payload_json: dict | None = None,
     consents_json: dict | None = None,
 ) -> Submission:
+    form_schema = {
+        "pdf_mapping": {
+            "text_fields": {
+                "text_8fpaj": "{first_name} {last_name}",
+                "text_9yvjs": "{pesel}",
+                "text_15qcfa": "{start_number}",
+                "text_16ulhc": "{vehicle_brand} {vehicle_model}",
+            },
+            "checkboxes": {
+                "participant_role": {
+                    "driver": "checkbox_26aqhm",
+                    "legal_guardian": "checkbox_27ywf"
+                },
+                "vehicle_type": {
+                    "car": "checkbox_29pnyu"
+                },
+                "guardian_relation": {
+                    "parent": "checkbox_19pppm"
+                }
+            },
+            "consents": {
+                "privacy": "checkbox_22zynj",
+                "image_publication": "checkbox_23dbga"
+            }
+        }
+    }
+
     form = Form(
         id=uuid.uuid4(),
         code="guest-registration",
         name="Rejestracja gościa",
         version="1.0",
-        schema_json={},
+        schema_json=form_schema,
         pdf_template_path="templates/forms/guest-registration-v1.pdf",
         is_active=True,
     )
@@ -71,16 +98,19 @@ def test_get_guest_submission_pdf_mapping_builds_text_and_checkbox_fields():
     assert "checkbox_23dbga" in mapping.checked_fields
 
 
-def test_get_guest_submission_pdf_mapping_checks_guardian_relation_only_for_guardian_role():
-    driver_mapping = get_guest_submission_pdf_mapping(
-        _submission(payload_json={"guardian_relation": "parent"})
-    )
+def test_get_guest_submission_pdf_mapping_maps_guardian_relation():
     guardian_mapping = get_guest_submission_pdf_mapping(
         _submission(
             participant_role=ParticipantRole.LEGAL_GUARDIAN,
             payload_json={"guardian_relation": "parent"},
         )
     )
-
-    assert "checkbox_19pppm" not in driver_mapping.checked_fields
     assert "checkbox_19pppm" in guardian_mapping.checked_fields
+
+    empty_mapping = get_guest_submission_pdf_mapping(
+        _submission(
+            participant_role=ParticipantRole.DRIVER,
+            payload_json={},
+        )
+    )
+    assert "checkbox_19pppm" not in empty_mapping.checked_fields

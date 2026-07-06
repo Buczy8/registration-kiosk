@@ -61,6 +61,47 @@ ACTIVE_FORM_DATA = {
             "signature_place": {"type": "string", "title": "Data i miejscowość"},
         },
         "identity_document_rule": "pesel_or_id_card",
+        "pdf_mapping": {
+            "signature": {
+                "page": 0,
+                "rect": [597, 476, 719, 507]
+            },
+            "text_fields": {
+                "text_8fpaj": "{first_name} {last_name}",
+                "text_9yvjs": "{pesel}{id_card_series} {id_card_number}",
+                "text_10oepk": "{residence_address}",
+                "text_11nkcj": "{birth_date}",
+                "text_12fueu": "{phone}",
+                "text_13ywdm": "{email}",
+                "text_14ofnm": "{emergency_contact_name}, {emergency_contact_phone}",
+                "text_15qcfa": "{start_number}",
+                "text_16ulhc": "{vehicle_brand} {vehicle_model}",
+                "text_17bbxm": "{vehicle_registration_number}",
+                "text_18lzou": "{minor_first_name} {minor_last_name}",
+                "text_24wgja": "{signature_place}"
+            },
+            "checkboxes": {
+                "participant_role": {
+                    "driver": "checkbox_26aqhm",
+                    "passenger": "checkbox_3klde",
+                    "legal_guardian": "checkbox_27ywf"
+                },
+                "vehicle_type": {
+                    "car": "checkbox_29pnyu",
+                    "motorcycle": "checkbox_25ahnh",
+                    "gokart": "checkbox_30txms"
+                },
+                "guardian_relation": {
+                    "parent": "checkbox_19pppm",
+                    "guardian": "checkbox_20jfuy",
+                    "authorized_person": "checkbox_21iohl"
+                }
+            },
+            "consents": {
+                "privacy": "checkbox_22zynj",
+                "image_publication": "checkbox_23dbga"
+            }
+        }
     },
     "pdf_template_path": "templates/forms/guest-registration-v1.pdf",
     "is_active": True,
@@ -69,7 +110,7 @@ ACTIVE_FORM_DATA = {
 
 def _deactivate_other_active_forms(db: Session, *, except_code: str) -> None:
     for form in db.execute(
-        select(Form).where(Form.is_active.is_(True), Form.code != except_code)
+            select(Form).where(Form.is_active.is_(True), Form.code != except_code)
     ).scalars():
         form.is_active = False
 

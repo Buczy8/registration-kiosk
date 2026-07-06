@@ -12,9 +12,6 @@ from app.core.config import PROJECT_ROOT, Settings, get_settings
 from app.models.enums import SubmissionMode
 from app.models.submission import Submission
 from app.services.pdf_mapping import (
-    MANAGED_CHECKBOX_FIELDS,
-    SIGNATURE_PDF_PAGE,
-    SIGNATURE_PDF_RECT,
     PdfFieldMapping,
     get_guest_submission_pdf_mapping,
 )
@@ -34,7 +31,7 @@ def _write_pdf_fields(doc: fitz.Document, mapping: PdfFieldMapping) -> None:
             if widget.field_name in mapping.text_values:
                 widget.field_value = mapping.text_values[widget.field_name]
                 widget.update()
-            elif widget.field_name in MANAGED_CHECKBOX_FIELDS:
+            elif widget.field_name in mapping.managed_checkboxes:
                 if widget.field_name in mapping.checked_fields:
                     widget.field_value = widget.on_state() or "Yes"
                 else:
@@ -43,22 +40,26 @@ def _write_pdf_fields(doc: fitz.Document, mapping: PdfFieldMapping) -> None:
 
 
 def _embed_signature_image(
-    doc: fitz.Document,
-    submission: Submission,
-    settings: Settings | None,
+        doc: fitz.Document,
+        submission: Submission,
+        settings: Settings | None,
+        mapping: PdfFieldMapping,
 ) -> None:
     if settings is None or not submission.signature_path:
+        return
+
+    if mapping.signature_page is None or mapping.signature_rect is None:
         return
 
     image_bytes = load_submission_signature_bytes(settings, submission.signature_path)
     if not image_bytes:
         return
 
-    if SIGNATURE_PDF_PAGE >= len(doc):
+    if mapping.signature_page >= len(doc):
         return
 
-    page = doc[SIGNATURE_PDF_PAGE]
-    page.insert_image(SIGNATURE_PDF_RECT, stream=image_bytes, keep_proportion=True)
+    page = doc[mapping.signature_page]
+    page.insert_image(mapping.signature_rect, stream=image_bytes, keep_proportion=True)
 
 
 def fill_guest_submission_template(submission: Submission, *, settings: Settings | None = None) -> bytes:
@@ -73,14 +74,13 @@ def fill_guest_submission_template(submission: Submission, *, settings: Settings
         )
 
     mapping = get_guest_submission_pdf_mapping(submission)
-    
+
     with fitz.open(template_path) as doc:
         if hasattr(doc, "need_appearances"):
             doc.need_appearances(True)
 
         _write_pdf_fields(doc, mapping)
-        _embed_signature_image(doc, submission, settings)
-
+        _embed_signature_image(doc, submission, settings, mapping)
         return doc.write(garbage=4, deflate=True)
 
 

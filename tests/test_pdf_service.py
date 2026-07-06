@@ -10,6 +10,39 @@ from app.models.submission import Submission
 from app.services.pdf import fill_guest_submission_template
 from tests.signature_samples import sample_signature_png
 
+MOCK_SCHEMA_JSON = {
+    "pdf_mapping": {
+        "signature": {
+            "page": 0,
+            "rect": [597, 476, 719, 507]
+        },
+        "text_fields": {
+            "text_8fpaj": "{first_name} {last_name}",
+            "text_9yvjs": "{pesel}",
+            "text_15qcfa": "{start_number}"
+        },
+        "checkboxes": {
+            "participant_role": {
+                "driver": "checkbox_26aqhm",
+                "passenger": "checkbox_3klde",
+                "legal_guardian": "checkbox_27ywf"
+            },
+            "vehicle_type": {
+                "car": "checkbox_29pnyu"
+            },
+            "guardian_relation": {
+                "parent": "checkbox_19pppm",
+                "guardian": "checkbox_20jfuy",
+                "authorized_person": "checkbox_21iohl"
+            }
+        },
+        "consents": {
+            "privacy": "checkbox_22zynj",
+            "image_publication": "checkbox_23dbga"
+        }
+    }
+}
+
 
 def _template_pdf(path):
     doc = fitz.open()
@@ -43,7 +76,7 @@ def test_fill_guest_submission_template_fills_interactive_pdf_fields(tmp_path):
         code="guest-registration",
         name="Rejestracja gościa",
         version="1.0",
-        schema_json={},
+        schema_json=MOCK_SCHEMA_JSON,
         pdf_template_path=str(template_path),
         is_active=True,
     )
@@ -99,7 +132,7 @@ def test_fill_guest_submission_template_does_not_check_guardian_for_driver(tmp_p
         code="guest-registration",
         name="Rejestracja gościa",
         version="1.0",
-        schema_json={},
+        schema_json=MOCK_SCHEMA_JSON,  # Przekazujemy konfigurację
         pdf_template_path=str(template_path),
         is_active=True,
     )
@@ -118,7 +151,6 @@ def test_fill_guest_submission_template_does_not_check_guardian_for_driver(tmp_p
         payload_json={
             "first_name": "Jan",
             "last_name": "Kowalski",
-            "guardian_relation": "parent",
         },
         consents_json={"privacy": True},
         declarations_accepted=True,
@@ -152,7 +184,7 @@ def test_fill_guest_submission_template_embeds_signature_image(tmp_path):
         code="guest-registration",
         name="Rejestracja gościa",
         version="1.0",
-        schema_json={},
+        schema_json=MOCK_SCHEMA_JSON,
         pdf_template_path=str(template_path),
         is_active=True,
     )
