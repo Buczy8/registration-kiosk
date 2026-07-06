@@ -23,7 +23,7 @@ GUARDIAN_RELATION_FIELDS = {
 PRIVACY_CONSENT_FIELD = "checkbox_22zynj"
 IMAGE_PUBLICATION_CONSENT_FIELD = "checkbox_23dbga"
 SIGNATURE_PDF_PAGE = 0
-# Szablon: documentation/Uniwersalne Oświadczenie Uczestnika... (strona 792x612 pt, pozioma).
+# Szablon: templates/forms/guest-registration-v1.pdf (strona 792x612 pt, pozioma).
 # Pole text_24wgja (data i miejscowość): Rect(413, 497, 537, 507), linia pod spodem y=508.5.
 # Podpis: linia x=597..719, y=508.5, etykieta "Czytelny Podpis Uczestnika / Opiekuna" pod linią.
 SIGNATURE_PDF_RECT = fitz.Rect(597, 476, 719, 507)

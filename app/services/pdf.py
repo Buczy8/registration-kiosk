@@ -67,7 +67,10 @@ def fill_guest_submission_template(submission: Submission, *, settings: Settings
 
     template_path = _resolve_template_path(submission.form.pdf_template_path)
     if not template_path.exists():
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PDF template not found")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"PDF template not found: {template_path}",
+        )
 
     mapping = get_guest_submission_pdf_mapping(submission)
     doc = fitz.open(template_path)
