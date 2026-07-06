@@ -9,7 +9,7 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATABASE_URL = "postgresql+psycopg://kiosk:kiosk@localhost:5432/kiosk"
+DEFAULT_DATABASE_URL = "postgresql+psycopg_async://kiosk:kiosk@localhost:5432/kiosk"
 PLACEHOLDER_KIOSK_TOKEN = "change-me-kiosk-token-min-16-chars"
 PLACEHOLDER_JWT_SECRET_KEY = "change-me-jwt-secret-key-min-32-characters-long"
 

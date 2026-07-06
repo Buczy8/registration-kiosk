@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 
@@ -8,9 +9,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 from app.models.form import Form
 
 ACTIVE_FORM_CODE = "guest-registration"
@@ -108,22 +109,24 @@ ACTIVE_FORM_DATA = {
 }
 
 
-def _deactivate_other_active_forms(db: Session, *, except_code: str) -> None:
-    for form in db.execute(
-            select(Form).where(Form.is_active.is_(True), Form.code != except_code)
-    ).scalars():
+async def _deactivate_other_active_forms(db: AsyncSession, *, except_code: str) -> None:
+    result = await db.execute(
+        select(Form).where(Form.is_active.is_(True), Form.code != except_code)
+    )
+    for form in result.scalars():
         form.is_active = False
 
 
-def seed_active_form(db: Session | None = None) -> Form:
+async def seed_active_form(db: AsyncSession | None = None) -> Form:
     owns_session = db is None
-    db = db or SessionLocal()
+    db = db or AsyncSessionLocal()
     try:
-        _deactivate_other_active_forms(db, except_code=ACTIVE_FORM_CODE)
+        await _deactivate_other_active_forms(db, except_code=ACTIVE_FORM_CODE)
 
-        form = db.execute(
+        result = await db.execute(
             select(Form).where(Form.code == ACTIVE_FORM_CODE)
-        ).scalar_one_or_none()
+        )
+        form = result.scalar_one_or_none()
 
         if form is None:
             form = Form(**ACTIVE_FORM_DATA)
@@ -132,23 +135,27 @@ def seed_active_form(db: Session | None = None) -> Form:
             for key, value in ACTIVE_FORM_DATA.items():
                 setattr(form, key, value)
 
-        db.commit()
-        db.refresh(form)
+        await db.commit()
+        await db.refresh(form)
         return form
     except Exception:
-        db.rollback()
+        await db.rollback()
         raise
     finally:
         if owns_session:
-            db.close()
+            await db.close()
 
 
-def main() -> None:
-    form = seed_active_form()
+async def async_main() -> None:
+    form = await seed_active_form()
     print(
         f"Seeded active form: code={form.code}, id={form.id}, "
         f"version={form.version}, is_active={form.is_active}"
     )
+
+
+def main() -> None:
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":

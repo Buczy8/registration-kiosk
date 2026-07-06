@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -13,13 +14,13 @@ router = APIRouter(tags=["health"])
     summary="Health check",
     description="Zwraca stan aplikacji i polaczenia z baza danych.",
 )
-def health(
-    db: Session = Depends(get_db),
+async def health(
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, str | bool]:
     db_status = "ok"
     try:
-        db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
     except Exception:
         db_status = "error"
 

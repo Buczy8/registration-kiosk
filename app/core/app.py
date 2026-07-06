@@ -39,6 +39,6 @@ def create_lifespan(settings: Settings):
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         settings.ensure_storage_dirs()
         yield
-        engine.dispose()
+        await engine.dispose()
 
     return lifespan

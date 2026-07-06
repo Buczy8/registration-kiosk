@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.models.submission import Submission
@@ -20,21 +20,20 @@ def get_sequence_date(settings: Settings) -> date:
     return datetime.now(ZoneInfo(settings.start_number_timezone)).date()
 
 
-def get_next_start_number(db: Session, sequence_date: date) -> int:
-    return int(
-        db.execute(
-            text("SELECT next_start_number(:sequence_date)"),
-            {"sequence_date": sequence_date},
-        ).scalar_one()
+async def get_next_start_number(db: AsyncSession, sequence_date: date) -> int:
+    result = await db.execute(
+        text("SELECT next_start_number(:sequence_date)"),
+        {"sequence_date": sequence_date},
     )
+    return int(result.scalar_one())
 
 
-def create_guest_submission(
-    db: Session,
+async def create_guest_submission(
+    db: AsyncSession,
     data: GuestSubmissionCreate,
     settings: Settings,
 ) -> Submission:
-    form = get_active_form(db)
+    form = await get_active_form(db)
     validate_required_fields(form.schema_json, data.payload_json)
 
     try:
@@ -43,7 +42,7 @@ def create_guest_submission(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
     sequence_date = get_sequence_date(settings)
-    start_number = get_next_start_number(db, sequence_date)
+    start_number = await get_next_start_number(db, sequence_date)
 
     submission = build_guest_submission(
         form=form,
@@ -52,19 +51,19 @@ def create_guest_submission(
         sequence_date=sequence_date,
     )
     db.add(submission)
+
     try:
-        db.flush()
+        await db.flush()
         signature_path, signature_hash, signed_at = save_submission_signature(
-            settings,
-            submission.id,
-            image_bytes,
+            settings, submission.id, image_bytes
         )
         submission.signature_path = signature_path
         submission.signature_hash = signature_hash
         submission.signed_at = signed_at
-        db.commit()
+        await db.commit()
     except Exception:
-        db.rollback()
+        await db.rollback()
         raise
-    db.refresh(submission)
+
+    await db.refresh(submission)
     return submission

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -19,13 +20,13 @@ router = APIRouter(prefix="/submissions")
     status_code=status.HTTP_201_CREATED,
     summary="Utworzenie zgłoszenia gościa",
 )
-def create_guest(
+async def create_guest(
     data: GuestSubmissionCreate,
     _: KioskAuth,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> GuestSubmissionResponse:
-    submission = create_guest_submission(db=db, data=data, settings=settings)
+    submission = await create_guest_submission(db=db, data=data, settings=settings)
     return GuestSubmissionResponse.model_validate(submission)
 
 
@@ -36,12 +37,12 @@ def create_guest(
         200: {"content": {"application/pdf": {}}},
     },
 )
-def generate_guest_pdf(
+async def generate_guest_pdf(
     submission_id: UUID,
     _: KioskAuth,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> Response:
-    submission, pdf_bytes = generate_guest_submission_pdf(db=db, submission_id=submission_id)
+    submission, pdf_bytes = await generate_guest_submission_pdf(db=db, submission_id=submission_id)
     filename = f"submission-{submission.start_number}.pdf"
     return Response(
         content=pdf_bytes,

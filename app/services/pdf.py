@@ -6,7 +6,8 @@ from uuid import UUID
 from fastapi import HTTPException, status
 import fitz
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import PROJECT_ROOT, Settings, get_settings
 from app.models.enums import SubmissionMode
@@ -84,15 +85,23 @@ def fill_guest_submission_template(submission: Submission, *, settings: Settings
         return doc.write(garbage=4, deflate=True)
 
 
-def generate_guest_submission_pdf(db: Session, submission_id: UUID) -> tuple[Submission, bytes]:
-    submission = db.execute(select(Submission).where(Submission.id == submission_id)).scalar_one_or_none()
+async def generate_guest_submission_pdf(db: AsyncSession, submission_id: UUID) -> tuple[Submission, bytes]:
+    stmt = (
+        select(Submission)
+        .options(selectinload(Submission.form))
+        .where(Submission.id == submission_id)
+    )
+    result = await db.execute(stmt)
+    submission = result.scalar_one_or_none()
+
     if submission is None or submission.mode != SubmissionMode.GUEST:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
     settings = get_settings()
     pdf_bytes = fill_guest_submission_template(submission, settings=settings)
     submission.pdf_path = f"generated://submissions/{submission.id}.pdf"
+
     db.add(submission)
-    db.commit()
-    db.refresh(submission)
+    await db.commit()
+    await db.refresh(submission)
     return submission, pdf_bytes
