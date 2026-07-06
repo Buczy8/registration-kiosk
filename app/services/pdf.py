@@ -73,15 +73,15 @@ def fill_guest_submission_template(submission: Submission, *, settings: Settings
         )
 
     mapping = get_guest_submission_pdf_mapping(submission)
-    doc = fitz.open(template_path)
-    try:
+    
+    with fitz.open(template_path) as doc:
         if hasattr(doc, "need_appearances"):
             doc.need_appearances(True)
+
         _write_pdf_fields(doc, mapping)
         _embed_signature_image(doc, submission, settings)
+
         return doc.write(garbage=4, deflate=True)
-    finally:
-        doc.close()
 
 
 def generate_guest_submission_pdf(db: Session, submission_id: UUID) -> tuple[Submission, bytes]:
