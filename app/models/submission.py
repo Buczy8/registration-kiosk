@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 import uuid
 
 from sqlalchemy import (
@@ -81,8 +81,8 @@ class Submission(Base):
     vehicle_type: Mapped[VehicleType] = mapped_column(vehicle_type_enum, nullable=False)
     start_number: Mapped[int] = mapped_column(Integer, nullable=False)
     sequence_date: Mapped[date] = mapped_column(Date, nullable=False)
-    payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    consents_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    consents_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     declarations_accepted: Mapped[bool] = mapped_column(Boolean, nullable=False)
     signature_path: Mapped[str | None] = mapped_column(Text)
     signature_hash: Mapped[str | None] = mapped_column(String(128))

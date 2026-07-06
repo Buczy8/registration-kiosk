@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,7 +15,7 @@ class ActiveFormResponse(BaseModel):
     code: str
     name: str
     version: str
-    form_schema: dict = Field(
+    form_schema: dict[str, Any] = Field(
         default_factory=dict,
         validation_alias="schema_json",
         serialization_alias="schema_json",

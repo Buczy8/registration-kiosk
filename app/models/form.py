@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 import uuid
 
 from sqlalchemy import Boolean, DateTime, Index, String, Text, func, text
@@ -33,7 +33,7 @@ class Form(Base):
     code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
-    schema_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    schema_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     pdf_template_path: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(

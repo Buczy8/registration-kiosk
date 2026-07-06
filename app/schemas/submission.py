@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -9,8 +10,8 @@ from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, 
 class GuestSubmissionCreate(BaseModel):
     participant_role: ParticipantRole
     vehicle_type: VehicleType
-    payload_json: dict = Field(min_length=1)
-    consents_json: dict = Field(min_length=1)
+    payload_json: dict[str, Any] = Field(min_length=1)
+    consents_json: dict[str, Any] = Field(min_length=1)
     declarations_accepted: bool
     signature_image_base64: str = Field(min_length=1)
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 import uuid
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, func, text
@@ -62,7 +62,7 @@ class UserProfile(Base):
     document_number: Mapped[str | None] = mapped_column(String(50))
     ice_name: Mapped[str | None] = mapped_column(String(150))
     ice_phone: Mapped[str | None] = mapped_column(String(30))
-    vehicles_json: Mapped[dict] = mapped_column(
+    vehicles_json: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
     updated_at: Mapped[datetime] = mapped_column(
