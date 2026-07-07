@@ -9,6 +9,7 @@ from app.schemas.auth import (
     RegisterRequest,
     UserPublic,
 )
+from app.schemas.profile import FormPrefillResponse, ProfileResponse, VehicleData
 
 __all__ = [
     "ActiveFormResponse",
@@ -21,4 +22,7 @@ __all__ = [
     "PasswordResetRequest",
     "PasswordResetConfirm",
     "MessageResponse",
+    "VehicleData",
+    "ProfileResponse",
+    "FormPrefillResponse",
 ]
