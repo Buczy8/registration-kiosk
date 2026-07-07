@@ -55,3 +55,25 @@ def create_access_token(user_id: UUID, settings: Settings) -> str:
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm
     )
+
+def decode_access_token(token: str, settings: Settings) -> UUID:
+    """
+    Dekoduje token JWT i zwraca identyfikator użytkownika jako UUID.
+    Rzuca wyjątki jwt.InvalidTokenError lub jwt.ExpiredSignatureError w przypadku błędu.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm]
+        )
+
+        user_id_str = payload.get("sub")
+
+        if not user_id_str:
+            raise jwt.InvalidTokenError("Brak pola 'sub' w tokenie")
+
+        return UUID(user_id_str)
+
+    except ValueError as e:
+        raise jwt.InvalidTokenError("Nieprawidłowy format UUID w tokenie") from e
