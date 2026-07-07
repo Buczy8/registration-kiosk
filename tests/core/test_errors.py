@@ -9,3 +9,7 @@ def test_error_code_for_status_maps_bad_request():
 
 def test_error_code_for_status_maps_conflict():
     assert _error_code_for_status(HTTPStatus.CONFLICT) == "conflict"
+
+
+def test_error_code_for_status_maps_locked():
+    assert _error_code_for_status(HTTPStatus.LOCKED) == "locked"
