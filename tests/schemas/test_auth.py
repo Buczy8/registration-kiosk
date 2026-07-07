@@ -4,7 +4,19 @@ from pydantic import ValidationError
 from app.schemas.auth import RegisterRequest
 
 
-def test_register_request_accepts_strong_password():
+def test_register_request_accepts_email_and_password_only():
+    data = RegisterRequest(
+        email="jan.kowalski@example.com",
+        password="StrongPass1",
+    )
+
+    assert data.email == "jan.kowalski@example.com"
+    assert data.first_name is None
+    assert data.last_name is None
+    assert data.phone is None
+
+
+def test_register_request_accepts_optional_profile_fields():
     data = RegisterRequest(
         email="jan.kowalski@example.com",
         password="StrongPass1",
@@ -13,7 +25,7 @@ def test_register_request_accepts_strong_password():
         phone="+48 500 600 700",
     )
 
-    assert data.email == "jan.kowalski@example.com"
+    assert data.first_name == "Jan"
 
 
 @pytest.mark.parametrize(

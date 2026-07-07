@@ -91,9 +91,6 @@ def _register_payload(email: str = "jan.kowalski@example.com") -> dict:
     return {
         "email": email,
         "password": "StrongPass1",
-        "first_name": "Jan",
-        "last_name": "Kowalski",
-        "phone": "+48 500 600 700",
     }
 
 
