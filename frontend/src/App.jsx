@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { createGuestSubmission, createAccountSubmission, getActiveForm } from "./api/kiosk.js";
 import GuestRegistrationForm from "./components/GuestRegistrationForm.jsx";
 import SubmissionResult from "./components/SubmissionResult.jsx";
+import StartScreen from "./pages/StartScreen.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
 
 export default function App() {
   const { isAuthenticated, logout, isInitializing, user, token } = useAuth();
 
+  const [view, setView] = useState("start");
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -19,6 +21,7 @@ export default function App() {
     if (isAuthenticated) {
       logout();
       alert("Sesja wygasła ze względów bezpieczeństwa.");
+      setView("start");
     }
   });
 
@@ -74,7 +77,14 @@ export default function App() {
   function handleNewSubmission() {
     setSubmissions(null);
     setSubmitError(null);
+    setView("start");
   }
+
+  useEffect(() => {
+    if (isAuthenticated && view === "start") {
+      setView("guest");
+    }
+  }, [isAuthenticated, view]);
 
   if (isInitializing) {
     return <p className="status-card">Odtwarzanie sesji...</p>;
@@ -97,19 +107,39 @@ export default function App() {
     return <SubmissionResult submissions={submissions} onNewSubmission={handleNewSubmission} />;
   }
 
+  if (view === "start" && !isAuthenticated) {
+    return (
+      <StartScreen
+        onGuest={() => setView("guest")}
+        onLogin={() => {
+          alert("Funkcja logowania w przygotowaniu");
+        }}
+        onRegister={() => {
+          alert("Funkcja rejestracji w przygotowaniu");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="app-container">
-      {/* Prosty pasek użytkownika widoczny tylko po zalogowaniu */}
       {isAuthenticated && user && (
         <div className="user-bar" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: '#f0f0f0', marginBottom: '20px', borderRadius: '4px' }}>
           <span>Zalogowano jako: <strong>{user.email}</strong></span>
-          <button onClick={logout} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
+          <button onClick={() => { logout(); setView("start"); }} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
             Wyloguj się
           </button>
         </div>
       )}
 
-      {/* Następnym krokiem będzie pewnie przekazanie danych do prefill w tym komponencie, jeśli użytkownik jest zalogowany */}
+      {!isAuthenticated && (
+        <div style={{ marginBottom: '15px' }}>
+            <button className="secondary-button" onClick={() => setView("start")}>
+              &larr; Wróć
+            </button>
+        </div>
+      )}
+
       <GuestRegistrationForm
         form={form}
         onSubmit={handleSubmit}

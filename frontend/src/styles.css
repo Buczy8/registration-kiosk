@@ -438,3 +438,63 @@ select {
     max-height: calc(100dvh - 16rem);
   }
 }
+
+/* --- Start Screen Styles --- */
+.start-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 48px); /* uwzględnienie paddingu w #root */
+}
+
+.start-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(17 24 39 / 8%);
+  width: 100%;
+  max-width: 540px;
+  gap: 24px;
+}
+
+.start-card h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #111827;
+}
+
+.start-card p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 1.15rem;
+}
+
+.start-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  margin-top: 16px;
+}
+
+/* Modyfikator dla przycisków obsługiwanych dotykowo */
+.touch-button {
+  min-height: 80px; 
+  font-size: 1.4rem;
+  padding: 16px 24px;
+  border-radius: 16px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease-in-out, background-color 0.2s;
+}
+
+.touch-button:active {
+  transform: scale(0.98);
+}
