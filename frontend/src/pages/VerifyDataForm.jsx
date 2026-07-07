@@ -1,24 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import { getFormPrefill } from "../api/auth.js";
 import { FORM_SUBTITLE } from "../content/participantDeclarations.js";
 import {
-  IDENTITY_DOCUMENT_TYPES,
   PERSONAL_DATA_FIELDS,
-  SIGNATURE_PLACE_FIELD,
-  VEHICLE_DATA_FIELDS,
   buildPayloadJson,
   buildSubmissionPayload,
   getRoleLabel,
   getVehicleLabel,
   inferIdentityDocumentType,
   mapPrefillToFormData,
-  validateForm,
 } from "../lib/registrationFormShared.js";
+import { buildFormSchema, flattenZodErrors } from "../lib/registrationSchemas.js";
 import DeclarationsPanel from "../components/DeclarationsPanel.jsx";
-import RadioGroup from "../components/RadioGroup.jsx";
-import { renderFields } from "../components/registrationFormFields.jsx";
-import SignaturePad from "../components/SignaturePad.jsx";
+import FormValidationAlert from "../components/form/FormValidationAlert.jsx";
+import IdentityDocumentSection from "../components/form/IdentityDocumentSection.jsx";
+import PersonalDataSection from "../components/form/PersonalDataSection.jsx";
+import SignatureSection from "../components/form/SignatureSection.jsx";
+import VehicleDataSection from "../components/form/VehicleDataSection.jsx";
 
 export default function VerifyDataForm({
   form,
@@ -30,16 +31,39 @@ export default function VerifyDataForm({
   submitting,
   submitError,
 }) {
-  const schema = form.schema_json || {};
+  const schema = useMemo(() => form.schema_json || {}, [form.schema_json]);
   const properties = schema.properties || {};
+  const formSchema = useMemo(
+    () => buildFormSchema({ schemaJson: schema, requireRoleSelection: false }),
+    [schema],
+  );
 
-  const [formData, setFormData] = useState({});
-  const [identityDocumentType, setIdentityDocumentType] = useState("pesel");
-  const [declarationsReviewed, setDeclarationsReviewed] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
-  const [signatureImageBase64, setSignatureImageBase64] = useState(null);
   const [loadingPrefill, setLoadingPrefill] = useState(true);
   const [prefillError, setPrefillError] = useState(null);
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    getValues,
+    reset,
+  } = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      participantRole: role,
+      vehicleType,
+      identityDocumentType: "pesel",
+      payload: {},
+      declarationsReviewed: false,
+      signatureImageBase64: "",
+      minors: [],
+    },
+  });
+
+  const formData = useWatch({ control, name: "payload" }) || {};
+  const identityDocumentType = useWatch({ control, name: "identityDocumentType" }) || "pesel";
+  const declarationsReviewed = useWatch({ control, name: "declarationsReviewed" }) || false;
 
   const loadPrefill = useCallback(async () => {
     setLoadingPrefill(true);
@@ -47,67 +71,58 @@ export default function VerifyDataForm({
     try {
       const prefill = await getFormPrefill(token, role, vehicleType);
       const mapped = mapPrefillToFormData(prefill);
-      setFormData(mapped);
-      setIdentityDocumentType(inferIdentityDocumentType(mapped));
+      reset({
+        participantRole: role,
+        vehicleType,
+        identityDocumentType: inferIdentityDocumentType(mapped),
+        payload: mapped,
+        declarationsReviewed: false,
+        signatureImageBase64: "",
+        minors: [],
+      });
+      setValidationErrors([]);
     } catch (error) {
       setPrefillError(error.message || "Nie udało się pobrać danych profilu.");
     } finally {
       setLoadingPrefill(false);
     }
-  }, [token, role, vehicleType]);
+  }, [token, role, vehicleType, reset]);
 
   useEffect(() => {
     loadPrefill();
   }, [loadPrefill]);
 
   function updateField(fieldName, value) {
-    setFormData((current) => ({ ...current, [fieldName]: value }));
+    setValue(`payload.${fieldName}`, value, { shouldDirty: true });
   }
 
   function handleIdentityDocumentTypeChange(value) {
-    setIdentityDocumentType(value);
-    setFormData((current) => {
-      const next = { ...current };
-      if (value === "pesel") {
-        delete next.id_card_series;
-        delete next.id_card_number;
-      } else {
-        delete next.pesel;
-      }
-      return next;
-    });
-  }
-
-  function handleSubmit(event) {
-    event.preventDefault();
-
-    const basePayload = buildPayloadJson(formData, schema, identityDocumentType);
-    const errors = validateForm({
-      schema,
-      payload: basePayload,
-      participantRole: role,
-      vehicleType,
-      declarationsReviewed,
-      identityDocumentType,
-      signatureImageBase64,
-      requireRoleSelection: false,
-    });
-
-    if (errors.length > 0) {
-      setValidationErrors(errors);
+    setValue("identityDocumentType", value, { shouldDirty: true });
+    if (value === "pesel") {
+      setValue("payload.id_card_series", "");
+      setValue("payload.id_card_number", "");
       return;
     }
+    setValue("payload.pesel", "");
+  }
 
+  const handleValidSubmit = (data) => {
+    const basePayload = buildPayloadJson(data.payload, schema, data.identityDocumentType);
     setValidationErrors([]);
     onSubmit(
       buildSubmissionPayload({
         basePayload,
         participantRole: role,
         vehicleType,
-        signatureImageBase64,
+        signatureImageBase64: data.signatureImageBase64,
       }),
     );
-  }
+  };
+
+  const handleInvalidSubmit = () => {
+    const result = formSchema.safeParse(getValues());
+    setValidationErrors(flattenZodErrors(result));
+  };
 
   if (loadingPrefill) {
     return <p className="status-card">Ładowanie danych profilu...</p>;
@@ -130,7 +145,7 @@ export default function VerifyDataForm({
   }
 
   return (
-    <form className="guest-form" onSubmit={handleSubmit}>
+    <form className="guest-form" onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}>
       <header className="form-header">
         <p className="eyebrow">Konto użytkownika</p>
         <h1>Weryfikacja danych – Autodrom Biłgoraj</h1>
@@ -151,103 +166,48 @@ export default function VerifyDataForm({
         </button>
       </fieldset>
 
+      <PersonalDataSection
+        title="Dane uczestnika"
+        hint="Sprawdź i popraw dane przed wysłaniem formularza."
+        fieldNames={PERSONAL_DATA_FIELDS}
+        properties={properties}
+        schema={schema}
+        formData={formData}
+        updateField={updateField}
+      />
       <fieldset className="form-card">
-        <legend>Dane uczestnika</legend>
-        <p className="hint">Sprawdź i popraw dane przed wysłaniem formularza.</p>
-        {renderFields(PERSONAL_DATA_FIELDS, properties, schema, formData, updateField)}
-        <div className="identity-fields">
-          <RadioGroup
-            legend="Dokument tożsamości"
-            name="identity_document_type"
-            options={IDENTITY_DOCUMENT_TYPES}
-            value={identityDocumentType}
-            onChange={handleIdentityDocumentTypeChange}
-          />
-          {identityDocumentType === "pesel" ? (
-            <label className="field">
-              <span>{properties.pesel?.title || "PESEL"}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formData.pesel || ""}
-                onChange={(event) => updateField("pesel", event.target.value)}
-                pattern={properties.pesel?.pattern}
-                maxLength={11}
-                required
-              />
-            </label>
-          ) : (
-            <div className="field-row">
-              <label className="field">
-                <span>{properties.id_card_series?.title || "Seria dowodu osobistego"}</span>
-                <input
-                  type="text"
-                  value={formData.id_card_series || ""}
-                  onChange={(event) => updateField("id_card_series", event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>{properties.id_card_number?.title || "Numer dowodu osobistego"}</span>
-                <input
-                  type="text"
-                  value={formData.id_card_number || ""}
-                  onChange={(event) => updateField("id_card_number", event.target.value)}
-                  required
-                />
-              </label>
-            </div>
-          )}
-        </div>
+        <legend>Dokument tożsamości</legend>
+        <IdentityDocumentSection
+          properties={properties}
+          identityDocumentType={identityDocumentType}
+          onIdentityDocumentTypeChange={handleIdentityDocumentTypeChange}
+          formData={formData}
+          updateField={updateField}
+        />
       </fieldset>
-
-      <fieldset className="form-card">
-        <legend>Dane pojazdu</legend>
-        <p className="hint">Pola opcjonalne — wypełnij, jeśli dotyczy.</p>
-        {renderFields(VEHICLE_DATA_FIELDS, properties, schema, formData, updateField, {
-          forceOptional: true,
-        })}
-      </fieldset>
+      <VehicleDataSection properties={properties} schema={schema} formData={formData} updateField={updateField} />
 
       <fieldset className="form-card">
         <legend>Oświadczenia oraz akceptacja ryzyka</legend>
         <p className="hint">Zapoznaj się z pełną treścią poniżej. Przewiń tekst do końca przed wysłaniem.</p>
-        <DeclarationsPanel reviewed={declarationsReviewed} onReviewed={() => setDeclarationsReviewed(true)} />
+        <DeclarationsPanel
+          reviewed={declarationsReviewed}
+          onReviewed={() => setValue("declarationsReviewed", true, { shouldDirty: true })}
+        />
         {!declarationsReviewed && (
           <p className="review-hint">Przewiń oświadczenia do końca, aby wysłać formularz.</p>
         )}
       </fieldset>
 
-      <fieldset className="form-card">
-        <legend>Data i miejscowość oraz podpis</legend>
-        <div className="signature-section">
-          <label className="field signature-place-field">
-            <span>{properties.signature_place?.title || "Data i miejscowość"}</span>
-            <input
-              type="text"
-              value={formData.signature_place || ""}
-              onChange={(event) => updateField(SIGNATURE_PLACE_FIELD, event.target.value)}
-              placeholder="np. Biłgoraj, 03.07.2026"
-              required
-            />
-          </label>
-          <div className="signature-pad-field">
-            <p className="signature-footer-label">Czytelny podpis uczestnika</p>
-            <SignaturePad onChange={setSignatureImageBase64} disabled={submitting} />
-          </div>
-        </div>
-      </fieldset>
-
-      {validationErrors.length > 0 && (
-        <div className="alert" role="alert">
-          <p>Błędy walidacji:</p>
-          <ul>
-            {validationErrors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <SignatureSection
+        properties={properties}
+        formData={formData}
+        updateField={updateField}
+        signatureLabel="Czytelny podpis uczestnika"
+        onSignatureChange={(value) => setValue("signatureImageBase64", value, { shouldDirty: true })}
+        submitting={submitting}
+      />
+      <FormValidationAlert errors={validationErrors} />
 
       {submitError && (
         <div className="alert" role="alert">

@@ -1,0 +1,305 @@
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { createAccountSubmission, createGuestSubmission, getActiveForm } from "../api/kiosk.js";
+import GuestRegistrationForm from "../components/GuestRegistrationForm.jsx";
+import SubmissionResult from "../components/SubmissionResult.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useIdleLogout } from "../hooks/useIdleLogout.js";
+import GuardianPlaceholder from "../pages/GuardianPlaceholder.jsx";
+import LoginPage from "../pages/LoginPage.jsx";
+import RegisterPage from "../pages/RegisterPage.jsx";
+import RoleVehicleSelect from "../pages/RoleVehicleSelect.jsx";
+import StartScreen from "../pages/StartScreen.jsx";
+import VerifyDataForm from "../pages/VerifyDataForm.jsx";
+import GuestOnlyRoute from "./GuestOnlyRoute.jsx";
+import ProtectedRoute from "./ProtectedRoute.jsx";
+
+export default function AppRouter() {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, isInitializing, user, token } = useAuth();
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [submissions, setSubmissions] = useState(null);
+  const [submissionIsAccount, setSubmissionIsAccount] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [startInfoMessage, setStartInfoMessage] = useState(null);
+
+  function resetAccountSelection() {
+    setSelectedRole(null);
+    setSelectedVehicle(null);
+    setSubmitError(null);
+  }
+
+  function handleLogout() {
+    logout();
+    setSubmissions(null);
+    setSubmissionIsAccount(false);
+    resetAccountSelection();
+    navigate("/");
+  }
+
+  useIdleLogout({
+    enabled: isAuthenticated,
+    onIdle: () => {
+      handleLogout();
+      setStartInfoMessage("Sesja wygasła ze względów bezpieczeństwa.");
+    },
+  });
+
+  useEffect(() => {
+    if (!startInfoMessage) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setStartInfoMessage(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [startInfoMessage]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadForm() {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const activeForm = await getActiveForm();
+        if (!cancelled) {
+          setForm(activeForm);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadForm();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleGuestSubmit(payloadOrArray) {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const payloads = Array.isArray(payloadOrArray) ? payloadOrArray : [payloadOrArray];
+      const results = [];
+      for (const payload of payloads) {
+        results.push(await createGuestSubmission(payload));
+      }
+      setSubmissionIsAccount(false);
+      setSubmissions(results);
+      navigate("/result");
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleAccountSubmit(payload) {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await createAccountSubmission(payload, token);
+      setSubmissionIsAccount(true);
+      setSubmissions([result]);
+      navigate("/result");
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleGuestNewSubmission() {
+    setSubmissions(null);
+    setSubmitError(null);
+    navigate("/");
+  }
+
+  function handleAccountNewForm() {
+    setSubmissions(null);
+    setSubmitError(null);
+    resetAccountSelection();
+    navigate("/account/role");
+  }
+
+  function handleRoleVehicleContinue({ role, vehicle }) {
+    setSelectedRole(role);
+    setSelectedVehicle(vehicle);
+    navigate("/account/verify");
+  }
+
+  if (isInitializing) {
+    return <p className="status-card">Odtwarzanie sesji...</p>;
+  }
+  if (loading) {
+    return <p className="status-card">Ładowanie formularza...</p>;
+  }
+  if (loadError) {
+    return (
+      <div className="status-card alert" role="alert">
+        <p>Nie udało się pobrać formularza: {loadError}</p>
+        <p>Sprawdź, czy backend działa i czy VITE_KIOSK_TOKEN jest poprawny.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {isAuthenticated && (
+        <div className="app-container">
+          <div
+            className="user-bar"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "10px",
+              backgroundColor: "#f0f0f0",
+              marginBottom: "20px",
+              borderRadius: "4px",
+            }}
+          >
+            <span>
+              Zalogowano jako: <strong>{user?.email}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                background: "#dc3545",
+                color: "#fff",
+                border: "none",
+                padding: "5px 10px",
+                borderRadius: "3px",
+                cursor: "pointer",
+              }}
+            >
+              Wyloguj się
+            </button>
+          </div>
+        </div>
+      )}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <GuestOnlyRoute>
+              <StartScreen
+                infoMessage={startInfoMessage}
+                onGuest={() => navigate("/guest")}
+                onLogin={() => navigate("/login")}
+                onRegister={() => navigate("/register")}
+              />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <GuestOnlyRoute>
+              <LoginPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/role")} />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <GuestOnlyRoute>
+              <RegisterPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/role")} />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/guest"
+          element={
+            <GuestOnlyRoute>
+              <div className="app-container">
+                <div style={{ marginBottom: "15px" }}>
+                  <button className="secondary-button" type="button" onClick={() => navigate("/")}>
+                    &larr; Wróć
+                  </button>
+                </div>
+                <GuestRegistrationForm
+                  form={form}
+                  onSubmit={handleGuestSubmit}
+                  submitting={submitting}
+                  submitError={submitError}
+                />
+              </div>
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/account/role"
+          element={
+            <ProtectedRoute>
+              <div className="app-container">
+                <RoleVehicleSelect
+                  onContinue={handleRoleVehicleContinue}
+                  defaultRole={user?.last_participant_role || ""}
+                  defaultVehicle={user?.last_vehicle_type || ""}
+                />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/verify"
+          element={
+            <ProtectedRoute>
+              {!selectedRole || !selectedVehicle ? (
+                <Navigate to="/account/role" replace />
+              ) : selectedRole === "legal_guardian" ? (
+                <div className="app-container">
+                  <GuardianPlaceholder onBack={() => navigate("/account/role")} />
+                </div>
+              ) : (
+                <div className="app-container">
+                  <VerifyDataForm
+                    form={form}
+                    role={selectedRole}
+                    vehicleType={selectedVehicle}
+                    token={token}
+                    onSubmit={handleAccountSubmit}
+                    onBack={() => navigate("/account/role")}
+                    submitting={submitting}
+                    submitError={submitError}
+                  />
+                </div>
+              )}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/result"
+          element={
+            submissions ? (
+              <SubmissionResult
+                submissions={submissions}
+                isAccountMode={submissionIsAccount}
+                onNewSubmission={handleGuestNewSubmission}
+                onNewForm={handleAccountNewForm}
+                onLogout={handleLogout}
+              />
+            ) : (
+              <Navigate to={isAuthenticated ? "/account/role" : "/"} replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/account/role" : "/"} replace />} />
+      </Routes>
+    </>
+  );
+}

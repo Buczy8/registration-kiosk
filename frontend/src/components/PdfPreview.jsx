@@ -4,8 +4,6 @@ import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
-const PAGE_GAP_PX = 8;
-
 async function loadPageSizes(pdf) {
     const sizes = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {

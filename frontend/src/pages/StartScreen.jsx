@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function StartScreen({ onGuest, onLogin, onRegister, infoMessage }) {
   return (
     <div className="start-screen">

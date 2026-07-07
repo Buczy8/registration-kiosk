@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 const MIN_STROKE_LENGTH = 40;
 const STROKE_WIDTH = 2.5;
@@ -86,7 +86,6 @@ export default function SignaturePad({ onChange, disabled = false }) {
   const strokesRef = useRef([]);
   const activeStrokeRef = useRef(null);
   const drawingRef = useRef(false);
-  const [isEmpty, setIsEmpty] = useState(true);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,7 +107,6 @@ export default function SignaturePad({ onChange, disabled = false }) {
 
   function notifyChange(strokes) {
     const empty = totalStrokeLength(strokes) < MIN_STROKE_LENGTH;
-    setIsEmpty(empty);
     if (empty) {
       onChange?.(null);
       return;

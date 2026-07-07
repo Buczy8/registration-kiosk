@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
   FORM_SUBTITLE,
@@ -8,127 +10,120 @@ import {
 import {
   GUARDIAN_FIELDS,
   GUARDIAN_RELATIONS,
-  IDENTITY_DOCUMENT_TYPES,
   PARTICIPANT_ROLES,
   PERSONAL_DATA_FIELDS,
   SIGNATURE_PLACE_FIELD,
-  VEHICLE_DATA_FIELDS,
   VEHICLE_TYPES,
   buildPayloadJson,
   buildSubmissionPayload,
   createEmptyMinor,
   getDefaultSignaturePlace,
-  validateForm,
 } from "../lib/registrationFormShared.js";
+import { buildFormSchema, flattenZodErrors } from "../lib/registrationSchemas.js";
 import DeclarationsPanel from "./DeclarationsPanel.jsx";
+import FormValidationAlert from "./form/FormValidationAlert.jsx";
+import IdentityDocumentSection from "./form/IdentityDocumentSection.jsx";
+import PersonalDataSection from "./form/PersonalDataSection.jsx";
+import SignatureSection from "./form/SignatureSection.jsx";
+import VehicleDataSection from "./form/VehicleDataSection.jsx";
 import RadioGroup from "./RadioGroup.jsx";
-import { renderFields, renderMinorVehicleFields } from "./registrationFormFields.jsx";
-import SignaturePad from "./SignaturePad.jsx";
+import { renderMinorVehicleFields } from "./registrationFormFields.jsx";
 
 export default function GuestRegistrationForm({ form, onSubmit, submitting, submitError }) {
-  const schema = form.schema_json || {};
+  const schema = useMemo(() => form.schema_json || {}, [form.schema_json]);
   const properties = schema.properties || {};
+  const formSchema = useMemo(
+    () => buildFormSchema({ schemaJson: schema, requireRoleSelection: true }),
+    [schema],
+  );
 
-  const [participantRole, setParticipantRole] = useState("driver");
-  const [vehicleType, setVehicleType] = useState("car");
-  const [identityDocumentType, setIdentityDocumentType] = useState("pesel");
-  const [formData, setFormData] = useState({
-    [SIGNATURE_PLACE_FIELD]: getDefaultSignaturePlace(),
-  });
-  const [minors, setMinors] = useState([createEmptyMinor()]);
-  const [consents, setConsents] = useState({ image_publication: false });
-  const [declarationsReviewed, setDeclarationsReviewed] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
-  const [signatureImageBase64, setSignatureImageBase64] = useState(null);
+
+  const { control, handleSubmit, setValue, getValues } = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      participantRole: "driver",
+      vehicleType: "car",
+      identityDocumentType: "pesel",
+      payload: {
+        [SIGNATURE_PLACE_FIELD]: getDefaultSignaturePlace(),
+      },
+      declarationsReviewed: false,
+      signatureImageBase64: "",
+      minors: [createEmptyMinor()],
+      consents: { image_publication: false },
+    },
+  });
+
+  const { fields: minors, append, remove, replace } = useFieldArray({ control, name: "minors" });
+
+  const participantRole = useWatch({ control, name: "participantRole" }) || "driver";
+  const vehicleType = useWatch({ control, name: "vehicleType" }) || "car";
+  const identityDocumentType = useWatch({ control, name: "identityDocumentType" }) || "pesel";
+  const formData = useWatch({ control, name: "payload" }) || {};
+  const declarationsReviewed = useWatch({ control, name: "declarationsReviewed" }) || false;
+  const imagePublicationConsent =
+    useWatch({ control, name: "consents.image_publication" }) || false;
 
   function updateField(fieldName, value) {
-    setFormData((current) => ({ ...current, [fieldName]: value }));
+    setValue(`payload.${fieldName}`, value, { shouldDirty: true });
   }
 
-  function updateMinor(minorId, fieldName, value) {
-    setMinors((current) =>
-      current.map((minor) => (minor.id === minorId ? { ...minor, [fieldName]: value } : minor)),
-    );
+  function updateMinor(minorIndex, fieldName, value) {
+    setValue(`minors.${minorIndex}.${fieldName}`, value, { shouldDirty: true });
   }
 
   function addMinor() {
-    setMinors((current) => [...current, createEmptyMinor()]);
+    append(createEmptyMinor());
   }
 
-  function removeMinor(minorId) {
-    setMinors((current) => {
-      if (current.length === 1) {
-        return current;
-      }
-      return current.filter((minor) => minor.id !== minorId);
-    });
+  function removeMinor(index) {
+    if (minors.length === 1) {
+      return;
+    }
+    remove(index);
   }
 
   function handleIdentityDocumentTypeChange(value) {
-    setIdentityDocumentType(value);
-    setFormData((current) => {
-      const next = { ...current };
-      if (value === "pesel") {
-        delete next.id_card_series;
-        delete next.id_card_number;
-      } else {
-        delete next.pesel;
-      }
-      return next;
-    });
+    setValue("identityDocumentType", value, { shouldDirty: true });
+    if (value === "pesel") {
+      setValue("payload.id_card_series", "");
+      setValue("payload.id_card_number", "");
+      return;
+    }
+    setValue("payload.pesel", "");
   }
 
   function handleParticipantRoleChange(value) {
-    setParticipantRole(value);
-    if (value === "legal_guardian") {
-      setMinors([createEmptyMinor()]);
-      return;
-    }
+    setValue("participantRole", value, { shouldDirty: true });
+    replace([createEmptyMinor()]);
 
-    setMinors([createEmptyMinor()]);
-    setFormData((current) => {
-      const next = { ...current };
+    if (value !== "legal_guardian") {
+      const payload = { ...getValues("payload") };
       for (const fieldName of GUARDIAN_FIELDS) {
-        delete next[fieldName];
+        delete payload[fieldName];
       }
-      return next;
-    });
+      setValue("payload", payload, { shouldDirty: true });
+    }
   }
 
-  function handleSubmit(event) {
-    event.preventDefault();
-
-    const basePayload = buildPayloadJson(formData, schema, identityDocumentType, {
-      excludeVehicleFields: participantRole === "legal_guardian",
+  function handleValidSubmit(data) {
+    const basePayload = buildPayloadJson(data.payload, schema, data.identityDocumentType, {
+      excludeVehicleFields: data.participantRole === "legal_guardian",
     });
-    const errors = validateForm({
-      schema,
-      payload: basePayload,
-      participantRole,
-      vehicleType,
-      declarationsReviewed,
-      identityDocumentType,
-      minors,
-      signatureImageBase64,
-    });
-
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
 
     setValidationErrors([]);
 
-    if (participantRole === "legal_guardian") {
+    if (data.participantRole === "legal_guardian") {
       onSubmit(
-        minors.map((minor) =>
+        data.minors.map((minor) =>
           buildSubmissionPayload({
             basePayload,
             minor,
-            participantRole,
-            vehicleType,
-            consents,
-            signatureImageBase64,
+            participantRole: data.participantRole,
+            vehicleType: data.vehicleType,
+            consents: data.consents,
+            signatureImageBase64: data.signatureImageBase64,
           }),
         ),
       );
@@ -138,16 +133,21 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
     onSubmit(
       buildSubmissionPayload({
         basePayload,
-        participantRole,
-        vehicleType,
-        consents,
-        signatureImageBase64,
+        participantRole: data.participantRole,
+        vehicleType: data.vehicleType,
+        consents: data.consents,
+        signatureImageBase64: data.signatureImageBase64,
       }),
     );
   }
 
+  function handleInvalidSubmit() {
+    const result = formSchema.safeParse(getValues());
+    setValidationErrors(flattenZodErrors(result));
+  }
+
   return (
-    <form className="guest-form" onSubmit={handleSubmit}>
+    <form className="guest-form" onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}>
       <header className="form-header">
         <p className="eyebrow">Kiosk gościa</p>
         <h1>Oświadczenie uczestnika – Autodrom Biłgoraj</h1>
@@ -170,79 +170,47 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
             name="vehicle_type"
             options={VEHICLE_TYPES}
             value={vehicleType}
-            onChange={setVehicleType}
+            onChange={(value) => setValue("vehicleType", value, { shouldDirty: true })}
           />
         )}
       </fieldset>
 
+      <PersonalDataSection
+        title={`II. Dane ${participantRole === "legal_guardian" ? "opiekuna" : "uczestnika"}`}
+        hint={participantRole === "legal_guardian" ? "Wypełnij swoje dane jako opiekun prawny." : null}
+        fieldNames={PERSONAL_DATA_FIELDS}
+        properties={properties}
+        schema={schema}
+        formData={formData}
+        updateField={updateField}
+      />
       <fieldset className="form-card">
-        <legend>
-          II. Dane {participantRole === "legal_guardian" ? "opiekuna" : "uczestnika"}
-        </legend>
-        {participantRole === "legal_guardian" && (
-          <p className="hint">Wypełnij swoje dane jako opiekun prawny.</p>
-        )}
-        {renderFields(PERSONAL_DATA_FIELDS, properties, schema, formData, updateField)}
-        <div className="identity-fields">
-          <RadioGroup
-            legend="Dokument tożsamości"
-            name="identity_document_type"
-            options={IDENTITY_DOCUMENT_TYPES}
-            value={identityDocumentType}
-            onChange={handleIdentityDocumentTypeChange}
-          />
-          {identityDocumentType === "pesel" ? (
-            <label className="field">
-              <span>{properties.pesel?.title || "PESEL"}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formData.pesel || ""}
-                onChange={(event) => updateField("pesel", event.target.value)}
-                pattern={properties.pesel?.pattern}
-                maxLength={11}
-                required
-              />
-            </label>
-          ) : (
-            <div className="field-row">
-              <label className="field">
-                <span>{properties.id_card_series?.title || "Seria dowodu osobistego"}</span>
-                <input
-                  type="text"
-                  value={formData.id_card_series || ""}
-                  onChange={(event) => updateField("id_card_series", event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>{properties.id_card_number?.title || "Numer dowodu osobistego"}</span>
-                <input
-                  type="text"
-                  value={formData.id_card_number || ""}
-                  onChange={(event) => updateField("id_card_number", event.target.value)}
-                  required
-                />
-              </label>
-            </div>
-          )}
-        </div>
+        <legend>Dokument tożsamości</legend>
+        <IdentityDocumentSection
+          properties={properties}
+          identityDocumentType={identityDocumentType}
+          onIdentityDocumentTypeChange={handleIdentityDocumentTypeChange}
+          formData={formData}
+          updateField={updateField}
+        />
       </fieldset>
 
       {participantRole !== "legal_guardian" && (
-        <fieldset className="form-card">
-          <legend>III. Dane pojazdu</legend>
-          <p className="hint">Pola opcjonalne — wypełnij, jeśli dotyczy.</p>
-          {renderFields(VEHICLE_DATA_FIELDS, properties, schema, formData, updateField, {
-            forceOptional: true,
-          })}
-        </fieldset>
+        <VehicleDataSection
+          properties={properties}
+          schema={schema}
+          formData={formData}
+          updateField={updateField}
+        />
       )}
 
       <fieldset className="form-card">
         <legend>IV. Oświadczenia oraz akceptacja ryzyka</legend>
         <p className="hint">Zapoznaj się z pełną treścią poniżej. Przewiń tekst do końca przed wysłaniem.</p>
-        <DeclarationsPanel reviewed={declarationsReviewed} onReviewed={() => setDeclarationsReviewed(true)} />
+        <DeclarationsPanel
+          reviewed={declarationsReviewed}
+          onReviewed={() => setValue("declarationsReviewed", true, { shouldDirty: true })}
+        />
         {!declarationsReviewed && (
           <p className="review-hint">Przewiń oświadczenia do końca, aby wysłać formularz.</p>
         )}
@@ -263,7 +231,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
                   <button
                     className="secondary-button minor-remove-button"
                     type="button"
-                    onClick={() => removeMinor(minor.id)}
+                    onClick={() => removeMinor(index)}
                   >
                     Usuń
                   </button>
@@ -274,7 +242,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
                 name={`guardian_relation_${minor.id}`}
                 options={GUARDIAN_RELATIONS}
                 value={minor.guardian_relation}
-                onChange={(value) => updateMinor(minor.id, "guardian_relation", value)}
+                onChange={(value) => updateMinor(index, "guardian_relation", value)}
               />
               <div className="field-row">
                 <label className="field">
@@ -282,9 +250,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
                   <input
                     type="text"
                     value={minor.minor_first_name}
-                    onChange={(event) =>
-                      updateMinor(minor.id, "minor_first_name", event.target.value)
-                    }
+                    onChange={(event) => updateMinor(index, "minor_first_name", event.target.value)}
                     required
                   />
                 </label>
@@ -293,14 +259,14 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
                   <input
                     type="text"
                     value={minor.minor_last_name}
-                    onChange={(event) =>
-                      updateMinor(minor.id, "minor_last_name", event.target.value)
-                    }
+                    onChange={(event) => updateMinor(index, "minor_last_name", event.target.value)}
                     required
                   />
                 </label>
               </div>
-              {renderMinorVehicleFields(minor, properties, updateMinor)}
+              {renderMinorVehicleFields(minor, properties, (_minorId, fieldName, value) =>
+                updateMinor(index, fieldName, value),
+              )}
             </div>
           ))}
           <button className="secondary-button" type="button" onClick={addMinor}>
@@ -309,12 +275,9 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
           <label className="checkbox-field">
             <input
               type="checkbox"
-              checked={consents.image_publication}
+              checked={imagePublicationConsent}
               onChange={(event) =>
-                setConsents((current) => ({
-                  ...current,
-                  image_publication: event.target.checked,
-                }))
+                setValue("consents.image_publication", event.target.checked, { shouldDirty: true })
               }
             />
             <span>{IMAGE_PUBLICATION_CONSENT_TEXT}</span>
@@ -322,36 +285,16 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
         </fieldset>
       )}
 
-      <fieldset className="form-card">
-        <legend>Data i miejscowość oraz podpis</legend>
-        <div className="signature-section">
-          <label className="field signature-place-field">
-            <span>{properties.signature_place?.title || "Data i miejscowość"}</span>
-            <input
-              type="text"
-              value={formData.signature_place || ""}
-              onChange={(event) => updateField(SIGNATURE_PLACE_FIELD, event.target.value)}
-              placeholder="np. Biłgoraj, 03.07.2026"
-              required
-            />
-          </label>
-          <div className="signature-pad-field">
-            <p className="signature-footer-label">Czytelny podpis uczestnika / opiekuna</p>
-            <SignaturePad onChange={setSignatureImageBase64} disabled={submitting} />
-          </div>
-        </div>
-      </fieldset>
+      <SignatureSection
+        properties={properties}
+        formData={formData}
+        updateField={updateField}
+        signatureLabel="Czytelny podpis uczestnika / opiekuna"
+        onSignatureChange={(value) => setValue("signatureImageBase64", value, { shouldDirty: true })}
+        submitting={submitting}
+      />
 
-      {validationErrors.length > 0 && (
-        <div className="alert" role="alert">
-          <p>Błędy walidacji:</p>
-          <ul>
-            {validationErrors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <FormValidationAlert errors={validationErrors} />
 
       {submitError && (
         <div className="alert" role="alert">
