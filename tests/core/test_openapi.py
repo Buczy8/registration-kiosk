@@ -93,6 +93,21 @@ def test_openapi_me_endpoints_require_kiosk_and_bearer_security():
     assert {"OAuth2PasswordBearer": []} in prefill_path["security"]
 
 
+def test_openapi_submissions_endpoint_documents_dual_auth():
+    client = TestClient(create_app(dev_settings()))
+    schema = client.get("/openapi.json").json()
+
+    submissions_post = schema["paths"]["/api/v1/kiosk/submissions"]["post"]
+
+    assert {"KioskToken": []} in submissions_post["security"]
+    assert {"HTTPBearer": []} in submissions_post["security"]
+    assert {"OAuth2PasswordBearer": []} in submissions_post["security"]
+
+    description = submissions_post["description"].lower()
+    assert "guest" in description
+    assert "account" in description
+
+
 def test_openapi_docs_are_disabled_in_production():
     client = TestClient(create_app(prod_settings()))
 

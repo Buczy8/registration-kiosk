@@ -9,15 +9,18 @@ from fastapi import HTTPException
 from app.core.config import Settings
 from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.models.form import Form
-from app.schemas.submission import GuestSubmissionCreate
+from app.models.submission import Submission
+from app.models.user import User, UserProfile
+from app.schemas.submission import AccountSubmissionCreate, GuestSubmissionCreate
 from app.services.submissions import (
+    create_account_submission,
     create_guest_submission,
     get_missing_required_fields,
     get_next_start_number,
     get_sequence_date,
 )
 from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
-from tests.fakes.async_db import FakeAsyncDb, FakeAsyncSubmissionDb
+from tests.fakes.async_db import FakeAsyncDb, FakeAsyncSubmissionDb, FakeResult
 from tests.fixtures.signature_samples import sample_signature_base64
 
 
@@ -166,3 +169,154 @@ def test_create_guest_submission_rolls_back_when_commit_fails(tmp_path):
         asyncio.run(create_guest_submission(db, _guest_data(), _settings(tmp_path)))
 
     assert db.rolled_back is True
+
+
+def _account_data(**overrides) -> AccountSubmissionCreate:
+    payload = {
+        "participant_role": ParticipantRole.DRIVER,
+        "vehicle_type": VehicleType.CAR,
+        "payload_json": {
+            "first_name": "Jan",
+            "last_name": "Kowalski",
+            "vehicle_brand_model": "BMW M3",
+            "vehicle_registration_number": "WX 12345",
+        },
+        "consents_json": {"terms": True},
+        "declarations_accepted": True,
+        "signature_image_base64": sample_signature_base64(),
+    }
+    payload.update(overrides)
+    return AccountSubmissionCreate(**payload)
+
+
+def _user() -> User:
+    return User(
+        id=uuid.uuid4(),
+        email="jan.kowalski@example.com",
+        password_hash="hash",
+        first_name=None,
+        last_name=None,
+        phone=None,
+        is_active=True,
+        failed_login_count=0,
+        locked_until=None,
+    )
+
+
+class _FakeAccountDb:
+    """Async session fake covering form, start_number and profile lookups."""
+
+    def __init__(self, form: Form, *, start_number: int = 7, profile: UserProfile | None = None):
+        self.form = form
+        self.start_number = start_number
+        self.profile = profile
+        self.added: list = []
+        self.committed = False
+        self.rolled_back = False
+        self.refreshed: list = []
+        self._submission = None
+
+    async def execute(self, statement, params=None):
+        sql = str(statement)
+        if "next_start_number" in sql:
+            return FakeResult(self.start_number)
+        if "user_profiles" in sql:
+            return FakeResult(self.profile)
+        return FakeResult(self.form)
+
+    def add(self, obj) -> None:
+        self.added.append(obj)
+        if isinstance(obj, UserProfile):
+            self.profile = obj
+        elif isinstance(obj, Submission):
+            self._submission = obj
+
+    async def flush(self) -> None:
+        for obj in self.added:
+            if getattr(obj, "id", None) is None:
+                obj.id = uuid.uuid4()
+
+    async def commit(self) -> None:
+        self.committed = True
+
+    async def rollback(self) -> None:
+        self.rolled_back = True
+
+    async def refresh(self, obj) -> None:
+        if getattr(obj, "id", None) is None:
+            obj.id = uuid.uuid4()
+        self.refreshed.append(obj)
+
+
+def test_create_account_submission_sets_account_mode_and_user(tmp_path):
+    user = _user()
+    profile = UserProfile(user_id=user.id, vehicles_json={})
+    db = _FakeAccountDb(_form(), start_number=15, profile=profile)
+
+    submission = asyncio.run(
+        create_account_submission(db, user, _account_data(), _settings(tmp_path))
+    )
+
+    assert submission.mode == SubmissionMode.ACCOUNT
+    assert submission.user_id == user.id
+    assert submission.start_number == 15
+    assert submission.status == SubmissionStatus.SUBMITTED
+    assert submission.signature_path is not None
+    assert submission.signature_hash is not None
+    assert db.committed is True
+
+
+def test_create_account_submission_updates_profile(tmp_path):
+    user = _user()
+    profile = UserProfile(user_id=user.id, vehicles_json={})
+    db = _FakeAccountDb(_form(), start_number=15, profile=profile)
+
+    asyncio.run(create_account_submission(db, user, _account_data(), _settings(tmp_path)))
+
+    assert user.first_name == "Jan"
+    assert user.last_name == "Kowalski"
+    assert profile.vehicles_json["car"]["brand_model"] == "BMW M3"
+    assert profile.vehicles_json["car"]["registration_number"] == "WX 12345"
+
+
+def test_create_account_submission_rolls_back_when_commit_fails(tmp_path):
+    user = _user()
+    profile = UserProfile(user_id=user.id, vehicles_json={})
+    db = _FakeAccountDb(_form(), start_number=15, profile=profile)
+
+    original_commit = db.commit
+
+    async def failing_commit():
+        raise RuntimeError("db error")
+
+    db.commit = failing_commit
+
+    with pytest.raises(RuntimeError, match="db error"):
+        asyncio.run(create_account_submission(db, user, _account_data(), _settings(tmp_path)))
+
+    assert db.rolled_back is True
+
+    db.commit = original_commit
+
+
+def test_create_account_submission_does_not_persist_when_required_fields_missing(tmp_path):
+    user = _user()
+    profile = UserProfile(user_id=user.id, vehicles_json={})
+    db = _FakeAccountDb(
+        _form(schema_json={"required": ["first_name", "last_name"]}),
+        start_number=15,
+        profile=profile,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            create_account_submission(
+                db,
+                user,
+                _account_data(payload_json={"first_name": "Jan"}),
+                _settings(tmp_path),
+            )
+        )
+
+    assert exc_info.value.status_code == 400
+    assert db.committed is False
