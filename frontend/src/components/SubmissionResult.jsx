@@ -3,14 +3,24 @@ import { useEffect, useState } from "react";
 import { fetchSubmissionPdfBlob } from "../api/kiosk.js";
 import PdfPreview from "./PdfPreview.jsx";
 
-export default function SubmissionResult({ submissions, onNewSubmission }) {
+export default function SubmissionResult({
+  submissions,
+  onNewSubmission,
+  isAccountMode = false,
+  onLogout,
+  onNewForm,
+}) {
   const isMultiple = submissions.length > 1;
   const [activeSubmissionId, setActiveSubmissionId] = useState(submissions[0]?.id ?? null);
   const [pdfBlobs, setPdfBlobs] = useState({});
-  const [loadingPreview, setLoadingPreview] = useState(true);
+  const [loadingPreview, setLoadingPreview] = useState(!isAccountMode);
   const [previewError, setPreviewError] = useState(null);
 
   useEffect(() => {
+    if (isAccountMode) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     async function loadPreviews() {
@@ -46,7 +56,7 @@ export default function SubmissionResult({ submissions, onNewSubmission }) {
     return () => {
       cancelled = true;
     };
-  }, [submissions]);
+  }, [submissions, isAccountMode]);
 
   const activePdfBlob = activeSubmissionId ? pdfBlobs[activeSubmissionId] : null;
 
@@ -65,7 +75,7 @@ export default function SubmissionResult({ submissions, onNewSubmission }) {
             <p className="result-number">{submission.start_number}</p>
             <p>Data sekwencji: {submission.sequence_date}</p>
             <p>Status: {submission.status}</p>
-            {isMultiple && (
+            {isMultiple && !isAccountMode && (
               <button
                 className={
                   activeSubmissionId === submission.id ? "primary-button" : "secondary-button"
@@ -80,23 +90,40 @@ export default function SubmissionResult({ submissions, onNewSubmission }) {
         ))}
       </ul>
 
-      <div className="pdf-preview-panel">
-        <h2>Podgląd dokumentu</h2>
-        {loadingPreview && <p>Ładowanie podglądu PDF...</p>}
-        {previewError && (
-          <p className="alert" role="alert">
-            Nie udało się wyświetlić PDF: {previewError}
-          </p>
-        )}
-        {!loadingPreview && !previewError && activePdfBlob && (
-          <PdfPreview blob={activePdfBlob} title="Podgląd zgłoszenia PDF" />
-        )}
-      </div>
+      {!isAccountMode && (
+        <div className="pdf-preview-panel">
+          <h2>Podgląd dokumentu</h2>
+          {loadingPreview && <p>Ładowanie podglądu PDF...</p>}
+          {previewError && (
+            <p className="alert" role="alert">
+              Nie udało się wyświetlić PDF: {previewError}
+            </p>
+          )}
+          {!loadingPreview && !previewError && activePdfBlob && (
+            <PdfPreview blob={activePdfBlob} title="Podgląd zgłoszenia PDF" />
+          )}
+        </div>
+      )}
 
       <div className="actions">
-        <button className="primary-button" type="button" onClick={onNewSubmission}>
-          Nowa rejestracja
-        </button>
+        {isAccountMode ? (
+          <>
+            {onNewForm && (
+              <button className="primary-button" type="button" onClick={onNewForm}>
+                Nowy formularz
+              </button>
+            )}
+            {onLogout && (
+              <button className="secondary-button" type="button" onClick={onLogout}>
+                Wyloguj
+              </button>
+            )}
+          </>
+        ) : (
+          <button className="primary-button" type="button" onClick={onNewSubmission}>
+            Nowa rejestracja
+          </button>
+        )}
       </div>
     </section>
   );

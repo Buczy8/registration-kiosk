@@ -82,7 +82,7 @@ export async function getProfile(token) {
 
 export async function getFormPrefill(token, role, vehicleType) {
   const params = new URLSearchParams();
-  if (role) params.append("participant_role", role);
+  if (role) params.append("role", role);
   if (vehicleType) params.append("vehicle_type", vehicleType);
 
   const queryString = params.toString() ? `?${params.toString()}` : "";

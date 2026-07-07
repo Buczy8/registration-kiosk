@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { createGuestSubmission, createAccountSubmission, getActiveForm } from "./api/kiosk.js";
 import GuestRegistrationForm from "./components/GuestRegistrationForm.jsx";
 import SubmissionResult from "./components/SubmissionResult.jsx";
-import StartScreen from "./pages/StartScreen.jsx";
+import GuardianPlaceholder from "./pages/GuardianPlaceholder.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
+import RoleVehicleSelect from "./pages/RoleVehicleSelect.jsx";
+import StartScreen from "./pages/StartScreen.jsx";
+import VerifyDataForm from "./pages/VerifyDataForm.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
 
@@ -12,18 +15,36 @@ export default function App() {
   const { isAuthenticated, logout, isInitializing, user, token } = useAuth();
 
   const [view, setView] = useState("start");
+  const [accountStep, setAccountStep] = useState("role-select");
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [submissions, setSubmissions] = useState(null);
+  const [submissionIsAccount, setSubmissionIsAccount] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
+  function resetAccountFlow() {
+    setAccountStep("role-select");
+    setSelectedRole(null);
+    setSelectedVehicle(null);
+    setSubmitError(null);
+  }
+
+  function handleLogout() {
+    logout();
+    setView("start");
+    resetAccountFlow();
+    setSubmissions(null);
+    setSubmissionIsAccount(false);
+  }
+
   useIdleLogout(() => {
     if (isAuthenticated) {
-      logout();
+      handleLogout();
       alert("Sesja wygasła ze względów bezpieczeństwa.");
-      setView("start");
     }
   });
 
@@ -55,19 +76,16 @@ export default function App() {
     };
   }, []);
 
-  async function handleSubmit(payloadOrArray) {
+  async function handleGuestSubmit(payloadOrArray) {
     setSubmitting(true);
     setSubmitError(null);
     try {
       const payloads = Array.isArray(payloadOrArray) ? payloadOrArray : [payloadOrArray];
       const results = [];
       for (const payload of payloads) {
-        if (isAuthenticated) {
-          results.push(await createAccountSubmission(payload, token));
-        } else {
-          results.push(await createGuestSubmission(payload));
-        }
+        results.push(await createGuestSubmission(payload));
       }
+      setSubmissionIsAccount(false);
       setSubmissions(results);
     } catch (error) {
       setSubmitError(error.message);
@@ -76,17 +94,41 @@ export default function App() {
     }
   }
 
-  function handleNewSubmission() {
+  async function handleAccountSubmit(payload) {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await createAccountSubmission(payload, token);
+      setSubmissionIsAccount(true);
+      setSubmissions([result]);
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleGuestNewSubmission() {
     setSubmissions(null);
     setSubmitError(null);
     setView("start");
   }
 
-  useEffect(() => {
-    if (isAuthenticated && (view === "start" || view === "login")) {
-      setView("guest");
+  function handleAccountNewForm() {
+    setSubmissions(null);
+    setSubmitError(null);
+    resetAccountFlow();
+  }
+
+  function handleRoleVehicleContinue({ role, vehicle }) {
+    setSelectedRole(role);
+    setSelectedVehicle(vehicle);
+    if (role === "legal_guardian") {
+      setAccountStep("guardian-placeholder");
+      return;
     }
-  }, [isAuthenticated, view]);
+    setAccountStep("verify");
+  }
 
   if (isInitializing) {
     return <p className="status-card">Odtwarzanie sesji...</p>;
@@ -106,60 +148,105 @@ export default function App() {
   }
 
   if (submissions) {
-    return <SubmissionResult submissions={submissions} onNewSubmission={handleNewSubmission} />;
+    return (
+      <SubmissionResult
+        submissions={submissions}
+        isAccountMode={submissionIsAccount}
+        onNewSubmission={handleGuestNewSubmission}
+        onNewForm={handleAccountNewForm}
+        onLogout={handleLogout}
+      />
+    );
   }
 
-  if (view === "start" && !isAuthenticated) {
+  if (!isAuthenticated) {
+    if (view === "start") {
+      return (
+        <StartScreen
+          onGuest={() => setView("guest")}
+          onLogin={() => setView("login")}
+          onRegister={() => setView("register")}
+        />
+      );
+    }
+    if (view === "login") {
+      return <LoginPage onBack={() => setView("start")} />;
+    }
+    if (view === "register") {
+      return <RegisterPage onBack={() => setView("start")} />;
+    }
+
     return (
-      <StartScreen
-        onGuest={() => setView("guest")}
-        onLogin={() => setView("login")}
-        onRegister={() => setView("register")}
-      />
-    );
-  }
-  if (view === "login" && !isAuthenticated) {
-    return (
-      <LoginPage
-        onBack={() => setView("start")}
-        onSuccess={() => setView("guest")}
-      />
-    );
-  }
-  if (view === "register" && !isAuthenticated) {
-    return (
-      <RegisterPage
-        onBack={() => setView("start")}
-        onSuccess={() => setView("guest")}
-      />
+      <div className="app-container">
+        <div style={{ marginBottom: "15px" }}>
+          <button className="secondary-button" type="button" onClick={() => setView("start")}>
+            &larr; Wróć
+          </button>
+        </div>
+        <GuestRegistrationForm
+          form={form}
+          onSubmit={handleGuestSubmit}
+          submitting={submitting}
+          submitError={submitError}
+        />
+      </div>
     );
   }
 
   return (
     <div className="app-container">
-      {isAuthenticated && user && (
-        <div className="user-bar" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: '#f0f0f0', marginBottom: '20px', borderRadius: '4px' }}>
-          <span>Zalogowano jako: <strong>{user.email}</strong></span>
-          <button onClick={() => { logout(); setView("start"); }} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
+      {user && (
+        <div
+          className="user-bar"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "10px",
+            backgroundColor: "#f0f0f0",
+            marginBottom: "20px",
+            borderRadius: "4px",
+          }}
+        >
+          <span>
+            Zalogowano jako: <strong>{user.email}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              background: "#dc3545",
+              color: "#fff",
+              border: "none",
+              padding: "5px 10px",
+              borderRadius: "3px",
+              cursor: "pointer",
+            }}
+          >
             Wyloguj się
           </button>
         </div>
       )}
 
-      {!isAuthenticated && (
-        <div style={{ marginBottom: '15px' }}>
-            <button className="secondary-button" onClick={() => setView("start")}>
-              &larr; Wróć
-            </button>
-        </div>
+      {accountStep === "role-select" && (
+        <RoleVehicleSelect onContinue={handleRoleVehicleContinue} />
       )}
 
-      <GuestRegistrationForm
-        form={form}
-        onSubmit={handleSubmit}
-        submitting={submitting}
-        submitError={submitError}
-      />
+      {accountStep === "guardian-placeholder" && (
+        <GuardianPlaceholder onBack={() => setAccountStep("role-select")} />
+      )}
+
+      {accountStep === "verify" && selectedRole && selectedVehicle && (
+        <VerifyDataForm
+          form={form}
+          role={selectedRole}
+          vehicleType={selectedVehicle}
+          token={token}
+          onSubmit={handleAccountSubmit}
+          onBack={() => setAccountStep("role-select")}
+          submitting={submitting}
+          submitError={submitError}
+        />
+      )}
     </div>
   );
 }
