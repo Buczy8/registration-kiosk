@@ -75,7 +75,7 @@ export async function login(payload) {
 export async function getProfile(token) {
   const response = await request("/me/profile", {
     method: "GET",
-    headers: authHeaders(token, null),T
+    headers: authHeaders(token, null),
   });
   return response.json();
 }

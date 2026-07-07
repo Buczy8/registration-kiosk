@@ -4,6 +4,7 @@ import GuestRegistrationForm from "./components/GuestRegistrationForm.jsx";
 import SubmissionResult from "./components/SubmissionResult.jsx";
 import StartScreen from "./pages/StartScreen.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import RegisterPage from "./pages/RegisterPage.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
 
@@ -113,15 +114,21 @@ export default function App() {
       <StartScreen
         onGuest={() => setView("guest")}
         onLogin={() => setView("login")}
-        onRegister={() => {
-          alert("Funkcja rejestracji w przygotowaniu");
-        }}
+        onRegister={() => setView("register")}
       />
     );
   }
   if (view === "login" && !isAuthenticated) {
     return (
       <LoginPage
+        onBack={() => setView("start")}
+        onSuccess={() => setView("guest")}
+      />
+    );
+  }
+  if (view === "register" && !isAuthenticated) {
+    return (
+      <RegisterPage
         onBack={() => setView("start")}
         onSuccess={() => setView("guest")}
       />
