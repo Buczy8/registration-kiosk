@@ -40,12 +40,12 @@ AUTH_FAILURE_MESSAGE = "Invalid email or password"
 PASSWORD_RESET_MESSAGE = "If the email exists, password reset instructions will be sent"
 
 
-def _auth_response(user, settings: Settings) -> AuthResponse:
+def _auth_response(user_id, email: str, settings: Settings) -> AuthResponse:
     return AuthResponse(
-        access_token=create_access_token(user.id, settings),
+        access_token=create_access_token(user_id, settings),
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
-        user=UserPublic(user_id=user.id, email=user.email),
+        user=UserPublic(user_id=user_id, email=email),
     )
 
 
@@ -62,7 +62,7 @@ async def register(
         )
 
     user = await create_user(db, data)
-    return _auth_response(user, settings)
+    return _auth_response(user.id, user.email, settings)
 
 
 async def login(
@@ -90,8 +90,11 @@ async def login(
             detail=AUTH_FAILURE_MESSAGE,
         )
 
+    # Preserve scalar values before commit (commit expires ORM attributes).
+    user_id = user.id
+    user_email = user.email
     await reset_failed_login(db, user)
-    return _auth_response(user, settings)
+    return _auth_response(user_id, user_email, settings)
 
 
 async def request_password_reset(
@@ -104,6 +107,7 @@ async def request_password_reset(
         return MessageResponse(message=PASSWORD_RESET_MESSAGE)
 
     raw_token = generate_reset_token()
+    user_email = user.email
     reset_token = PasswordResetToken(
         user_id=user.id,
         token_hash=hash_reset_token(raw_token),
@@ -115,7 +119,7 @@ async def request_password_reset(
     await db.commit()
 
     if not settings.smtp_host:
-        logger.info("Password reset link for %s: /reset-password?token=%s", user.email, raw_token)
+        logger.info("Password reset link for %s: /reset-password?token=%s", user_email, raw_token)
 
     return MessageResponse(message=PASSWORD_RESET_MESSAGE)
 
