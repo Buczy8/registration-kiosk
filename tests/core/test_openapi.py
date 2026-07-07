@@ -69,6 +69,30 @@ def test_openapi_auth_endpoints_require_kiosk_token_security():
     assert {"KioskToken": []} in reset_confirm_path["security"]
 
 
+def test_openapi_schema_contains_me_endpoints():
+    client = TestClient(create_app(dev_settings()))
+    schema = client.get("/openapi.json").json()
+
+    assert "/api/v1/me/profile" in schema["paths"]
+    assert "/api/v1/me/form-prefill" in schema["paths"]
+
+
+def test_openapi_me_endpoints_require_kiosk_and_bearer_security():
+    client = TestClient(create_app(dev_settings()))
+    schema = client.get("/openapi.json").json()
+
+    profile_path = schema["paths"]["/api/v1/me/profile"]["get"]
+    prefill_path = schema["paths"]["/api/v1/me/form-prefill"]["get"]
+
+    assert {"KioskToken": []} in profile_path["security"]
+    assert {"HTTPBearer": []} in profile_path["security"]
+    assert {"OAuth2PasswordBearer": []} in profile_path["security"]
+
+    assert {"KioskToken": []} in prefill_path["security"]
+    assert {"HTTPBearer": []} in prefill_path["security"]
+    assert {"OAuth2PasswordBearer": []} in prefill_path["security"]
+
+
 def test_openapi_docs_are_disabled_in_production():
     client = TestClient(create_app(prod_settings()))
 
