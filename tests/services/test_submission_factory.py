@@ -3,11 +3,11 @@ from datetime import date
 
 from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.models.form import Form
-from app.schemas.submission import AccountSubmissionCreate, GuestSubmissionCreate
-from app.services.submission_factory import build_account_submission, build_guest_submission
+from app.schemas.submission import SubmissionCreate
+from app.services.submission_factory import build_submission
 
 
-def test_build_guest_submission_populates_guest_submission_fields():
+def test_build_submission_populates_guest_submission_fields():
     form = Form(
         id=uuid.uuid4(),
         code="guest-registration",
@@ -17,7 +17,7 @@ def test_build_guest_submission_populates_guest_submission_fields():
         pdf_template_path="templates/forms/guest-registration-v1.pdf",
         is_active=True,
     )
-    data = GuestSubmissionCreate(
+    data = SubmissionCreate(
         participant_role=ParticipantRole.DRIVER,
         vehicle_type=VehicleType.CAR,
         payload_json={"first_name": "Jan"},
@@ -26,9 +26,11 @@ def test_build_guest_submission_populates_guest_submission_fields():
         signature_image_base64="dGVzdA==",
     )
 
-    submission = build_guest_submission(
+    submission = build_submission(
         form=form,
         data=data,
+        mode=SubmissionMode.GUEST,
+        user_id=None,
         start_number=7,
         sequence_date=date(2026, 7, 3),
     )
@@ -58,7 +60,7 @@ def test_build_account_submission_sets_account_mode_and_user_id():
         pdf_template_path="templates/forms/guest-registration-v1.pdf",
         is_active=True,
     )
-    data = AccountSubmissionCreate(
+    data = SubmissionCreate(
         participant_role=ParticipantRole.DRIVER,
         vehicle_type=VehicleType.CAR,
         payload_json={"first_name": "Jan"},
@@ -68,9 +70,10 @@ def test_build_account_submission_sets_account_mode_and_user_id():
     )
     user_id = uuid.uuid4()
 
-    submission = build_account_submission(
+    submission = build_submission(
         form=form,
         data=data,
+        mode=SubmissionMode.ACCOUNT,
         user_id=user_id,
         start_number=11,
         sequence_date=date(2026, 7, 3),
