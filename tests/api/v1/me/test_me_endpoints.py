@@ -89,8 +89,8 @@ def _user() -> User:
     )
 
 
-def _profile(user_id, *, vehicles_json=None) -> UserProfile:
-    return UserProfile(
+def _profile(user_id, *, vehicles_json=None, **overrides) -> UserProfile:
+    profile = UserProfile(
         user_id=user_id,
         address="Warszawa",
         birth_date=date(1990, 1, 1),
@@ -99,6 +99,9 @@ def _profile(user_id, *, vehicles_json=None) -> UserProfile:
         ice_phone="+48 700 800 900",
         vehicles_json=vehicles_json or {},
     )
+    for key, value in overrides.items():
+        setattr(profile, key, value)
+    return profile
 
 
 def _auth_headers(*, with_kiosk=True, with_bearer=False, user_id=None) -> dict[str, str]:
@@ -180,6 +183,9 @@ def test_get_me_form_prefill_driver_car_returns_vehicle_from_profile(client: Tes
         profiles=[
             _profile(
                 user.id,
+                pesel="12345678901",
+                ice_name="Anna Kowalska",
+                ice_phone="+48 700 800 900",
                 vehicles_json={
                     "car": {
                         "brand_model": "BMW M3",
@@ -201,6 +207,27 @@ def test_get_me_form_prefill_driver_car_returns_vehicle_from_profile(client: Tes
     assert payload["participant_role"] == "driver"
     assert payload["vehicle_type"] == "car"
     assert payload["vehicle"]["brand_model"] == "BMW M3"
+    assert payload["pesel"] == "12345678901"
+    assert payload["ice_name"] == "Anna Kowalska"
+
+
+def test_get_me_profile_returns_last_role_and_vehicle(client: TestClient):
+    user = _user()
+    profile = _profile(user.id)
+    profile.last_participant_role = "driver"
+    profile.last_vehicle_type = "car"
+    db = _FakeMeDb(users=[user], profiles=[profile])
+    app.dependency_overrides[get_db] = lambda: db
+
+    response = client.get(
+        "/api/v1/me/profile",
+        headers=_auth_headers(with_kiosk=True, with_bearer=True, user_id=user.id),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["last_participant_role"] == "driver"
+    assert payload["last_vehicle_type"] == "car"
 
 
 def test_get_me_form_prefill_without_query_returns_422(client: TestClient):
@@ -229,4 +256,5 @@ def test_get_me_form_prefill_legal_guardian_returns_minimal_response(client: Tes
     payload = response.json()
     assert payload["participant_role"] == "legal_guardian"
     assert payload["address"] is None
-    assert payload["document_number"] is None
+    assert payload["pesel"] is None
+    assert payload["ice_name"] is None

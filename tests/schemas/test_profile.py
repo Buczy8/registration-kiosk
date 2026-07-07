@@ -36,6 +36,11 @@ def test_form_prefill_response_accepts_personal_and_vehicle_fields():
         address="Warszawa",
         birth_date=date(1990, 1, 1),
         document_number="ABC123",
+        pesel="12345678901",
+        id_card_series="ABC",
+        id_card_number="123456",
+        ice_name="Anna Kowalska",
+        ice_phone="+48 700 800 900",
         participant_role=ParticipantRole.DRIVER,
         vehicle_type=VehicleType.CAR,
         vehicle=VehicleData(brand_model="BMW M3", registration_number="WX 12345"),
@@ -43,4 +48,19 @@ def test_form_prefill_response_accepts_personal_and_vehicle_fields():
 
     assert data.participant_role == ParticipantRole.DRIVER
     assert data.vehicle_type == VehicleType.CAR
+    assert data.pesel == "12345678901"
+    assert data.ice_name == "Anna Kowalska"
+
+
+def test_profile_response_includes_last_role_and_vehicle():
+    user_id = uuid4()
+    payload = ProfileResponse(
+        user_id=user_id,
+        email="jan.kowalski@example.com",
+        last_participant_role=ParticipantRole.DRIVER,
+        last_vehicle_type=VehicleType.CAR,
+    ).model_dump()
+
+    assert payload["last_participant_role"] == "driver"
+    assert payload["last_vehicle_type"] == "car"
 

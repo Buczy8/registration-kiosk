@@ -277,6 +277,8 @@ def test_create_account_submission_updates_profile(tmp_path):
     assert user.last_name == "Kowalski"
     assert profile.vehicles_json["car"]["brand_model"] == "BMW M3"
     assert profile.vehicles_json["car"]["registration_number"] == "WX 12345"
+    assert profile.last_participant_role == "driver"
+    assert profile.last_vehicle_type == "car"
 
 
 def test_create_account_submission_rolls_back_when_commit_fails(tmp_path):
