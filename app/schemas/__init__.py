@@ -1,5 +1,10 @@
 from app.schemas.form import ActiveFormResponse
-from app.schemas.submission import GuestSubmissionCreate, GuestSubmissionResponse
+from app.schemas.submission import (
+    AccountSubmissionCreate,
+    AccountSubmissionResponse,
+    GuestSubmissionCreate,
+    GuestSubmissionResponse,
+)
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
@@ -15,6 +20,8 @@ __all__ = [
     "ActiveFormResponse",
     "GuestSubmissionCreate",
     "GuestSubmissionResponse",
+    "AccountSubmissionCreate",
+    "AccountSubmissionResponse",
     "RegisterRequest",
     "LoginRequest",
     "UserPublic",

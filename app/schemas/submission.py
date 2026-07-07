@@ -35,3 +35,32 @@ class GuestSubmissionResponse(BaseModel):
     start_number: int
     sequence_date: date
     status: SubmissionStatus
+
+
+class AccountSubmissionCreate(BaseModel):
+    participant_role: ParticipantRole
+    vehicle_type: VehicleType
+    payload_json: dict[str, Any] = Field(min_length=1)
+    consents_json: dict[str, Any] = Field(min_length=1)
+    declarations_accepted: bool
+
+    @field_validator("declarations_accepted")
+    @classmethod
+    def declarations_must_be_accepted(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Declarations must be accepted")
+        return value
+
+
+class AccountSubmissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    form_id: UUID
+    form_version: str
+    mode: SubmissionMode
+    participant_role: ParticipantRole
+    vehicle_type: VehicleType
+    start_number: int
+    sequence_date: date
+    status: SubmissionStatus
