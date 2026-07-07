@@ -1,6 +1,10 @@
 import { useState } from "react";
 
-import { FORM_SUBTITLE } from "../content/participantDeclarations.js";
+import {
+  FORM_SUBTITLE,
+  GUARDIAN_DECLARATION_INTRO,
+  IMAGE_PUBLICATION_CONSENT_TEXT,
+} from "../content/participantDeclarations.js";
 import DeclarationsPanel from "./DeclarationsPanel.jsx";
 import SignaturePad from "./SignaturePad.jsx";
 
@@ -137,7 +141,6 @@ function validateForm({
   payload,
   participantRole,
   vehicleType,
-  consents,
   declarationsReviewed,
   identityDocumentType,
   minors,
@@ -173,9 +176,6 @@ function validateForm({
 
   if (!declarationsReviewed) {
     errors.push("Przewiń i zapoznaj się z oświadczeniami oraz akceptacją ryzyka.");
-  }
-  if (!consents.privacy) {
-    errors.push("Zaakceptuj zgodę na przetwarzanie danych osobowych.");
   }
   if (!payload[SIGNATURE_PLACE_FIELD]?.trim()) {
     errors.push("Podaj datę i miejscowość.");
@@ -249,7 +249,6 @@ function buildSubmissionPayload({
     vehicle_type: minor?.vehicle_type ?? vehicleType,
     payload_json: payloadJson,
     consents_json: {
-      privacy: true,
       image_publication: consents.image_publication,
     },
     declarations_accepted: true,
@@ -358,7 +357,7 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
     [SIGNATURE_PLACE_FIELD]: getDefaultSignaturePlace(),
   });
   const [minors, setMinors] = useState([createEmptyMinor()]);
-  const [consents, setConsents] = useState({ privacy: false, image_publication: false });
+  const [consents, setConsents] = useState({ image_publication: false });
   const [declarationsReviewed, setDeclarationsReviewed] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [signatureImageBase64, setSignatureImageBase64] = useState(null);
@@ -428,7 +427,6 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
       payload: basePayload,
       participantRole,
       vehicleType,
-      consents,
       declarationsReviewed,
       identityDocumentType,
       minors,
@@ -573,7 +571,8 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
 
       {participantRole === "legal_guardian" && (
         <fieldset className="form-card">
-          <legend>V. Dla opiekunów prawnych</legend>
+          <legend>V. Dla opiekunów prawnych (osoby niepełnoletnie)</legend>
+          <p className="guardian-declaration">{GUARDIAN_DECLARATION_INTRO}</p>
           <p className="hint">
             Dodaj jednego lub więcej podopiecznych. Dla każdego zostanie utworzone osobne zgłoszenie i PDF.
           </p>
@@ -628,60 +627,40 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
           <button className="secondary-button" type="button" onClick={addMinor}>
             Dodaj podopiecznego
           </button>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={consents.image_publication}
+              onChange={(event) =>
+                setConsents((current) => ({
+                  ...current,
+                  image_publication: event.target.checked,
+                }))
+              }
+            />
+            <span>{IMAGE_PUBLICATION_CONSENT_TEXT}</span>
+          </label>
         </fieldset>
       )}
 
       <fieldset className="form-card">
-        <legend>Zgody</legend>
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            checked={consents.privacy}
-            onChange={(event) =>
-              setConsents((current) => ({ ...current, privacy: event.target.checked }))
-            }
-            required
-          />
-          <span>
-            Wyrażam zgodę na przetwarzanie danych osobowych w celu organizacji wydarzenia.{" "}
-            <em>(zgoda obowiązkowa)</em>
-          </span>
-        </label>
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            checked={consents.image_publication}
-            onChange={(event) =>
-              setConsents((current) => ({
-                ...current,
-                image_publication: event.target.checked,
-              }))
-            }
-          />
-          <span>
-            Wyrażam zgodę na nieodpłatne utrwalanie i publikację mojego wizerunku oraz wizerunku
-            mojego pojazdu w celach promocyjnych Autodromu Biłgoraj.
-          </span>
-        </label>
-      </fieldset>
-
-      <fieldset className="form-card">
-        <legend>Data i miejscowość</legend>
-        <label className="field">
-          <span>{properties.signature_place?.title || "Data i miejscowość"}</span>
-          <input
-            type="text"
-            value={formData.signature_place || ""}
-            onChange={(event) => updateField(SIGNATURE_PLACE_FIELD, event.target.value)}
-            placeholder="np. Biłgoraj, 03.07.2026"
-            required
-          />
-        </label>
-      </fieldset>
-
-      <fieldset className="form-card">
-        <legend>Podpis</legend>
-        <SignaturePad onChange={setSignatureImageBase64} disabled={submitting} />
+        <legend>Data i miejscowość oraz podpis</legend>
+        <div className="signature-section">
+          <label className="field signature-place-field">
+            <span>{properties.signature_place?.title || "Data i miejscowość"}</span>
+            <input
+              type="text"
+              value={formData.signature_place || ""}
+              onChange={(event) => updateField(SIGNATURE_PLACE_FIELD, event.target.value)}
+              placeholder="np. Biłgoraj, 03.07.2026"
+              required
+            />
+          </label>
+          <div className="signature-pad-field">
+            <p className="signature-footer-label">Czytelny podpis uczestnika / opiekuna</p>
+            <SignaturePad onChange={setSignatureImageBase64} disabled={submitting} />
+          </div>
+        </div>
       </fieldset>
 
       {validationErrors.length > 0 && (

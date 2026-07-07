@@ -1,5 +1,5 @@
 export const FORM_SUBTITLE =
-  "Dotyczy jazd: samochodowych, motocyklowych oraz gokartowych. Prosimy o czytelne wypełnienie.";
+  "Dotyczy jazd: samochodowych, motocyklowych oraz gokartowych. Prosimy o czytelne wypełnienie drukowanymi literami.";
 
 export const PARTICIPANT_DECLARATIONS = [
   {
@@ -41,7 +41,20 @@ export const PARTICIPANT_DECLARATIONS = [
     body:
       "Oświadczam, że jestem trzeźwy i nie znajduję się pod wpływem żadnych środków odurzających.",
   },
+  {
+    title: "Przetwarzanie danych",
+    body:
+      "Wyrażam zgodę na przetwarzanie danych osobowych w celu organizacji wydarzenia.",
+  },
+  {
+    title: "Ubezpieczenie",
+    body:
+      "Oświadczam, że posiadam ważne ubezpieczenie od Następstw Nieszczęśliwych Wypadków (NNW), które swoim zakresem obejmuje ryzyko związane z uprawianiem sportów motorowych.",
+  },
 ];
 
 export const GUARDIAN_DECLARATION_INTRO =
   "Jako opiekun prawny wyrażam zgodę na udział małoletniego w jazdach na moją wyłączną odpowiedzialność prawną i finansową.";
+
+export const IMAGE_PUBLICATION_CONSENT_TEXT =
+  "Wyrażam zgodę na nieodpłatne utrwalanie i publikację mojego wizerunku oraz wizerunku mojego pojazdu w celach promocyjnych Autodromu Biłgoraj.";

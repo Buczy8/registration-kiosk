@@ -29,11 +29,9 @@ export default function DeclarationsPanel({ reviewed, onReviewed }) {
   return (
     <div className="declarations-panel" onScroll={handleScroll} ref={panelRef}>
       <ol className="declarations-list">
-        {PARTICIPANT_DECLARATIONS.map((item, index) => (
+        {PARTICIPANT_DECLARATIONS.map((item) => (
           <li key={item.title}>
-            <strong>
-              {index + 1}. {item.title}
-            </strong>
+            <strong>{item.title}</strong>
             {item.body && <p>{item.body}</p>}
             {item.bullets && (
               <ul>

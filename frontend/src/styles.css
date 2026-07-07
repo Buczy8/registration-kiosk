@@ -353,6 +353,25 @@ select {
   font-weight: 800;
 }
 
+.signature-footer-label {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.signature-section {
+  display: grid;
+  gap: 16px;
+}
+
+.signature-place-field {
+  max-width: 380px;
+}
+
+.signature-pad-field {
+  display: grid;
+  gap: 8px;
+}
+
 .signature-pad {
   display: grid;
   gap: 12px;
@@ -381,7 +400,8 @@ select {
     padding: 12px;
   }
 
-  .field-row {
+  .field-row,
+  .signature-section {
     grid-template-columns: 1fr;
   }
 
