@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class ApplicationErrorCode(str, enum.Enum):
     NOT_FOUND = "not_found"
     UNAUTHORIZED = "unauthorized"
+    LOCKED = "locked"
     BAD_REQUEST = "bad_request"
     CONFLICT = "conflict"
     VALIDATION_ERROR = "validation_error"
@@ -60,6 +61,8 @@ def _error_code_for_status(status_code: int) -> ApplicationErrorCode:
         return ApplicationErrorCode.BAD_REQUEST
     if status_code == HTTPStatus.CONFLICT:
         return ApplicationErrorCode.CONFLICT
+    if status_code == HTTPStatus.LOCKED:
+        return ApplicationErrorCode.LOCKED
     return ApplicationErrorCode.HTTP_ERROR
 
 
