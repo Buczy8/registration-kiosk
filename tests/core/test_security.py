@@ -37,6 +37,28 @@ def test_constant_time_equals_compares_strings():
     assert not constant_time_equals("same-token", "other-token")
 
 
+def test_constant_time_equals_is_symmetric():
+    assert constant_time_equals("same", "same") is True
+    assert constant_time_equals("same", "diff") is False
+    assert constant_time_equals("diff", "same") is False
+
+
+def test_constant_time_equals_handles_empty_strings():
+    assert constant_time_equals("", "") is True
+    assert constant_time_equals("", "x") is False
+    assert constant_time_equals("x", "") is False
+
+
+def test_constant_time_equals_different_lengths_return_false():
+    assert constant_time_equals("a", "ab") is False
+    assert constant_time_equals("ab", "a") is False
+
+
+def test_constant_time_equals_supports_unicode():
+    left = "zażółć"
+    assert constant_time_equals(left, left) is True
+
+
 def test_sha256_hex_hashes_payload():
     assert sha256_hex("payload") == (
         "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5"
