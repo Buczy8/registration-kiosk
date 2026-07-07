@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.core.errors import register_exception_handlers
-from app.schemas.submission import GuestSubmissionCreate
+from app.schemas.submission import AccountSubmissionCreate, GuestSubmissionCreate
 from tests.fixtures.signature_samples import sample_signature_base64
 
 
@@ -47,3 +47,18 @@ def test_invalid_vehicle_type_returns_fastapi_validation_error():
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+
+
+def test_account_submission_create_requires_declarations_accepted_true():
+    payload = {
+        "participant_role": "driver",
+        "vehicle_type": "car",
+        "payload_json": {"first_name": "Jan", "last_name": "Kowalski"},
+        "consents_json": {"terms": True},
+        "declarations_accepted": False,
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        AccountSubmissionCreate.model_validate(payload)
+
+    assert any(error["loc"] == ("declarations_accepted",) for error in exc_info.value.errors())
