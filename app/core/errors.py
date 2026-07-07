@@ -10,6 +10,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.services.signatures import SignatureValidationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +29,7 @@ class ApplicationErrorCode(str, enum.Enum):
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(SignatureValidationError, signature_validation_exception_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
@@ -91,6 +94,18 @@ async def validation_exception_handler(
         code=ApplicationErrorCode.VALIDATION_ERROR,
         message="Request validation failed",
         details=jsonable_encoder(exc.errors()),
+    )
+
+
+async def signature_validation_exception_handler(
+        request: Request,
+        exc: SignatureValidationError,
+) -> JSONResponse:
+    return error_response(
+        request=request,
+        status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+        code=ApplicationErrorCode.VALIDATION_ERROR,
+        message=str(exc),
     )
 
 

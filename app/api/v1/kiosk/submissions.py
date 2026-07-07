@@ -1,29 +1,20 @@
-from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Response, status
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.deps import KioskAuth, OptionalCurrentUser
 from app.db.session import get_db
 from app.schemas.submission import (
-    AccountSubmissionCreate,
     AccountSubmissionResponse,
-    GuestSubmissionCreate,
     GuestSubmissionResponse,
+    SubmissionCreate,
 )
 from app.services.pdf import generate_guest_submission_pdf
 from app.services.submissions import create_account_submission, create_guest_submission
 
 router = APIRouter(prefix="/submissions")
-
-
-def _validation_error_response(exc: ValidationError) -> Response:
-    from fastapi.exceptions import RequestValidationError
-
-    raise RequestValidationError(exc.errors())
 
 
 @router.post(
@@ -44,25 +35,17 @@ def _validation_error_response(exc: ValidationError) -> Response:
 async def create_submission(
     _: KioskAuth,
     user: OptionalCurrentUser,
-    body: dict[str, Any] = Body(...),
+    body: SubmissionCreate,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> GuestSubmissionResponse | AccountSubmissionResponse:
     if user is not None:
-        try:
-            account_data = AccountSubmissionCreate.model_validate(body)
-        except ValidationError as exc:
-            _validation_error_response(exc)
         submission = await create_account_submission(
-            db=db, user=user, data=account_data, settings=settings
+            db=db, user=user, data=body, settings=settings
         )
         return AccountSubmissionResponse.model_validate(submission)
 
-    try:
-        guest_data = GuestSubmissionCreate.model_validate(body)
-    except ValidationError as exc:
-        _validation_error_response(exc)
-    submission = await create_guest_submission(db=db, data=guest_data, settings=settings)
+    submission = await create_guest_submission(db=db, data=body, settings=settings)
     return GuestSubmissionResponse.model_validate(submission)
 
 
