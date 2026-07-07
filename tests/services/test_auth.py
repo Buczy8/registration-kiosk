@@ -9,6 +9,7 @@ from app.core.config import Settings
 from app.core.security import decode_access_token, hash_reset_token, hash_password, verify_password
 from app.models.user import PasswordResetToken, User
 from app.schemas.auth import LoginRequest, PasswordResetConfirm, PasswordResetRequest, RegisterRequest
+import app.services.auth as auth_service
 from app.services.auth import confirm_password_reset, login, register, request_password_reset
 from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
 
@@ -67,6 +68,31 @@ class _FakeAuthDb:
 
     async def refresh(self, obj):
         self.refreshed.append(obj)
+
+
+class _ExpiringUser:
+    def __init__(self, user_id, email: str, password_hash_value: str):
+        self._id = user_id
+        self._email = email
+        self.password_hash = password_hash_value
+        self.failed_login_count = 0
+        self.locked_until = None
+        self._expired = False
+
+    @property
+    def id(self):
+        if self._expired:
+            raise RuntimeError("expired user.id access")
+        return self._id
+
+    @property
+    def email(self):
+        if self._expired:
+            raise RuntimeError("expired user.email access")
+        return self._email
+
+    def expire(self):
+        self._expired = True
 
 
 def _settings() -> Settings:
@@ -268,4 +294,63 @@ def test_confirm_password_reset_rejects_used_token():
         )
 
     assert exc_info.value.status_code == 400
+
+
+def test_login_does_not_access_user_attributes_after_reset_commit(monkeypatch):
+    user_id = uuid4()
+    user = _ExpiringUser(user_id, "jan.kowalski@example.com", hash_password("StrongPass1"))
+
+    async def _fake_get_user_by_email(db, email):
+        return user
+
+    async def _fake_reset_failed_login(db, u):
+        u.expire()
+
+    monkeypatch.setattr(auth_service, "get_user_by_email", _fake_get_user_by_email)
+    monkeypatch.setattr(auth_service, "is_account_locked", lambda _: False)
+    monkeypatch.setattr(auth_service, "verify_password", lambda plain, hashed: True)
+    monkeypatch.setattr(auth_service, "reset_failed_login", _fake_reset_failed_login)
+
+    response = asyncio.run(
+        auth_service.login(
+            db=object(),
+            data=LoginRequest(email="jan.kowalski@example.com", password="StrongPass1"),
+            settings=_settings(),
+        )
+    )
+
+    assert decode_access_token(response.access_token, _settings()) == user_id
+
+
+def test_request_password_reset_does_not_access_user_email_after_commit(monkeypatch):
+    user_id = uuid4()
+    user = _ExpiringUser(user_id, "jan.kowalski@example.com", hash_password("StrongPass1"))
+
+    class _CommitExpiresDb:
+        def __init__(self):
+            self.added = []
+
+        def add(self, obj):
+            self.added.append(obj)
+
+        async def commit(self):
+            user.expire()
+
+    async def _fake_get_user_by_email(db, email):
+        return user
+
+    monkeypatch.setattr(auth_service, "get_user_by_email", _fake_get_user_by_email)
+    monkeypatch.setattr(auth_service, "generate_reset_token", lambda: "reset-token")
+
+    db = _CommitExpiresDb()
+    response = asyncio.run(
+        auth_service.request_password_reset(
+            db=db,
+            data=PasswordResetRequest(email="jan.kowalski@example.com"),
+            settings=_settings(),
+        )
+    )
+
+    assert response.message
+    assert len(db.added) == 1
 
