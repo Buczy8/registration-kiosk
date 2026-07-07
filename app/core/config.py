@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     login_lockout_minutes: int = 15
 
     # --- Kiosk UX ---
-    kiosk_idle_logout_seconds: int = 90
+    kiosk_idle_logout_seconds: int = 30
 
     @field_validator("storage_root", "form_templates_dir", mode="before")
     @classmethod

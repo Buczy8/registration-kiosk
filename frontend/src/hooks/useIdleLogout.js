@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 export const useIdleLogout = (onIdle) => {
   const timeoutRef = useRef(null);
 
-  const timeoutSeconds = parseInt(import.meta.env.VITE_KIOSK_IDLE_LOGOUT_SECONDS || '300', 10);
+  const timeoutSeconds = parseInt(import.meta.env.VITE_KIOSK_IDLE_LOGOUT_SECONDS || '30', 10);
 
   useEffect(() => {
     const handleIdle = () => {

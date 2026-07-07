@@ -25,6 +25,7 @@ export default function App() {
   const [submissionIsAccount, setSubmissionIsAccount] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [startInfoMessage, setStartInfoMessage] = useState(null);
 
   function resetAccountFlow() {
     setAccountStep("role-select");
@@ -44,9 +45,21 @@ export default function App() {
   useIdleLogout(() => {
     if (isAuthenticated) {
       handleLogout();
-      alert("Sesja wygasła ze względów bezpieczeństwa.");
+      setStartInfoMessage("Sesja wygasła ze względów bezpieczeństwa.");
     }
   });
+
+  useEffect(() => {
+    if (!startInfoMessage) {
+      return undefined;
+    }
+
+    const hideMessageTimer = setTimeout(() => {
+      setStartInfoMessage(null);
+    }, 5000);
+
+    return () => clearTimeout(hideMessageTimer);
+  }, [startInfoMessage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,6 +176,7 @@ export default function App() {
     if (view === "start") {
       return (
         <StartScreen
+          infoMessage={startInfoMessage}
           onGuest={() => setView("guest")}
           onLogin={() => setView("login")}
           onRegister={() => setView("register")}

@@ -1,11 +1,16 @@
 import React from "react";
 
-export default function StartScreen({ onGuest, onLogin, onRegister }) {
+export default function StartScreen({ onGuest, onLogin, onRegister, infoMessage }) {
   return (
     <div className="start-screen">
       <div className="start-card">
         <h1>Witamy w systemie rejestracji</h1>
         <p>Wybierz sposób, w jaki chcesz kontynuować:</p>
+        {infoMessage && (
+          <p className="alert" role="status" style={{ marginBottom: "16px" }}>
+            {infoMessage}
+          </p>
+        )}
 
         <div className="start-actions">
           <button
