@@ -44,7 +44,7 @@ services:
       - "${PORT:-8000}:8000"
     volumes:
       - ./storage:/app/storage
-      - ./documentation:/app/documentation
+      - ./templates:/app/templates
     depends_on:
       db:
         condition: service_healthy

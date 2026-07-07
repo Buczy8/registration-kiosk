@@ -20,6 +20,10 @@ class SafePayload(dict):
         return ""
 
 
+def _join_non_empty(*parts: str | None, sep: str = " ") -> str:
+    return sep.join(str(part).strip() for part in parts if part and str(part).strip())
+
+
 def get_guest_submission_pdf_mapping(submission: Submission) -> PdfFieldMapping:
     form_schema = submission.form.schema_json if submission.form else {}
     pdf_mapping = form_schema.get("pdf_mapping", {})
@@ -39,6 +43,24 @@ def get_guest_submission_pdf_mapping(submission: Submission) -> PdfFieldMapping:
         "participant_role": submission.participant_role.value if submission.participant_role else "",
         "vehicle_type": submission.vehicle_type.value if submission.vehicle_type else "",
     }
+    context["full_name"] = _join_non_empty(payload.get("first_name"), payload.get("last_name"))
+    context["identity_document"] = (
+        payload.get("pesel")
+        or _join_non_empty(payload.get("id_card_series"), payload.get("id_card_number"))
+    )
+    context["emergency_contact"] = _join_non_empty(
+        payload.get("emergency_contact_name"),
+        payload.get("emergency_contact_phone"),
+        sep=", ",
+    )
+    context["minor_full_name"] = _join_non_empty(
+        payload.get("minor_first_name"),
+        payload.get("minor_last_name"),
+    )
+    context["vehicle_brand_model"] = (
+        payload.get("vehicle_brand_model")
+        or _join_non_empty(payload.get("vehicle_brand"), payload.get("vehicle_model"))
+    )
     if not context.get("signature_place"):
         context["signature_place"] = submission.sequence_date.isoformat()
         

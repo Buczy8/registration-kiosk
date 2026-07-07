@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import selectors
 import sys
 from pathlib import Path
 
@@ -65,42 +66,41 @@ ACTIVE_FORM_DATA = {
         "pdf_mapping": {
             "signature": {
                 "page": 0,
-                "rect": [597, 476, 719, 507]
+                "rect": [590, 500, 720, 536]
             },
             "text_fields": {
-                "text_8fpaj": "{first_name} {last_name}",
-                "text_9yvjs": "{pesel}{id_card_series} {id_card_number}",
-                "text_10oepk": "{residence_address}",
-                "text_11nkcj": "{birth_date}",
-                "text_12fueu": "{phone}",
-                "text_13ywdm": "{email}",
-                "text_14ofnm": "{emergency_contact_name}, {emergency_contact_phone}",
-                "text_15qcfa": "{start_number}",
-                "text_16ulhc": "{vehicle_brand} {vehicle_model}",
-                "text_17bbxm": "{vehicle_registration_number}",
-                "text_18lzou": "{minor_first_name} {minor_last_name}",
-                "text_24wgja": "{signature_place}"
+                "text_10hcx": "{full_name}",
+                "text_11neet": "{identity_document}",
+                "text_12cxxb": "{residence_address}",
+                "text_13knhs": "{birth_date}",
+                "text_14lcnt": "{phone}",
+                "text_15kjas": "{email}",
+                "text_16ydra": "{emergency_contact}",
+                "text_17mtbv": "{start_number}",
+                "text_18dulx": "{vehicle_brand_model}",
+                "text_19soak": "{vehicle_registration_number}",
+                "text_23pzuv": "{minor_full_name}",
+                "text_26efts": "{signature_place}"
             },
             "checkboxes": {
                 "participant_role": {
-                    "driver": "checkbox_26aqhm",
-                    "passenger": "checkbox_3klde",
-                    "legal_guardian": "checkbox_27ywf"
+                    "driver": "checkbox_1yrvm",
+                    "passenger": "checkbox_2vwba",
+                    "legal_guardian": "checkbox_4bnfu"
                 },
                 "vehicle_type": {
-                    "car": "checkbox_29pnyu",
-                    "motorcycle": "checkbox_25ahnh",
-                    "gokart": "checkbox_30txms"
+                    "car": "checkbox_7agj",
+                    "motorcycle": "checkbox_8etbd",
+                    "gokart": "checkbox_9lpj"
                 },
                 "guardian_relation": {
-                    "parent": "checkbox_19pppm",
-                    "guardian": "checkbox_20jfuy",
-                    "authorized_person": "checkbox_21iohl"
+                    "parent": "checkbox_20ajne",
+                    "guardian": "checkbox_21fphh",
+                    "authorized_person": "checkbox_22xper"
                 }
             },
             "consents": {
-                "privacy": "checkbox_22zynj",
-                "image_publication": "checkbox_23dbga"
+                "image_publication": "checkbox_24iihx"
             }
         }
     },
@@ -154,8 +154,18 @@ async def async_main() -> None:
     )
 
 
+def _run_async(coro) -> None:
+    if sys.platform == "win32":
+        asyncio.run(
+            coro,
+            loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+        )
+        return
+    asyncio.run(coro)
+
+
 def main() -> None:
-    asyncio.run(async_main())
+    _run_async(async_main())
 
 
 if __name__ == "__main__":
