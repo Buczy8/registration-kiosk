@@ -54,3 +54,15 @@ export async function fetchSubmissionPdfBlob(submissionId) {
   });
   return response.blob();
 }
+
+export async function createAccountSubmission(payload, token) {
+  const headers = getHeaders();
+  headers["Authorization"] = `Bearer ${token}`;
+
+  const response = await request("/kiosk/submissions", {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(payload),
+  });
+  return response.json();
+}
