@@ -26,6 +26,7 @@ async function parseAuthError(response) {
 
   switch (response.status) {
     case 401:
+    case 422:
       message = "Nieprawidłowy adres e-mail lub hasło.";
       break;
     case 409:

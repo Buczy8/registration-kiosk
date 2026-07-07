@@ -3,6 +3,7 @@ import { createGuestSubmission, createAccountSubmission, getActiveForm } from ".
 import GuestRegistrationForm from "./components/GuestRegistrationForm.jsx";
 import SubmissionResult from "./components/SubmissionResult.jsx";
 import StartScreen from "./pages/StartScreen.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
 
@@ -81,7 +82,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (isAuthenticated && view === "start") {
+    if (isAuthenticated && (view === "start" || view === "login")) {
       setView("guest");
     }
   }, [isAuthenticated, view]);
@@ -111,12 +112,18 @@ export default function App() {
     return (
       <StartScreen
         onGuest={() => setView("guest")}
-        onLogin={() => {
-          alert("Funkcja logowania w przygotowaniu");
-        }}
+        onLogin={() => setView("login")}
         onRegister={() => {
           alert("Funkcja rejestracji w przygotowaniu");
         }}
+      />
+    );
+  }
+  if (view === "login" && !isAuthenticated) {
+    return (
+      <LoginPage
+        onBack={() => setView("start")}
+        onSuccess={() => setView("guest")}
       />
     );
   }
