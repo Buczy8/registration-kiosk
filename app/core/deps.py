@@ -120,6 +120,20 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+async def get_optional_current_user(
+    token: str | None = Depends(_get_token_from_security_schemes),
+    settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    if token is None:
+        return None
+    user_id = get_current_user_id_from_token(token=token, settings=settings)
+    return await get_current_user(db=db, user_id=user_id)
+
+
+OptionalCurrentUser = Annotated[User | None, Depends(get_optional_current_user)]
+
+
 @dataclass(frozen=True)
 class KioskAndUser:
     user: User

@@ -145,5 +145,3 @@ async def update_profile_from_submission(
         }
     profile.vehicles_json = merged_vehicles
 
-    await db.commit()
-
