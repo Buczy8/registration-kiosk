@@ -3,9 +3,9 @@ import { useState } from "react";
 import { PARTICIPANT_ROLES, VEHICLE_TYPES } from "../lib/registrationFormShared.js";
 import RadioGroup from "../components/RadioGroup.jsx";
 
-export default function RoleVehicleSelect({ onContinue, onBack }) {
-  const [role, setRole] = useState("");
-  const [vehicle, setVehicle] = useState("");
+export default function RoleVehicleSelect({ onContinue, onBack, defaultRole = "", defaultVehicle = "" }) {
+  const [role, setRole] = useState(defaultRole);
+  const [vehicle, setVehicle] = useState(defaultVehicle);
   const [error, setError] = useState("");
 
   function handleNext() {

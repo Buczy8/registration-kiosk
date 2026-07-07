@@ -228,7 +228,11 @@ export default function App() {
       )}
 
       {accountStep === "role-select" && (
-        <RoleVehicleSelect onContinue={handleRoleVehicleContinue} />
+        <RoleVehicleSelect
+          onContinue={handleRoleVehicleContinue}
+          defaultRole={user?.last_participant_role || ""}
+          defaultVehicle={user?.last_vehicle_type || ""}
+        />
       )}
 
       {accountStep === "guardian-placeholder" && (
