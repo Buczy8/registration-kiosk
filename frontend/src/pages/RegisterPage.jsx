@@ -6,10 +6,6 @@ export default function RegisterPage({ onBack, onSuccess }) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
-
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -17,31 +13,32 @@ export default function RegisterPage({ onBack, onSuccess }) {
     e.preventDefault();
     setError(null);
 
-    // Walidacja hasła po stronie klienta (MVP)
     if (password.length < 8) {
       setError("Hasło musi mieć co najmniej 8 znaków.");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("Hasło musi zawierać co najmniej jedną wielką literę.");
+      return;
+    }
+    if (!/\d/.test(password)) {
+      setError("Hasło musi zawierać co najmniej jedną cyfrę.");
       return;
     }
 
     setLoading(true);
 
     try {
-      await register({
-        email,
-        password,
-        first_name: firstName,
-        last_name: lastName,
-        phone_number: phone
-      });
+      await register({ email, password });
 
       if (onSuccess) {
         onSuccess();
       }
     } catch (err) {
       if (err.message.includes("już istnieje") || err.message.includes("409")) {
-         setError("Rejestracja nie powiodła się. Zweryfikuj podane dane lub spróbuj się zalogować.");
+        setError("Rejestracja nie powiodła się. Zweryfikuj podane dane lub spróbuj się zalogować.");
       } else {
-         setError(err.message || "Wystąpił nieoczekiwany błąd podczas rejestracji.");
+        setError(err.message || "Wystąpił nieoczekiwany błąd podczas rejestracji.");
       }
     } finally {
       setLoading(false);
@@ -50,8 +47,11 @@ export default function RegisterPage({ onBack, onSuccess }) {
 
   return (
     <div className="login-screen" style={{ padding: "24px 0" }}>
-      <div className="form-card" style={{ maxWidth: "540px", margin: "0 auto" }}>
+      <div className="form-card" style={{ maxWidth: "480px", margin: "0 auto" }}>
         <h2 style={{ marginTop: 0, marginBottom: "20px", fontSize: "1.5rem" }}>Rejestracja nowego konta</h2>
+        <p className="hint" style={{ marginBottom: "16px" }}>
+          Podaj adres e-mail i hasło. Pozostałe dane uzupełnisz przy pierwszym formularzu.
+        </p>
 
         {error && (
           <div className="alert" role="alert" style={{ marginBottom: "16px" }}>
@@ -75,7 +75,7 @@ export default function RegisterPage({ onBack, onSuccess }) {
           </div>
 
           <div className="field">
-            <label htmlFor="password">Hasło (min. 8 znaków)</label>
+            <label htmlFor="password">Hasło (min. 8 znaków, wielka litera i cyfra)</label>
             <input
               id="password"
               type="password"
@@ -88,49 +88,15 @@ export default function RegisterPage({ onBack, onSuccess }) {
             />
           </div>
 
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="firstName">Imię</label>
-              <input
-                id="firstName"
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                disabled={loading}
-                style={{ padding: "14px", fontSize: "1.1rem" }}
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="lastName">Nazwisko</label>
-              <input
-                id="lastName"
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                disabled={loading}
-                style={{ padding: "14px", fontSize: "1.1rem" }}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="phone">Telefon</label>
-            <input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              disabled={loading}
-              placeholder="np. +48 123 456 789"
-              style={{ padding: "14px", fontSize: "1.1rem" }}
-            />
-          </div>
-
-          <div className="actions" style={{ marginTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div
+            className="actions"
+            style={{
+              marginTop: "8px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <button
               type="button"
               className="secondary-button"
