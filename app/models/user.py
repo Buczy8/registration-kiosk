@@ -60,8 +60,13 @@ class UserProfile(Base):
     address: Mapped[str | None] = mapped_column(Text)
     birth_date: Mapped[date | None] = mapped_column(Date)
     document_number: Mapped[str | None] = mapped_column(String(50))
+    pesel: Mapped[str | None] = mapped_column(String(11))
+    id_card_series: Mapped[str | None] = mapped_column(String(20))
+    id_card_number: Mapped[str | None] = mapped_column(String(30))
     ice_name: Mapped[str | None] = mapped_column(String(150))
     ice_phone: Mapped[str | None] = mapped_column(String(30))
+    last_participant_role: Mapped[str | None] = mapped_column(String(30))
+    last_vehicle_type: Mapped[str | None] = mapped_column(String(30))
     vehicles_json: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )

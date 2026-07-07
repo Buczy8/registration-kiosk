@@ -58,6 +58,7 @@ async def create_account_submission(
             user=user,
             payload=data.payload_json,
             vehicle_type=data.vehicle_type,
+            role=data.participant_role,
         )
 
     return await _create_submission_core(

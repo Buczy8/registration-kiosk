@@ -45,6 +45,24 @@ def build_vehicle_from_json(
     )
 
 
+def _parse_last_participant_role(value: str | None) -> ParticipantRole | None:
+    if not value:
+        return None
+    try:
+        return ParticipantRole(value)
+    except ValueError:
+        return None
+
+
+def _parse_last_vehicle_type(value: str | None) -> VehicleType | None:
+    if not value:
+        return None
+    try:
+        return VehicleType(value)
+    except ValueError:
+        return None
+
+
 async def get_form_prefill(
     db: AsyncSession,
     user: User,
@@ -55,7 +73,6 @@ async def get_form_prefill(
     vehicle = build_vehicle_from_json(profile.vehicles_json, vehicle_type)
 
     if role == ParticipantRole.LEGAL_GUARDIAN:
-        # Minimal payload for legal guardian flow.
         return FormPrefillResponse(
             first_name=user.first_name,
             last_name=user.last_name,
@@ -74,6 +91,11 @@ async def get_form_prefill(
         address=profile.address,
         birth_date=profile.birth_date,
         document_number=profile.document_number,
+        pesel=profile.pesel,
+        id_card_series=profile.id_card_series,
+        id_card_number=profile.id_card_number,
+        ice_name=profile.ice_name,
+        ice_phone=profile.ice_phone,
         participant_role=role,
         vehicle_type=vehicle_type,
         vehicle=vehicle,
@@ -91,8 +113,13 @@ async def get_profile_response(db: AsyncSession, user: User) -> ProfileResponse:
         address=profile.address,
         birth_date=profile.birth_date,
         document_number=profile.document_number,
+        pesel=profile.pesel,
+        id_card_series=profile.id_card_series,
+        id_card_number=profile.id_card_number,
         ice_name=profile.ice_name,
         ice_phone=profile.ice_phone,
+        last_participant_role=_parse_last_participant_role(profile.last_participant_role),
+        last_vehicle_type=_parse_last_vehicle_type(profile.last_vehicle_type),
         vehicles_json=profile.vehicles_json,
     )
 
@@ -105,8 +132,11 @@ def extract_profile_fields_from_payload(payload: dict[str, Any]) -> dict[str, An
         "address": payload.get("residence_address") or payload.get("address"),
         "birth_date": payload.get("birth_date"),
         "document_number": payload.get("document_number"),
-        "ice_name": payload.get("ice_name"),
-        "ice_phone": payload.get("ice_phone"),
+        "pesel": payload.get("pesel"),
+        "id_card_series": payload.get("id_card_series"),
+        "id_card_number": payload.get("id_card_number"),
+        "ice_name": payload.get("ice_name") or payload.get("emergency_contact_name"),
+        "ice_phone": payload.get("ice_phone") or payload.get("emergency_contact_phone"),
     }
 
 
@@ -115,6 +145,7 @@ async def update_profile_from_submission(
     user: User,
     payload: dict[str, Any],
     vehicle_type: VehicleType,
+    role: ParticipantRole,
 ) -> None:
     profile = await get_or_create_profile(db, user.id)
     fields = extract_profile_fields_from_payload(payload)
@@ -124,10 +155,22 @@ async def update_profile_from_submission(
         if value not in (None, ""):
             setattr(user, key, value)
 
-    for key in ("address", "birth_date", "document_number", "ice_name", "ice_phone"):
+    for key in (
+        "address",
+        "birth_date",
+        "document_number",
+        "pesel",
+        "id_card_series",
+        "id_card_number",
+        "ice_name",
+        "ice_phone",
+    ):
         value = fields.get(key)
         if value not in (None, ""):
             setattr(profile, key, value)
+
+    profile.last_participant_role = role.value
+    profile.last_vehicle_type = vehicle_type.value
 
     brand_model = payload.get("vehicle_brand_model")
     if not brand_model:
@@ -144,4 +187,3 @@ async def update_profile_from_submission(
             "registration_number": str(registration_number),
         }
     profile.vehicles_json = merged_vehicles
-

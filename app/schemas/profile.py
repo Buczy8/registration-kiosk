@@ -30,8 +30,13 @@ class ProfileResponse(BaseModel):
     address: str | None = None
     birth_date: date | None = None
     document_number: str | None = None
+    pesel: str | None = None
+    id_card_series: str | None = None
+    id_card_number: str | None = None
     ice_name: str | None = None
     ice_phone: str | None = None
+    last_participant_role: ParticipantRole | None = None
+    last_vehicle_type: VehicleType | None = None
 
     vehicles: dict[str, VehicleData] = Field(
         default_factory=dict,
@@ -62,6 +67,11 @@ class FormPrefillResponse(BaseModel):
     address: str | None = None
     birth_date: date | None = None
     document_number: str | None = None
+    pesel: str | None = None
+    id_card_series: str | None = None
+    id_card_number: str | None = None
+    ice_name: str | None = None
+    ice_phone: str | None = None
 
     participant_role: ParticipantRole
     vehicle_type: VehicleType
