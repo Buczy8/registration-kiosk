@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-export const useIdleLogout = (onIdle) => {
+export const useIdleLogout = ({ enabled, onIdle }) => {
   const timeoutRef = useRef(null);
 
   const timeoutSeconds = parseInt(import.meta.env.VITE_KIOSK_IDLE_LOGOUT_SECONDS || '30', 10);
 
   useEffect(() => {
+    if (!enabled) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      return undefined;
+    }
+
     const handleIdle = () => {
       if (onIdle) onIdle();
     };
@@ -35,5 +42,5 @@ export const useIdleLogout = (onIdle) => {
         document.removeEventListener(event, resetTimer)
       );
     };
-  }, [onIdle, timeoutSeconds]);
+  }, [enabled, onIdle, timeoutSeconds]);
 };

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -31,10 +31,20 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register_endpoint(
     data: RegisterRequest,
     _: KioskAuth,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> AuthResponse:
-    return await register(db=db, data=data, settings=settings)
+    auth_response = await register(db=db, data=data, settings=settings)
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=auth_response.access_token,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=auth_response.expires_in,
+    )
+    return auth_response
 
 
 @router.post(
@@ -45,10 +55,20 @@ async def register_endpoint(
 async def login_endpoint(
     data: LoginRequest,
     _: KioskAuth,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> AuthResponse:
-    return await login(db=db, data=data, settings=settings)
+    auth_response = await login(db=db, data=data, settings=settings)
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=auth_response.access_token,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=auth_response.expires_in,
+    )
+    return auth_response
 
 
 @router.post(

@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
+    auth_cookie_name: str = "kiosk_access_token"
+    auth_cookie_samesite: Literal["lax", "strict", "none"] = "strict"
+    auth_cookie_secure: bool = False
 
     # --- Numer startowy ---
     start_number_timezone: str = "Europe/Warsaw"

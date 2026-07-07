@@ -1,5 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { login as apiLogin, register as apiRegister, getProfile } from '../api/auth.js';
+import { setUnauthorizedHandler } from '../api/client.js';
 
 const AuthContext = createContext();
 
@@ -25,6 +26,17 @@ export const AuthProvider = ({ children }) => {
     };
 
     initSession();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setUnauthorizedHandler(null);
+      return;
+    }
+    setUnauthorizedHandler(() => {
+      logout();
+    });
+    return () => setUnauthorizedHandler(null);
   }, [token]);
 
   const login = async (payload) => {

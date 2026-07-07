@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Cookie, Depends, HTTPException, Security, status
 from fastapi.security import (
     APIKeyHeader,
     HTTPAuthorizationCredentials,
@@ -64,10 +64,13 @@ http_bearer_scheme = HTTPBearer(
 def _get_token_from_security_schemes(
     bearer: HTTPAuthorizationCredentials | None = Security(http_bearer_scheme),
     oauth2_token: str | None = Security(oauth2_scheme),
+    cookie_token: str | None = Cookie(default=None, alias="kiosk_access_token"),
 ) -> str | None:
     if bearer is not None:
         return bearer.credentials
-    return oauth2_token
+    if oauth2_token:
+        return oauth2_token
+    return cookie_token
 
 
 def get_current_user_id_from_token(
