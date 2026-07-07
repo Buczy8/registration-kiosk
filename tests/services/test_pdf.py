@@ -15,31 +15,30 @@ MOCK_SCHEMA_JSON = {
     "pdf_mapping": {
         "signature": {
             "page": 0,
-            "rect": [597, 476, 719, 507]
+            "rect": [610, 500, 740, 536]
         },
         "text_fields": {
-            "text_8fpaj": "{first_name} {last_name}",
-            "text_9yvjs": "{pesel}",
-            "text_15qcfa": "{start_number}"
+            "text_10hcx": "{full_name}",
+            "text_11neet": "{identity_document}",
+            "text_17mtbv": "{start_number}"
         },
         "checkboxes": {
             "participant_role": {
-                "driver": "checkbox_26aqhm",
-                "passenger": "checkbox_3klde",
-                "legal_guardian": "checkbox_27ywf"
+                "driver": "checkbox_1yrvm",
+                "passenger": "checkbox_2vwba",
+                "legal_guardian": "checkbox_4bnfu"
             },
             "vehicle_type": {
-                "car": "checkbox_29pnyu"
+                "car": "checkbox_7agj"
             },
             "guardian_relation": {
-                "parent": "checkbox_19pppm",
-                "guardian": "checkbox_20jfuy",
-                "authorized_person": "checkbox_21iohl"
+                "parent": "checkbox_20ajne",
+                "guardian": "checkbox_21fphh",
+                "authorized_person": "checkbox_22xper"
             }
         },
         "consents": {
-            "privacy": "checkbox_22zynj",
-            "image_publication": "checkbox_23dbga"
+            "image_publication": "checkbox_24iihx"
         }
     }
 }
@@ -49,16 +48,15 @@ def _template_pdf(path):
     doc = fitz.open()
     page = doc.new_page()
     for field_name, rect, field_type in [
-        ("checkbox_19pppm", fitz.Rect(90, 10, 100, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("checkbox_20jfuy", fitz.Rect(110, 10, 120, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("checkbox_21iohl", fitz.Rect(130, 10, 140, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("checkbox_26aqhm", fitz.Rect(10, 10, 20, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("checkbox_29pnyu", fitz.Rect(30, 10, 40, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("checkbox_22zynj", fitz.Rect(50, 10, 60, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("checkbox_23dbga", fitz.Rect(70, 10, 80, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
-        ("text_8fpaj", fitz.Rect(10, 40, 180, 60), fitz.PDF_WIDGET_TYPE_TEXT),
-        ("text_9yvjs", fitz.Rect(10, 70, 180, 90), fitz.PDF_WIDGET_TYPE_TEXT),
-        ("text_15qcfa", fitz.Rect(10, 100, 180, 120), fitz.PDF_WIDGET_TYPE_TEXT),
+        ("checkbox_20ajne", fitz.Rect(90, 10, 100, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("checkbox_21fphh", fitz.Rect(110, 10, 120, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("checkbox_22xper", fitz.Rect(130, 10, 140, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("checkbox_1yrvm", fitz.Rect(10, 10, 20, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("checkbox_7agj", fitz.Rect(30, 10, 40, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("checkbox_24iihx", fitz.Rect(70, 10, 80, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("text_10hcx", fitz.Rect(10, 40, 180, 60), fitz.PDF_WIDGET_TYPE_TEXT),
+        ("text_11neet", fitz.Rect(10, 70, 180, 90), fitz.PDF_WIDGET_TYPE_TEXT),
+        ("text_17mtbv", fitz.Rect(10, 100, 180, 120), fitz.PDF_WIDGET_TYPE_TEXT),
     ]:
         widget = fitz.Widget()
         widget.field_name = field_name
@@ -116,13 +114,12 @@ def test_fill_guest_submission_template_fills_interactive_pdf_fields(tmp_path):
         for widget in (page.widgets() or [])
     }
     doc.close()
-    assert values["text_8fpaj"] == "Jan Kowalski"
-    assert values["text_9yvjs"] == "90010112345"
-    assert values["text_15qcfa"] == "77"
-    assert values["checkbox_26aqhm"] == "Yes"
-    assert values["checkbox_29pnyu"] == "Yes"
-    assert values["checkbox_22zynj"] in ("", "Off")
-    assert values["checkbox_23dbga"] == "Yes"
+    assert values["text_10hcx"] == "Jan Kowalski"
+    assert values["text_11neet"] == "90010112345"
+    assert values["text_17mtbv"] == "77"
+    assert values["checkbox_1yrvm"] == "Yes"
+    assert values["checkbox_7agj"] == "Yes"
+    assert values["checkbox_24iihx"] == "Yes"
 
 
 def test_fill_guest_submission_template_does_not_check_guardian_for_driver(tmp_path):
@@ -172,9 +169,9 @@ def test_fill_guest_submission_template_does_not_check_guardian_for_driver(tmp_p
     }
     doc.close()
 
-    assert values["checkbox_19pppm"] in ("", "Off")
-    assert values["checkbox_20jfuy"] in ("", "Off")
-    assert values["checkbox_21iohl"] in ("", "Off")
+    assert values["checkbox_20ajne"] in ("", "Off")
+    assert values["checkbox_21fphh"] in ("", "Off")
+    assert values["checkbox_22xper"] in ("", "Off")
 
 
 def test_fill_guest_submission_template_embeds_signature_image(tmp_path):

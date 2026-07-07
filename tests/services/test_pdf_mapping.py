@@ -17,26 +17,25 @@ def _submission(
     form_schema = {
         "pdf_mapping": {
             "text_fields": {
-                "text_8fpaj": "{first_name} {last_name}",
-                "text_9yvjs": "{pesel}",
-                "text_15qcfa": "{start_number}",
-                "text_16ulhc": "{vehicle_brand} {vehicle_model}",
+                "text_10hcx": "{full_name}",
+                "text_11neet": "{identity_document}",
+                "text_17mtbv": "{start_number}",
+                "text_18dulx": "{vehicle_brand_model}",
             },
             "checkboxes": {
                 "participant_role": {
-                    "driver": "checkbox_26aqhm",
-                    "legal_guardian": "checkbox_27ywf"
+                    "driver": "checkbox_1yrvm",
+                    "legal_guardian": "checkbox_4bnfu"
                 },
                 "vehicle_type": {
-                    "car": "checkbox_29pnyu"
+                    "car": "checkbox_7agj"
                 },
                 "guardian_relation": {
-                    "parent": "checkbox_19pppm"
+                    "parent": "checkbox_20ajne"
                 }
             },
             "consents": {
-                "privacy": "checkbox_22zynj",
-                "image_publication": "checkbox_23dbga"
+                "image_publication": "checkbox_24iihx"
             }
         }
     }
@@ -88,14 +87,13 @@ def test_get_guest_submission_pdf_mapping_builds_text_and_checkbox_fields():
         )
     )
 
-    assert mapping.text_values["text_8fpaj"] == "Jan Kowalski"
-    assert mapping.text_values["text_9yvjs"] == "90010112345"
-    assert mapping.text_values["text_15qcfa"] == "77"
-    assert mapping.text_values["text_16ulhc"] == "BMW M3"
-    assert "checkbox_26aqhm" in mapping.checked_fields
-    assert "checkbox_29pnyu" in mapping.checked_fields
-    assert "checkbox_22zynj" in mapping.checked_fields
-    assert "checkbox_23dbga" in mapping.checked_fields
+    assert mapping.text_values["text_10hcx"] == "Jan Kowalski"
+    assert mapping.text_values["text_11neet"] == "90010112345"
+    assert mapping.text_values["text_17mtbv"] == "77"
+    assert mapping.text_values["text_18dulx"] == "BMW M3"
+    assert "checkbox_1yrvm" in mapping.checked_fields
+    assert "checkbox_7agj" in mapping.checked_fields
+    assert "checkbox_24iihx" in mapping.checked_fields
 
 
 def test_get_guest_submission_pdf_mapping_maps_guardian_relation():
@@ -105,7 +103,7 @@ def test_get_guest_submission_pdf_mapping_maps_guardian_relation():
             payload_json={"guardian_relation": "parent"},
         )
     )
-    assert "checkbox_19pppm" in guardian_mapping.checked_fields
+    assert "checkbox_20ajne" in guardian_mapping.checked_fields
 
     empty_mapping = get_guest_submission_pdf_mapping(
         _submission(
@@ -113,4 +111,4 @@ def test_get_guest_submission_pdf_mapping_maps_guardian_relation():
             payload_json={},
         )
     )
-    assert "checkbox_19pppm" not in empty_mapping.checked_fields
+    assert "checkbox_20ajne" not in empty_mapping.checked_fields
