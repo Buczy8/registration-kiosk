@@ -8,7 +8,8 @@ from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, 
 from app.models.form import Form
 from app.models.submission import Submission
 from app.services.pdf import fill_guest_submission_template
-from tests.signature_samples import sample_signature_png
+from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
+from tests.fixtures.signature_samples import sample_signature_png
 
 MOCK_SCHEMA_JSON = {
     "pdf_mapping": {
@@ -214,8 +215,8 @@ def test_fill_guest_submission_template_embeds_signature_image(tmp_path):
         status=SubmissionStatus.SUBMITTED,
     )
     settings = Settings(
-        kiosk_token="test-kiosk-token-16c",
-        jwt_secret_key="test-jwt-secret-key-min-32-chars-long",
+        kiosk_token=TEST_KIOSK_TOKEN,
+        jwt_secret_key=TEST_JWT_SECRET,
         storage_root=tmp_path,
     )
 

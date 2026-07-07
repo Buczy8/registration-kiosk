@@ -1,7 +1,7 @@
 import uuid
 
 from app.models.form import Form
-from tests.signature_samples import sample_signature_base64
+from tests.fixtures.signature_samples import sample_signature_base64
 
 GUEST_REGISTRATION_SCHEMA = {
     "required": [

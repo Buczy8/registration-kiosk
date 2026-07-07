@@ -1,17 +1,13 @@
 import uuid
 
-import pytest
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings, get_settings
 from app.core.deps import KIOSK_TOKEN_HEADER
 from app.db.session import get_db
 from app.models.form import Form
 from main import app
+from tests.conftest import TEST_KIOSK_TOKEN
 from tests.fakes.async_db import FakeAsyncDb, async_get_db_override
-
-TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
-TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
 
 
 def _form() -> Form:
@@ -30,23 +26,6 @@ def _form() -> Form:
         pdf_template_path="templates/forms/guest-registration-v1.pdf",
         is_active=True,
     )
-
-
-@pytest.fixture
-def kiosk_settings() -> Settings:
-    return Settings(
-        kiosk_token=TEST_KIOSK_TOKEN,
-        jwt_secret_key=TEST_JWT_SECRET,
-    )
-
-
-@pytest.fixture
-def client(kiosk_settings: Settings) -> TestClient:
-    app.dependency_overrides[get_settings] = lambda: kiosk_settings
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.pop(get_settings, None)
-    app.dependency_overrides.pop(get_db, None)
 
 
 def test_active_form_requires_token(client: TestClient):

@@ -13,7 +13,8 @@ from app.services.signatures import (
     save_submission_signature,
     validate_signature_image,
 )
-from tests.signature_samples import sample_signature_base64, sample_signature_png
+from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
+from tests.fixtures.signature_samples import sample_signature_base64, sample_signature_png
 
 
 def test_decode_signature_image_accepts_raw_base64():
@@ -38,8 +39,8 @@ def test_validate_signature_image_rejects_empty_canvas():
 
 def test_save_submission_signature_writes_file(tmp_path: Path):
     settings = Settings(
-        kiosk_token="test-kiosk-token-16c",
-        jwt_secret_key="test-jwt-secret-key-min-32-chars-long",
+        kiosk_token=TEST_KIOSK_TOKEN,
+        jwt_secret_key=TEST_JWT_SECRET,
         storage_root=tmp_path,
     )
     submission_id = uuid.uuid4()

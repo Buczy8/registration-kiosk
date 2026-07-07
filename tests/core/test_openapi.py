@@ -1,32 +1,12 @@
 from fastapi.testclient import TestClient
 
 from app.core.app import create_app
-from app.core.config import Settings
 from app.core.deps import KIOSK_TOKEN_HEADER
-
-TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
-TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
-
-
-def _dev_settings() -> Settings:
-    return Settings(
-        app_env="development",
-        kiosk_token=TEST_KIOSK_TOKEN,
-        jwt_secret_key=TEST_JWT_SECRET,
-    )
-
-
-def _prod_settings() -> Settings:
-    return Settings(
-        app_env="production",
-        debug=False,
-        kiosk_token="prod-kiosk-token-16chars",
-        jwt_secret_key="prod-jwt-secret-key-min-32-chars-long",
-    )
+from tests.conftest import dev_settings, prod_settings
 
 
 def test_swagger_ui_is_available_in_development():
-    client = TestClient(create_app(_dev_settings()))
+    client = TestClient(create_app(dev_settings()))
 
     response = client.get("/docs")
 
@@ -35,7 +15,7 @@ def test_swagger_ui_is_available_in_development():
 
 
 def test_openapi_schema_contains_kiosk_security_scheme():
-    client = TestClient(create_app(_dev_settings()))
+    client = TestClient(create_app(dev_settings()))
 
     schema = client.get("/openapi.json").json()
 
@@ -49,7 +29,7 @@ def test_openapi_schema_contains_kiosk_security_scheme():
 
 
 def test_openapi_schema_contains_kiosk_guest_endpoints():
-    client = TestClient(create_app(_dev_settings()))
+    client = TestClient(create_app(dev_settings()))
 
     schema = client.get("/openapi.json").json()
 
@@ -61,7 +41,7 @@ def test_openapi_schema_contains_kiosk_guest_endpoints():
 
 
 def test_openapi_docs_are_disabled_in_production():
-    client = TestClient(create_app(_prod_settings()))
+    client = TestClient(create_app(prod_settings()))
 
     assert client.get("/docs").status_code == 404
     assert client.get("/redoc").status_code == 404

@@ -1,43 +1,21 @@
 import asyncio
-import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
 from app.core.deps import KIOSK_TOKEN_HEADER
 from app.db.session import get_db
 from app.schemas.submission import GuestSubmissionCreate
 from app.services.submissions import create_guest_submission, get_missing_required_fields
 from main import app
+from tests.conftest import TEST_KIOSK_TOKEN
 from tests.fakes.async_db import FakeAsyncSubmissionDb, async_get_db_override
-from tests.guest_registration_samples import (
+from tests.fixtures.guest_registration_samples import (
     GUEST_REGISTRATION_SCHEMA,
     SAMPLE_GUEST_SUBMISSIONS,
     guest_registration_form,
 )
-
-TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
-TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
-
-
-@pytest.fixture
-def kiosk_settings(tmp_path) -> Settings:
-    return Settings(
-        kiosk_token=TEST_KIOSK_TOKEN,
-        jwt_secret_key=TEST_JWT_SECRET,
-        start_number_timezone="Europe/Warsaw",
-        storage_root=tmp_path,
-    )
-
-
-@pytest.fixture
-def client(kiosk_settings: Settings) -> TestClient:
-    app.dependency_overrides[get_settings] = lambda: kiosk_settings
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.pop(get_settings, None)
-    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.mark.parametrize("submission_payload", SAMPLE_GUEST_SUBMISSIONS)
@@ -54,8 +32,8 @@ def test_full_guest_registration_payload_has_no_missing_required_fields(
 
 @pytest.mark.parametrize("index", range(len(SAMPLE_GUEST_SUBMISSIONS)))
 def test_create_guest_submission_accepts_full_registration_payload(
-    client: TestClient,
-    kiosk_settings: Settings,
+    client_with_storage: TestClient,
+    kiosk_settings_with_storage: Settings,
     index: int,
 ):
     form = guest_registration_form()
@@ -63,7 +41,7 @@ def test_create_guest_submission_accepts_full_registration_payload(
     db = FakeAsyncSubmissionDb(form, start_number=start_number)
     app.dependency_overrides[get_db] = async_get_db_override(db)
 
-    response = client.post(
+    response = client_with_storage.post(
         "/api/v1/kiosk/submissions",
         headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
         json=SAMPLE_GUEST_SUBMISSIONS[index],
@@ -81,7 +59,7 @@ def test_create_guest_submission_accepts_full_registration_payload(
 
 
 def test_create_guest_submission_returns_400_for_incomplete_registration_payload(
-    client: TestClient,
+    client_with_storage: TestClient,
 ):
     form = guest_registration_form()
     app.dependency_overrides[get_db] = async_get_db_override(FakeAsyncSubmissionDb(form))
@@ -94,7 +72,7 @@ def test_create_guest_submission_returns_400_for_incomplete_registration_payload
         },
     }
 
-    response = client.post(
+    response = client_with_storage.post(
         "/api/v1/kiosk/submissions",
         headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
         json=incomplete_payload,
@@ -105,7 +83,9 @@ def test_create_guest_submission_returns_400_for_incomplete_registration_payload
     assert "Missing required form fields:" in response.json()["error"]["message"]
 
 
-def test_create_guest_submission_service_persists_full_payload(kiosk_settings: Settings):
+def test_create_guest_submission_service_persists_full_payload(
+    kiosk_settings_with_storage: Settings,
+):
     form = guest_registration_form()
     db = FakeAsyncSubmissionDb(form, start_number=7)
 
@@ -113,7 +93,7 @@ def test_create_guest_submission_service_persists_full_payload(kiosk_settings: S
         create_guest_submission(
             db=db,
             data=GuestSubmissionCreate(**SAMPLE_GUEST_SUBMISSIONS[0]),
-            settings=kiosk_settings,
+            settings=kiosk_settings_with_storage,
         )
     )
 

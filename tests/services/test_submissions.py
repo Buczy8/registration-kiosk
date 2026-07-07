@@ -9,7 +9,6 @@ from fastapi import HTTPException
 from app.core.config import Settings
 from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.models.form import Form
-from app.models.submission import Submission
 from app.schemas.submission import GuestSubmissionCreate
 from app.services.submissions import (
     create_guest_submission,
@@ -17,11 +16,9 @@ from app.services.submissions import (
     get_next_start_number,
     get_sequence_date,
 )
+from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
 from tests.fakes.async_db import FakeAsyncDb, FakeAsyncSubmissionDb
-from tests.signature_samples import sample_signature_base64
-
-TEST_KIOSK_TOKEN = "test-kiosk-token-16c"
-TEST_JWT_SECRET = "test-jwt-secret-key-min-32-chars-long"
+from tests.fixtures.signature_samples import sample_signature_base64
 
 
 def _settings(storage_root: Path | None = None) -> Settings:
