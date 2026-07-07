@@ -11,6 +11,7 @@ import jwt
 from datetime import datetime, timedelta, UTC
 from uuid import UUID
 from app.core.config import Settings
+import secrets
 
 _password_hasher = PasswordHasher()
 
@@ -77,3 +78,24 @@ def decode_access_token(token: str, settings: Settings) -> UUID:
 
     except ValueError as e:
         raise jwt.InvalidTokenError("Nieprawidłowy format UUID w tokenie") from e
+
+def generate_secret(length: int = 32) -> str:
+    """
+    Generuje bezpieczny kryptograficznie, losowy ciąg znaków.
+    Zwracany ciąg jest bezpieczny do użycia w adresach URL.
+    """
+    return secrets.token_urlsafe(length)
+
+def generate_reset_token() -> str:
+    """
+    Generuje token do resetowania hasła.
+    Działa jako semantyczny wrapper/alias na generate_secret().
+    """
+    return generate_secret()
+
+def hash_reset_token(token: str) -> str:
+    """
+    Haszuje token resetowania hasła przed zapisem do bazy danych.
+    Dzięki temu, nawet w przypadku wycieku bazy, atakujący nie pozna surowych tokenów.
+    """
+    return sha256_hex(token)
