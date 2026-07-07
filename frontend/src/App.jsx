@@ -11,11 +11,20 @@ import VerifyDataForm from "./pages/VerifyDataForm.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
 
+const SCREENS = {
+  START: "start",
+  LOGIN: "login",
+  REGISTER: "register",
+  GUEST: "guest",
+  ROLE_SELECT: "role-select",
+  VERIFY: "verify",
+  RESULT: "result",
+};
+
 export default function App() {
   const { isAuthenticated, logout, isInitializing, user, token } = useAuth();
 
-  const [view, setView] = useState("start");
-  const [accountStep, setAccountStep] = useState("role-select");
+  const [screen, setScreen] = useState(SCREENS.START);
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [form, setForm] = useState(null);
@@ -27,8 +36,7 @@ export default function App() {
   const [submitError, setSubmitError] = useState(null);
   const [startInfoMessage, setStartInfoMessage] = useState(null);
 
-  function resetAccountFlow() {
-    setAccountStep("role-select");
+  function resetAccountSelection() {
     setSelectedRole(null);
     setSelectedVehicle(null);
     setSubmitError(null);
@@ -36,8 +44,8 @@ export default function App() {
 
   function handleLogout() {
     logout();
-    setView("start");
-    resetAccountFlow();
+    setScreen(SCREENS.START);
+    resetAccountSelection();
     setSubmissions(null);
     setSubmissionIsAccount(false);
   }
@@ -48,6 +56,21 @@ export default function App() {
       setStartInfoMessage("Sesja wygasła ze względów bezpieczeństwa.");
     }
   });
+
+  useEffect(() => {
+    const publicScreens = [SCREENS.START, SCREENS.LOGIN, SCREENS.REGISTER, SCREENS.GUEST];
+    const accountScreens = [SCREENS.ROLE_SELECT, SCREENS.VERIFY];
+
+    if (isAuthenticated && publicScreens.includes(screen)) {
+      setScreen(SCREENS.ROLE_SELECT);
+    }
+
+    if (!isAuthenticated && accountScreens.includes(screen)) {
+      setScreen(SCREENS.START);
+      setSelectedRole(null);
+      setSelectedVehicle(null);
+    }
+  }, [isAuthenticated, screen]);
 
   useEffect(() => {
     if (!startInfoMessage) {
@@ -100,6 +123,7 @@ export default function App() {
       }
       setSubmissionIsAccount(false);
       setSubmissions(results);
+      setScreen(SCREENS.RESULT);
     } catch (error) {
       setSubmitError(error.message);
     } finally {
@@ -114,6 +138,7 @@ export default function App() {
       const result = await createAccountSubmission(payload, token);
       setSubmissionIsAccount(true);
       setSubmissions([result]);
+      setScreen(SCREENS.RESULT);
     } catch (error) {
       setSubmitError(error.message);
     } finally {
@@ -124,23 +149,20 @@ export default function App() {
   function handleGuestNewSubmission() {
     setSubmissions(null);
     setSubmitError(null);
-    setView("start");
+    setScreen(SCREENS.START);
   }
 
   function handleAccountNewForm() {
     setSubmissions(null);
     setSubmitError(null);
-    resetAccountFlow();
+    resetAccountSelection();
+    setScreen(SCREENS.ROLE_SELECT);
   }
 
   function handleRoleVehicleContinue({ role, vehicle }) {
     setSelectedRole(role);
     setSelectedVehicle(vehicle);
-    if (role === "legal_guardian") {
-      setAccountStep("guardian-placeholder");
-      return;
-    }
-    setAccountStep("verify");
+    setScreen(SCREENS.VERIFY);
   }
 
   if (isInitializing) {
@@ -160,7 +182,7 @@ export default function App() {
     );
   }
 
-  if (submissions) {
+  if (screen === SCREENS.RESULT && submissions) {
     return (
       <SubmissionResult
         submissions={submissions}
@@ -172,28 +194,30 @@ export default function App() {
     );
   }
 
-  if (!isAuthenticated) {
-    if (view === "start") {
-      return (
-        <StartScreen
-          infoMessage={startInfoMessage}
-          onGuest={() => setView("guest")}
-          onLogin={() => setView("login")}
-          onRegister={() => setView("register")}
-        />
-      );
-    }
-    if (view === "login") {
-      return <LoginPage onBack={() => setView("start")} />;
-    }
-    if (view === "register") {
-      return <RegisterPage onBack={() => setView("start")} />;
-    }
+  if (!isAuthenticated && screen === SCREENS.START) {
+    return (
+      <StartScreen
+        infoMessage={startInfoMessage}
+        onGuest={() => setScreen(SCREENS.GUEST)}
+        onLogin={() => setScreen(SCREENS.LOGIN)}
+        onRegister={() => setScreen(SCREENS.REGISTER)}
+      />
+    );
+  }
 
+  if (!isAuthenticated && screen === SCREENS.LOGIN) {
+    return <LoginPage onBack={() => setScreen(SCREENS.START)} />;
+  }
+
+  if (!isAuthenticated && screen === SCREENS.REGISTER) {
+    return <RegisterPage onBack={() => setScreen(SCREENS.START)} />;
+  }
+
+  if (!isAuthenticated && screen === SCREENS.GUEST) {
     return (
       <div className="app-container">
         <div style={{ marginBottom: "15px" }}>
-          <button className="secondary-button" type="button" onClick={() => setView("start")}>
+          <button className="secondary-button" type="button" onClick={() => setScreen(SCREENS.START)}>
             &larr; Wróć
           </button>
         </div>
@@ -241,7 +265,7 @@ export default function App() {
         </div>
       )}
 
-      {accountStep === "role-select" && (
+      {screen === SCREENS.ROLE_SELECT && (
         <RoleVehicleSelect
           onContinue={handleRoleVehicleContinue}
           defaultRole={user?.last_participant_role || ""}
@@ -249,18 +273,18 @@ export default function App() {
         />
       )}
 
-      {accountStep === "guardian-placeholder" && (
-        <GuardianPlaceholder onBack={() => setAccountStep("role-select")} />
+      {screen === SCREENS.VERIFY && selectedRole === "legal_guardian" && (
+        <GuardianPlaceholder onBack={() => setScreen(SCREENS.ROLE_SELECT)} />
       )}
 
-      {accountStep === "verify" && selectedRole && selectedVehicle && (
+      {screen === SCREENS.VERIFY && selectedRole && selectedVehicle && selectedRole !== "legal_guardian" && (
         <VerifyDataForm
           form={form}
           role={selectedRole}
           vehicleType={selectedVehicle}
           token={token}
           onSubmit={handleAccountSubmit}
-          onBack={() => setAccountStep("role-select")}
+          onBack={() => setScreen(SCREENS.ROLE_SELECT)}
           submitting={submitting}
           submitError={submitError}
         />
