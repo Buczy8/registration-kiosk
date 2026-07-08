@@ -61,15 +61,25 @@ http_bearer_scheme = HTTPBearer(
 )
 
 
-def _get_token_from_security_schemes(
+def _get_bearer_token_from_headers(
     bearer: HTTPAuthorizationCredentials | None = Security(http_bearer_scheme),
     oauth2_token: str | None = Security(oauth2_scheme),
-    cookie_token: str | None = Cookie(default=None, alias="kiosk_access_token"),
 ) -> str | None:
     if bearer is not None:
         return bearer.credentials
     if oauth2_token:
         return oauth2_token
+    return None
+
+
+def _get_token_from_security_schemes(
+    bearer: HTTPAuthorizationCredentials | None = Security(http_bearer_scheme),
+    oauth2_token: str | None = Security(oauth2_scheme),
+    cookie_token: str | None = Cookie(default=None, alias="kiosk_access_token"),
+) -> str | None:
+    header_token = _get_bearer_token_from_headers(bearer=bearer, oauth2_token=oauth2_token)
+    if header_token is not None:
+        return header_token
     return cookie_token
 
 
@@ -135,6 +145,20 @@ async def get_optional_current_user(
 
 
 OptionalCurrentUser = Annotated[User | None, Depends(get_optional_current_user)]
+
+
+async def get_optional_bearer_user(
+    token: str | None = Depends(_get_bearer_token_from_headers),
+    settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    if token is None:
+        return None
+    user_id = get_current_user_id_from_token(token=token, settings=settings)
+    return await get_current_user(db=db, user_id=user_id)
+
+
+OptionalBearerUser = Annotated[User | None, Depends(get_optional_bearer_user)]
 
 
 @dataclass(frozen=True)

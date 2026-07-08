@@ -212,3 +212,46 @@ def test_guest_submission_without_jwt_still_guest(client_with_storage: TestClien
     payload = response.json()
     assert payload["mode"] == "guest"
     assert payload["start_number"] == 42
+
+
+def test_guest_submission_with_auth_cookie_only_stays_guest_and_does_not_update_profile(
+    client_with_storage: TestClient,
+):
+    user = _user()
+    user.first_name = "Jan"
+    user.last_name = "Kowalski"
+    profile = UserProfile(
+        user_id=user.id,
+        address="Warszawa",
+        pesel="12345678901",
+        vehicles_json={
+            "car": {"brand_model": "BMW M3", "registration_number": "WX 12345"},
+        },
+    )
+    db = _FakeDualDb(_form(), start_number=42, user=user, profile=profile)
+    app.dependency_overrides[get_db] = async_get_db_override(db)
+
+    token = create_access_token(user.id, _settings())
+    client_with_storage.cookies.set("kiosk_access_token", token)
+
+    response = client_with_storage.post(
+        "/api/v1/kiosk/submissions",
+        headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
+        json=_payload(
+            payload_json={
+                "first_name": "Inny",
+                "last_name": "Gosc",
+                "vehicle_brand": "Audi",
+                "vehicle_model": "A4",
+                "vehicle_registration_number": "KR 11111",
+            },
+        ),
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["mode"] == "guest"
+    assert user.first_name == "Jan"
+    assert user.last_name == "Kowalski"
+    assert profile.pesel == "12345678901"
+    assert profile.vehicles_json["car"]["brand_model"] == "BMW M3"

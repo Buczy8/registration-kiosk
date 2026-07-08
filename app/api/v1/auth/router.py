@@ -72,6 +72,25 @@ async def login_endpoint(
 
 
 @router.post(
+    "/logout",
+    response_model=MessageResponse,
+    summary="Wylogowanie użytkownika",
+)
+async def logout_endpoint(
+    _: KioskAuth,
+    response: Response,
+    settings: Settings = Depends(get_settings),
+) -> MessageResponse:
+    response.delete_cookie(
+        key=settings.auth_cookie_name,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+    )
+    return MessageResponse(message="Logged out")
+
+
+@router.post(
     "/password-reset/request",
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
