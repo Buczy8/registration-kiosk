@@ -29,6 +29,7 @@ class User(Base):
     last_name: Mapped[str | None] = mapped_column(String(100))
     phone: Mapped[str | None] = mapped_column(String(30))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    is_superuser: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     failed_login_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0")
     )

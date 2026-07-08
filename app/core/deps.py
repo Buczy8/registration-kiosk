@@ -132,6 +132,18 @@ async def get_current_user(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
+def get_current_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Missing special rights",
+        )
+    return current_user
+
+
+CurrentAdminUser = Annotated[User, Depends(get_current_admin_user)]
 
 async def get_optional_current_user(
     token: str | None = Depends(_get_token_from_security_schemes),
