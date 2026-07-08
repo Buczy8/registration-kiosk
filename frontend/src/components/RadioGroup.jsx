@@ -1,4 +1,4 @@
-export default function RadioGroup({ legend, name, options, value, onChange, required = true }) {
+export default function RadioGroup({ legend, name, options, value, onChange, required = false }) {
   return (
     <fieldset className="radio-group">
       <legend>{legend}</legend>

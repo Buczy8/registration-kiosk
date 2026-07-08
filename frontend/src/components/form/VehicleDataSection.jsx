@@ -1,13 +1,17 @@
-import { renderFields } from "../registrationFormFields.jsx";
+import { VEHICLE_DATA_FIELDS } from "../../lib/registrationFormShared.js";
+import SchemaFieldsList from "./SchemaFieldsList.jsx";
 
-export default function VehicleDataSection({ properties, schema, formData, updateField }) {
+export default function VehicleDataSection({ properties, schema }) {
   return (
     <fieldset className="form-card">
       <legend>Dane pojazdu</legend>
       <p className="hint">Pola opcjonalne — wypełnij, jeśli dotyczy.</p>
-      {renderFields(["vehicle_brand", "vehicle_model", "vehicle_registration_number"], properties, schema, formData, updateField, {
-        forceOptional: true,
-      })}
+      <SchemaFieldsList
+        fieldNames={VEHICLE_DATA_FIELDS}
+        properties={properties}
+        schema={schema}
+        forceOptional
+      />
     </fieldset>
   );
 }

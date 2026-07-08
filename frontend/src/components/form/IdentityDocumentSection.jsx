@@ -1,55 +1,46 @@
-import RadioGroup from "../RadioGroup.jsx";
-import { IDENTITY_DOCUMENT_TYPES } from "../../lib/registrationFormShared.js";
+import { Controller, useFormContext } from "react-hook-form";
 
-export default function IdentityDocumentSection({
-  properties,
-  identityDocumentType,
-  onIdentityDocumentTypeChange,
-  formData,
-  updateField,
-}) {
+import {
+  IDENTITY_DOCUMENT_TYPES,
+  IdentityDocumentType,
+} from "../../lib/registrationFormShared.js";
+import RadioGroup from "../RadioGroup.jsx";
+import SchemaTextField from "./SchemaTextField.jsx";
+
+export default function IdentityDocumentSection({ properties, onIdentityDocumentTypeChange }) {
+  const { control, watch } = useFormContext();
+  const identityDocumentType = watch("identityDocumentType");
+
   return (
     <div className="identity-fields">
-      <RadioGroup
-        legend="Dokument tożsamości"
-        name="identity_document_type"
-        options={IDENTITY_DOCUMENT_TYPES}
-        value={identityDocumentType}
-        onChange={onIdentityDocumentTypeChange}
-      />
-      {identityDocumentType === "pesel" ? (
-        <label className="field">
-          <span>{properties.pesel?.title || "PESEL"}</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={formData.pesel || ""}
-            onChange={(event) => updateField("pesel", event.target.value)}
-            pattern={properties.pesel?.pattern}
-            maxLength={11}
-            required
+      <Controller
+        control={control}
+        name="identityDocumentType"
+        render={({ field }) => (
+          <RadioGroup
+            legend="Dokument tożsamości"
+            name="identity_document_type"
+            options={IDENTITY_DOCUMENT_TYPES}
+            value={field.value}
+            onChange={(value) => {
+              field.onChange(value);
+              onIdentityDocumentTypeChange(value);
+            }}
           />
-        </label>
+        )}
+      />
+      {identityDocumentType === IdentityDocumentType.PESEL ? (
+        <SchemaTextField name="payload.pesel" property={properties.pesel} />
       ) : (
         <div className="field-row">
-          <label className="field">
-            <span>{properties.id_card_series?.title || "Seria dowodu osobistego"}</span>
-            <input
-              type="text"
-              value={formData.id_card_series || ""}
-              onChange={(event) => updateField("id_card_series", event.target.value)}
-              required
-            />
-          </label>
-          <label className="field">
-            <span>{properties.id_card_number?.title || "Numer dowodu osobistego"}</span>
-            <input
-              type="text"
-              value={formData.id_card_number || ""}
-              onChange={(event) => updateField("id_card_number", event.target.value)}
-              required
-            />
-          </label>
+          <SchemaTextField
+            name="payload.id_card_series"
+            property={properties.id_card_series || { title: "Seria dowodu osobistego" }}
+          />
+          <SchemaTextField
+            name="payload.id_card_number"
+            property={properties.id_card_number || { title: "Numer dowodu osobistego" }}
+          />
         </div>
       )}
     </div>

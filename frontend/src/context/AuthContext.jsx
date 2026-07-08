@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import { login as apiLogin, register as apiRegister, getProfile } from '../api/auth.js';
+import { login as apiLogin, logout as apiLogout, register as apiRegister, getProfile } from '../api/auth.js';
 import { setUnauthorizedHandler } from '../api/client.js';
 
 const AuthContext = createContext();
@@ -56,11 +56,17 @@ export const AuthProvider = ({ children }) => {
     await login({ email: payload.email, password: payload.password });
   };
 
-  const logout = () => {
-    sessionStorage.removeItem('kiosk_token');
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch (error) {
+      console.error("Błąd wylogowania z serwera:", error);
+    } finally {
+      sessionStorage.removeItem('kiosk_token');
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   return (

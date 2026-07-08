@@ -1,31 +1,29 @@
+import { Controller, useFormContext } from "react-hook-form";
+
 import { SIGNATURE_PLACE_FIELD } from "../../lib/registrationFormShared.js";
 import SignaturePad from "../SignaturePad.jsx";
+import SchemaTextField from "./SchemaTextField.jsx";
 
-export default function SignatureSection({
-  properties,
-  formData,
-  updateField,
-  signatureLabel,
-  onSignatureChange,
-  submitting,
-}) {
+export default function SignatureSection({ properties, signatureLabel, submitting }) {
+  const { control } = useFormContext();
+
   return (
     <fieldset className="form-card">
       <legend>Data i miejscowość oraz podpis</legend>
       <div className="signature-section">
-        <label className="field signature-place-field">
-          <span>{properties.signature_place?.title || "Data i miejscowość"}</span>
-          <input
-            type="text"
-            value={formData[SIGNATURE_PLACE_FIELD] || ""}
-            onChange={(event) => updateField(SIGNATURE_PLACE_FIELD, event.target.value)}
-            placeholder="np. Biłgoraj, 03.07.2026"
-            required
-          />
-        </label>
+        <SchemaTextField
+          name={`payload.${SIGNATURE_PLACE_FIELD}`}
+          property={properties.signature_place || { title: "Data i miejscowość" }}
+        />
         <div className="signature-pad-field">
           <p className="signature-footer-label">{signatureLabel}</p>
-          <SignaturePad onChange={onSignatureChange} disabled={submitting} />
+          <Controller
+            control={control}
+            name="signatureImageBase64"
+            render={({ field }) => (
+              <SignaturePad onChange={field.onChange} disabled={submitting} />
+            )}
+          />
         </div>
       </div>
     </fieldset>

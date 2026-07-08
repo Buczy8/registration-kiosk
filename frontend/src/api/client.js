@@ -45,11 +45,12 @@ export async function apiRequest(path, options = {}) {
     body,
     token = null,
     contentType = "application/json",
+    credentials = "include",
   } = options;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
-    credentials: "include",
+    credentials,
     headers: buildHeaders({ token, contentType }),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });

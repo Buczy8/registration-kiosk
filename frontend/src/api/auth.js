@@ -39,6 +39,13 @@ export async function login(payload) {
   }
 }
 
+export async function logout() {
+  await apiRequest("/auth/logout", {
+    method: "POST",
+    contentType: null,
+  });
+}
+
 export async function getProfile(token) {
   const response = await apiRequest("/me/profile", {
     token,

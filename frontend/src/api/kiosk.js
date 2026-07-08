@@ -10,6 +10,7 @@ export async function getActiveForm() {
 export async function createGuestSubmission(payload) {
   const response = await apiRequest("/kiosk/submissions", {
     method: "POST",
+    credentials: "omit",
     body: payload,
   });
   return response.json();

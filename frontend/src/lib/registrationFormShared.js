@@ -1,13 +1,36 @@
+export const ParticipantRole = {
+  DRIVER: "driver",
+  PASSENGER: "passenger",
+  LEGAL_GUARDIAN: "legal_guardian",
+};
+
+export const VehicleType = {
+  CAR: "car",
+  MOTORCYCLE: "motorcycle",
+  GOKART: "gokart",
+};
+
+export const IdentityDocumentType = {
+  PESEL: "pesel",
+  ID_CARD: "id_card",
+};
+
+export const GuardianRelation = {
+  PARENT: "parent",
+  GUARDIAN: "guardian",
+  AUTHORIZED_PERSON: "authorized_person",
+};
+
 export const PARTICIPANT_ROLES = [
-  { value: "driver", label: "Kierowca" },
-  { value: "passenger", label: "Pasażer" },
-  { value: "legal_guardian", label: "Opiekun prawny" },
+  { value: ParticipantRole.DRIVER, label: "Kierowca" },
+  { value: ParticipantRole.PASSENGER, label: "Pasażer" },
+  { value: ParticipantRole.LEGAL_GUARDIAN, label: "Opiekun prawny" },
 ];
 
 export const VEHICLE_TYPES = [
-  { value: "car", label: "Samochód" },
-  { value: "motorcycle", label: "Motocykl" },
-  { value: "gokart", label: "Gokart" },
+  { value: VehicleType.CAR, label: "Samochód" },
+  { value: VehicleType.MOTORCYCLE, label: "Motocykl" },
+  { value: VehicleType.GOKART, label: "Gokart" },
 ];
 
 export function labelForRole(value) {
@@ -19,8 +42,8 @@ export function labelForVehicle(value) {
 }
 
 export const IDENTITY_DOCUMENT_TYPES = [
-  { value: "pesel", label: "PESEL" },
-  { value: "id_card", label: "Dowód osobisty (seria i numer)" },
+  { value: IdentityDocumentType.PESEL, label: "PESEL" },
+  { value: IdentityDocumentType.ID_CARD, label: "Dowód osobisty (seria i numer)" },
 ];
 
 export const IDENTITY_FIELDS = ["pesel", "id_card_series", "id_card_number"];
@@ -41,9 +64,9 @@ export const PERSONAL_DATA_FIELDS = [
   "emergency_contact_phone",
 ];
 export const GUARDIAN_RELATIONS = [
-  { value: "parent", label: "Rodzic" },
-  { value: "guardian", label: "Opiekun prawny" },
-  { value: "authorized_person", label: "Osoba upoważniona" },
+  { value: GuardianRelation.PARENT, label: "Rodzic" },
+  { value: GuardianRelation.GUARDIAN, label: "Opiekun prawny" },
+  { value: GuardianRelation.AUTHORIZED_PERSON, label: "Osoba upoważniona" },
 ];
 export const SIGNATURE_PLACE_FIELD = "signature_place";
 
@@ -58,10 +81,38 @@ export function createEmptyMinor() {
     guardian_relation: "",
     minor_first_name: "",
     minor_last_name: "",
-    vehicle_type: "car",
+    vehicle_type: VehicleType.CAR,
     vehicle_brand: "",
     vehicle_model: "",
     vehicle_registration_number: "",
+  };
+}
+
+export function createDefaultFormValues({ mode, role, vehicleType } = {}) {
+  if (mode === "account") {
+    return {
+      participantRole: role || ParticipantRole.DRIVER,
+      vehicleType: vehicleType || VehicleType.CAR,
+      identityDocumentType: IdentityDocumentType.PESEL,
+      payload: {},
+      declarationsReviewed: false,
+      signatureImageBase64: "",
+      minors: [],
+      consents: { image_publication: false },
+    };
+  }
+
+  return {
+    participantRole: ParticipantRole.DRIVER,
+    vehicleType: VehicleType.CAR,
+    identityDocumentType: IdentityDocumentType.PESEL,
+    payload: {
+      [SIGNATURE_PLACE_FIELD]: getDefaultSignaturePlace(),
+    },
+    declarationsReviewed: false,
+    signatureImageBase64: "",
+    minors: [],
+    consents: { image_publication: false },
   };
 }
 
@@ -156,112 +207,12 @@ export function mapPrefillToFormData(prefill) {
 
 export function inferIdentityDocumentType(formData) {
   if (formData.pesel) {
-    return "pesel";
+    return IdentityDocumentType.PESEL;
   }
   if (formData.id_card_series || formData.id_card_number) {
-    return "id_card";
+    return IdentityDocumentType.ID_CARD;
   }
-  return "pesel";
-}
-
-function validateIdentityDocument(payload, schema, identityDocumentType) {
-  if (schema.identity_document_rule !== "pesel_or_id_card") {
-    return null;
-  }
-
-  if (identityDocumentType === "pesel") {
-    if (!payload.pesel?.trim()) {
-      return "Podaj PESEL.";
-    }
-    if (payload.pesel.trim().length !== 11) {
-      return "PESEL musi mieć 11 cyfr.";
-    }
-    return null;
-  }
-
-  const hasSeries = Boolean(payload.id_card_series?.trim());
-  const hasNumber = Boolean(payload.id_card_number?.trim());
-  if (!hasSeries || !hasNumber) {
-    return "Podaj serię i numer dowodu osobistego.";
-  }
-
-  return null;
-}
-
-function validateMinors(minors) {
-  const errors = [];
-
-  if (minors.length === 0) {
-    errors.push("Dodaj co najmniej jednego podopiecznego.");
-    return errors;
-  }
-
-  minors.forEach((minor, index) => {
-    const label = `Podopieczny ${index + 1}`;
-    if (!minor.guardian_relation?.trim()) {
-      errors.push(`${label}: wybierz typ opiekuna.`);
-    }
-    if (!minor.minor_first_name?.trim()) {
-      errors.push(`${label}: podaj imię podopiecznego.`);
-    }
-    if (!minor.minor_last_name?.trim()) {
-      errors.push(`${label}: podaj nazwisko podopiecznego.`);
-    }
-  });
-
-  return errors;
-}
-
-export function validateForm({
-  schema,
-  payload,
-  participantRole,
-  vehicleType,
-  declarationsReviewed,
-  identityDocumentType,
-  minors = [],
-  signatureImageBase64,
-  requireRoleSelection = true,
-}) {
-  const errors = [];
-
-  if (requireRoleSelection && !participantRole) {
-    errors.push("Wybierz rolę uczestnika.");
-  }
-  if (requireRoleSelection && participantRole !== "legal_guardian" && !vehicleType) {
-    errors.push("Wybierz typ pojazdu.");
-  }
-
-  for (const field of schema.required || []) {
-    if (isGuardianField(field) || isVehicleField(field)) {
-      continue;
-    }
-    if (!payload[field]?.trim()) {
-      const title = schema.properties?.[field]?.title || field;
-      errors.push(`Pole wymagane: ${title}.`);
-    }
-  }
-
-  const identityError = validateIdentityDocument(payload, schema, identityDocumentType);
-  if (identityError) {
-    errors.push(identityError);
-  }
-
-  if (participantRole === "legal_guardian") {
-    errors.push(...validateMinors(minors));
-  }
-
-  if (!declarationsReviewed) {
-    errors.push("Przewiń i zapoznaj się z oświadczeniami oraz akceptacją ryzyka.");
-  }
-  if (!payload[SIGNATURE_PLACE_FIELD]?.trim()) {
-    errors.push("Podaj datę i miejscowość.");
-  }
-  if (!signatureImageBase64) {
-    errors.push("Złóż podpis w polu podpisu.");
-  }
-
-  return errors;
+  return IdentityDocumentType.PESEL;
 }
 
 export function buildPayloadJson(
@@ -281,10 +232,10 @@ export function buildPayloadJson(
       continue;
     }
     if (isIdentityField(fieldName)) {
-      if (identityDocumentType === "pesel" && fieldName !== "pesel") {
+      if (identityDocumentType === IdentityDocumentType.PESEL && fieldName !== "pesel") {
         continue;
       }
-      if (identityDocumentType === "id_card" && fieldName === "pesel") {
+      if (identityDocumentType === IdentityDocumentType.ID_CARD && fieldName === "pesel") {
         continue;
       }
     }
@@ -319,7 +270,7 @@ export function buildSubmissionPayload({
   signatureImageBase64,
 }) {
   const payloadJson = { ...basePayload };
-  if (participantRole === "legal_guardian" && minor) {
+  if (participantRole === ParticipantRole.LEGAL_GUARDIAN && minor) {
     payloadJson.guardian_relation = minor.guardian_relation;
     payloadJson.minor_first_name = minor.minor_first_name.trim();
     payloadJson.minor_last_name = minor.minor_last_name.trim();
@@ -336,4 +287,65 @@ export function buildSubmissionPayload({
     declarations_accepted: true,
     signature_image_base64: signatureImageBase64,
   };
+}
+
+export function buildGuestSubmissions(data, schema) {
+  const basePayload = buildPayloadJson(data.payload, schema, data.identityDocumentType, {
+    excludeVehicleFields: data.participantRole === ParticipantRole.LEGAL_GUARDIAN,
+  });
+
+  if (data.participantRole === ParticipantRole.LEGAL_GUARDIAN) {
+    return data.minors.map((minor) =>
+      buildSubmissionPayload({
+        basePayload,
+        minor,
+        participantRole: data.participantRole,
+        vehicleType: data.vehicleType,
+        consents: data.consents,
+        signatureImageBase64: data.signatureImageBase64,
+      }),
+    );
+  }
+
+  return [
+    buildSubmissionPayload({
+      basePayload,
+      participantRole: data.participantRole,
+      vehicleType: data.vehicleType,
+      consents: data.consents,
+      signatureImageBase64: data.signatureImageBase64,
+    }),
+  ];
+}
+
+export function buildAccountSubmission(data, schema, role, vehicleType) {
+  const basePayload = buildPayloadJson(data.payload, schema, data.identityDocumentType);
+  return buildSubmissionPayload({
+    basePayload,
+    participantRole: role,
+    vehicleType,
+    signatureImageBase64: data.signatureImageBase64,
+  });
+}
+
+export function getNestedError(errors, path) {
+  return path.split(".").reduce((current, key) => current?.[key], errors);
+}
+
+export function collectFormErrorMessages(errors) {
+  if (!errors) {
+    return [];
+  }
+
+  const messages = [];
+  for (const value of Object.values(errors)) {
+    if (value?.message) {
+      messages.push(value.message);
+      continue;
+    }
+    if (typeof value === "object") {
+      messages.push(...collectFormErrorMessages(value));
+    }
+  }
+  return messages;
 }
