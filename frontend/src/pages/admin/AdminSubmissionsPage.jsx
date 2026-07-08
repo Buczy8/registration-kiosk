@@ -176,9 +176,6 @@ export default function AdminSubmissionsPage() {
                 <tr>
                   <th>ID</th>
                   <th>Imię i nazwisko</th>
-                  <th>Mode</th>
-                  <th>Role</th>
-                  <th>Vehicle</th>
                   <th>Start #</th>
                   <th>Sequence</th>
                   <th>Status</th>
@@ -193,9 +190,6 @@ export default function AdminSubmissionsPage() {
                       <Link to={`/admin/submissions/${s.id}`}>{String(s.id).slice(0, 8)}…</Link>
                     </td>
                     <td>{s.display_name || "—"}</td>
-                    <td>{s.mode}</td>
-                    <td>{s.participant_role}</td>
-                    <td>{s.vehicle_type}</td>
                     <td>{s.start_number}</td>
                     <td>{formatDate(s.sequence_date)}</td>
                     <td>{humanizeStatus(s.status)}</td>

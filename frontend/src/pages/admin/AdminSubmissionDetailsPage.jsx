@@ -94,23 +94,8 @@ export default function AdminSubmissionDetailsPage() {
           <div className="form-card">
             <div className="field-row">
               <div className="field">
-                <span>Mode</span>
-                <div className="hint">{data.mode}</div>
-              </div>
-              <div className="field">
                 <span>Status</span>
                 <div className="hint">{data.status}</div>
-              </div>
-            </div>
-
-            <div className="field-row">
-              <div className="field">
-                <span>Rola</span>
-                <div className="hint">{data.participant_role}</div>
-              </div>
-              <div className="field">
-                <span>Typ pojazdu</span>
-                <div className="hint">{data.vehicle_type}</div>
               </div>
             </div>
 

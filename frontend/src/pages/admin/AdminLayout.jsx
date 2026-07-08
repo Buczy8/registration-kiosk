@@ -15,9 +15,6 @@ export default function AdminLayout({ title, subtitle, activeHref, children }) {
         {subtitle ? <p className="hint">{subtitle}</p> : null}
 
         <div className="admin-nav">
-          <Link className="secondary-button" to="/admin" aria-current={activeHref === "/admin" ? "page" : undefined}>
-            Strona główna
-          </Link>
           {NAV.map((item) => {
             const isActive = activeHref === item.href;
             return (
