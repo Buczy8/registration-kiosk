@@ -13,14 +13,10 @@ export default function SubmissionResult({
   const isMultiple = submissions.length > 1;
   const [activeSubmissionId, setActiveSubmissionId] = useState(submissions[0]?.id ?? null);
   const [pdfBlobs, setPdfBlobs] = useState({});
-  const [loadingPreview, setLoadingPreview] = useState(!isAccountMode);
+  const [loadingPreview, setLoadingPreview] = useState(true);
   const [previewError, setPreviewError] = useState(null);
 
   useEffect(() => {
-    if (isAccountMode) {
-      return undefined;
-    }
-
     let cancelled = false;
 
     async function loadPreviews() {
@@ -75,7 +71,7 @@ export default function SubmissionResult({
             <p className="result-number">{submission.start_number}</p>
             <p>Data sekwencji: {submission.sequence_date}</p>
             <p>Status: {submission.status}</p>
-            {isMultiple && !isAccountMode && (
+            {isMultiple && (
               <button
                 className={
                   activeSubmissionId === submission.id ? "primary-button" : "secondary-button"
@@ -90,20 +86,18 @@ export default function SubmissionResult({
         ))}
       </ul>
 
-      {!isAccountMode && (
-        <div className="pdf-preview-panel">
-          <h2>Podgląd dokumentu</h2>
-          {loadingPreview && <p>Ładowanie podglądu PDF...</p>}
-          {previewError && (
-            <p className="alert" role="alert">
-              Nie udało się wyświetlić PDF: {previewError}
-            </p>
-          )}
-          {!loadingPreview && !previewError && activePdfBlob && (
-            <PdfPreview blob={activePdfBlob} title="Podgląd zgłoszenia PDF" />
-          )}
-        </div>
-      )}
+      <div className="pdf-preview-panel">
+        <h2>Podgląd dokumentu</h2>
+        {loadingPreview && <p>Ładowanie podglądu PDF...</p>}
+        {previewError && (
+          <p className="alert" role="alert">
+            Nie udało się wyświetlić PDF: {previewError}
+          </p>
+        )}
+        {!loadingPreview && !previewError && activePdfBlob && (
+          <PdfPreview blob={activePdfBlob} title="Podgląd zgłoszenia PDF" />
+        )}
+      </div>
 
       <div className="actions">
         {isAccountMode ? (
