@@ -46,6 +46,17 @@ async def get_admin_submissions(
     result = await db.execute(query)
     submissions = result.scalars().all()
 
+    # Ustawienie czytelnej nazwy do wyswietlenia w panelu admina
+    for submission in submissions:
+        try:
+            payload = submission.payload_json or {}
+            first_name = (payload.get("first_name") or "").strip()
+            last_name = (payload.get("last_name") or "").strip()
+            full_name = f"{first_name} {last_name}".strip()
+            submission.display_name = full_name or None
+        except Exception:
+            submission.display_name = None
+
     count_query = select(func.count()).select_from(Submission)
     if status_filter:
         count_query = count_query.where(Submission.status == status_filter)

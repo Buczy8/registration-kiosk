@@ -57,6 +57,7 @@ class AdminSubmissionListItem(BaseModel):
     sequence_date: date
     status: SubmissionStatus
     user_id: UUID | None = None
+    display_name: str | None = None
     created_at: datetime
 
 

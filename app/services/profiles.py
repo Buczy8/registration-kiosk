@@ -96,6 +96,7 @@ async def get_profile_response(db: AsyncSession, user: User) -> ProfileResponse:
     return ProfileResponse(
         user_id=user.id,
         email=user.email,
+        is_superuser=bool(user.is_superuser),
         first_name=user.first_name,
         last_name=user.last_name,
         phone=user.phone,

@@ -84,6 +84,7 @@ def _user() -> User:
         last_name="Kowalski",
         phone="+48 500 600 700",
         is_active=True,
+        is_superuser=False,
         failed_login_count=0,
         locked_until=None,
     )

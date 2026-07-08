@@ -23,6 +23,7 @@ class ProfileResponse(BaseModel):
 
     user_id: UUID
     email: str
+    is_superuser: bool = False
     first_name: str | None = None
     last_name: str | None = None
     phone: str | None = None
