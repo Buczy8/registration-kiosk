@@ -8,6 +8,8 @@ from app.core.deps import CurrentAdminUser
 from app.db.session import get_db
 from app.models.submission import Submission
 from app.models.enums import SubmissionStatus
+from app.models.print_job import PrintJob
+from app.models.enums import PrintJobStatus
 
 router = APIRouter(prefix="/admin/submissions", tags=["Admin Submissions"])
 
@@ -78,3 +80,36 @@ async def get_submission_details(
         )
 
     return submission
+
+
+@router.post("/{submission_id}/print")
+async def queue_submission_for_print(
+        submission_id: UUID,
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+):
+    """
+    Ręcznie dodaje zgłoszenie do kolejki wydruku.
+    """
+    result = await db.execute(
+        select(Submission).where(Submission.id == submission_id)
+    )
+    submission = result.scalar_one_or_none()
+
+    if submission is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Zgłoszenie nie zostało znalezione"
+        )
+
+    submission.status = SubmissionStatus.PRINT_QUEUED
+
+    new_print_job = PrintJob(
+        submission_id=submission.id,
+        status=PrintJobStatus.QUEUED,
+    )
+    db.add(new_print_job)
+
+    await db.commit()
+
+    return {"message": "Zgłoszenie zostało pomyślnie dodane do kolejki wydruku."}
