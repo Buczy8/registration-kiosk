@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import PROJECT_ROOT, Settings, get_settings
-from app.models.enums import SubmissionMode
 from app.models.submission import Submission
 from app.services.pdf_mapping import (
     PdfFieldMapping,
@@ -85,7 +84,7 @@ def fill_guest_submission_template(submission: Submission, *, settings: Settings
         return doc.write(garbage=4, deflate=True)
 
 
-async def generate_guest_submission_pdf(db: AsyncSession, submission_id: UUID) -> tuple[Submission, bytes]:
+async def generate_submission_pdf(db: AsyncSession, submission_id: UUID) -> tuple[Submission, bytes]:
     stmt = (
         select(Submission)
         .options(selectinload(Submission.form))
@@ -94,7 +93,7 @@ async def generate_guest_submission_pdf(db: AsyncSession, submission_id: UUID) -
     result = await db.execute(stmt)
     submission = result.scalar_one_or_none()
 
-    if submission is None or submission.mode != SubmissionMode.GUEST:
+    if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
     settings = get_settings()

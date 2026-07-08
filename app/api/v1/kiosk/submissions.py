@@ -11,7 +11,7 @@ from app.schemas.submission import (
     GuestSubmissionResponse,
     SubmissionCreate,
 )
-from app.services.pdf import generate_guest_submission_pdf
+from app.services.pdf import generate_submission_pdf
 from app.services.submissions import create_account_submission, create_guest_submission
 
 router = APIRouter(prefix="/submissions")
@@ -52,17 +52,17 @@ async def create_submission(
 
 @router.get(
     "/{submission_id}/pdf",
-    summary="Generowanie PDF zgłoszenia gościa",
+    summary="Generowanie PDF zgłoszenia",
     responses={
         200: {"content": {"application/pdf": {}}},
     },
 )
-async def generate_guest_pdf(
+async def generate_submission_pdf_endpoint(
     submission_id: UUID,
     _: KioskAuth,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    submission, pdf_bytes = await generate_guest_submission_pdf(db=db, submission_id=submission_id)
+    submission, pdf_bytes = await generate_submission_pdf(db=db, submission_id=submission_id)
     filename = f"submission-{submission.start_number}.pdf"
     return Response(
         content=pdf_bytes,

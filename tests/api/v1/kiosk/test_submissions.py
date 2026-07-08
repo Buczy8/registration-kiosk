@@ -194,11 +194,15 @@ def test_generate_guest_pdf_returns_pdf_for_guest_submission(
     assert response.content.startswith(b"%PDF-")
 
 
-def test_generate_guest_pdf_returns_404_for_account_submission(client_with_storage: TestClient):
+def test_generate_pdf_returns_pdf_for_account_submission(client_with_storage: TestClient, tmp_path):
+    template_path = tmp_path / "account-registration.pdf"
+    _template_pdf(template_path)
     form = _form()
+    form.pdf_template_path = str(template_path)
     submission = Submission(
         id=uuid.uuid4(),
         form_id=form.id,
+        form=form,
         form_version=form.version,
         user_id=uuid.uuid4(),
         filled_for_related_person_id=None,
@@ -225,5 +229,7 @@ def test_generate_guest_pdf_returns_404_for_account_submission(client_with_stora
         headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
     )
 
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "not_found"
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert 'attachment; filename="submission-90.pdf"' == response.headers["content-disposition"]
+    assert response.content.startswith(b"%PDF-")
