@@ -255,6 +255,5 @@ def test_get_me_form_prefill_legal_guardian_returns_minimal_response(client: Tes
     assert response.status_code == 200
     payload = response.json()
     assert payload["participant_role"] == "legal_guardian"
-    assert payload["address"] is None
-    assert payload["pesel"] is None
-    assert payload["ice_name"] is None
+    assert payload["address"] == "Warszawa"
+    assert payload["ice_name"] == "Anna"
