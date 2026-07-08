@@ -569,3 +569,94 @@ select {
 .touch-button:active {
   transform: scale(0.98);
 }
+
+/* --- Admin --- */
+.admin-screen {
+  display: grid;
+  gap: 28px;
+}
+
+.admin-header {
+  padding: 32px;
+}
+
+.admin-header h1 {
+  margin: 8px 0 14px;
+}
+
+.admin-header .hint {
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.admin-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.admin-json {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #0b1220;
+  color: #e5e7eb;
+  overflow: auto;
+  max-height: 420px;
+  line-height: 1.45;
+  font-size: 0.9rem;
+}
+
+.admin-table-scroll {
+  overflow-x: auto;
+}
+
+.admin-controls {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+
+/* --- Admin UX --- */
+.admin-tab {
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  color: #111827;
+  font-weight: 700;
+}
+
+.admin-tab--active {
+  border-color: #2563eb;
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.admin-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  font-weight: 700;
+}
+
+.admin-section-subtitle {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.admin-json details {
+  cursor: pointer;
+}

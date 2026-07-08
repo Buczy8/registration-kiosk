@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     const profile = await getProfile(accessToken);
     setUser(profile);
     setIsAuthenticated(true);
+    return profile;
   };
 
   const register = async (payload) => {

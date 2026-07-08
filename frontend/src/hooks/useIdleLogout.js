@@ -1,9 +1,15 @@
 import { useEffect, useRef } from 'react';
 
-export const useIdleLogout = ({ enabled, onIdle }) => {
+export const useIdleLogout = ({ enabled, onIdle, timeoutSeconds }) => {
   const timeoutRef = useRef(null);
 
-  const timeoutSeconds = parseInt(import.meta.env.VITE_KIOSK_IDLE_LOGOUT_SECONDS || '30', 10);
+  const envTimeoutSeconds = parseInt(import.meta.env.VITE_KIOSK_IDLE_LOGOUT_SECONDS || '30', 10);
+  const defaultTimeoutSeconds =
+    Number.isFinite(envTimeoutSeconds) && envTimeoutSeconds > 0 ? envTimeoutSeconds : 30;
+  const effectiveTimeoutSeconds =
+    Number.isFinite(timeoutSeconds) && timeoutSeconds > 0
+      ? timeoutSeconds
+      : defaultTimeoutSeconds;
 
   useEffect(() => {
     if (!enabled) {
@@ -21,7 +27,7 @@ export const useIdleLogout = ({ enabled, onIdle }) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(handleIdle, timeoutSeconds * 1000);
+      timeoutRef.current = setTimeout(handleIdle, effectiveTimeoutSeconds * 1000);
     };
 
     const events = [
@@ -42,5 +48,5 @@ export const useIdleLogout = ({ enabled, onIdle }) => {
         document.removeEventListener(event, resetTimer)
       );
     };
-  }, [enabled, onIdle, timeoutSeconds]);
+  }, [enabled, onIdle, effectiveTimeoutSeconds]);
 };

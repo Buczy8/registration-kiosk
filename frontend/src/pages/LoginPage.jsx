@@ -15,9 +15,9 @@ export default function LoginPage({ onBack, onSuccess }) {
     setLoading(true);
 
     try {
-      await login({ email, password });
+      const profile = await login({ email, password });
       if (onSuccess) {
-        onSuccess();
+        onSuccess(profile);
       }
     } catch (err) {
       setError(err.message || "Nieprawidłowy adres e-mail lub hasło.");

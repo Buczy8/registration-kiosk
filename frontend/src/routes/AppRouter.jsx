@@ -9,7 +9,13 @@ import { useIdleLogout } from "../hooks/useIdleLogout.js";
 import LoginPage from "../pages/LoginPage.jsx";
 import RegisterPage from "../pages/RegisterPage.jsx";
 import StartScreen from "../pages/StartScreen.jsx";
+import AdminHome from "../pages/admin/AdminHome.jsx";
+import AdminUsersPage from "../pages/admin/AdminUsersPage.jsx";
+import AdminSubmissionsPage from "../pages/admin/AdminSubmissionsPage.jsx";
+import AdminSubmissionDetailsPage from "../pages/admin/AdminSubmissionDetailsPage.jsx";
+import AdminPrintJobsPage from "../pages/admin/AdminPrintJobsPage.jsx";
 import GuestOnlyRoute from "./GuestOnlyRoute.jsx";
+import AdminOnlyRoute from "./AdminOnlyRoute.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 
 export default function AppRouter() {
@@ -25,6 +31,9 @@ export default function AppRouter() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [startInfoMessage, setStartInfoMessage] = useState(null);
+  const defaultUserIdleLogoutSeconds = 30;
+  const adminIdleLogoutSeconds = 5 * 60;
+  const defaultAuthenticatedRoute = user?.is_superuser ? "/admin" : "/account/verify";
 
   function resetAccountSelection() {
     setSelectedRole(null);
@@ -42,6 +51,7 @@ export default function AppRouter() {
 
   useIdleLogout({
     enabled: isAuthenticated,
+    timeoutSeconds: user?.is_superuser ? adminIdleLogoutSeconds : defaultUserIdleLogoutSeconds,
     onIdle: () => {
       handleLogout();
       setStartInfoMessage("Sesja wygasła ze względów bezpieczeństwa.");
@@ -256,7 +266,12 @@ export default function AppRouter() {
           path="/login"
           element={
             <GuestOnlyRoute>
-              <LoginPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/verify")} />
+              <LoginPage
+                onBack={() => navigate("/")}
+                onSuccess={(profile) =>
+                  navigate(profile?.is_superuser ? "/admin" : "/account/verify", { replace: true })
+                }
+              />
             </GuestOnlyRoute>
           }
         />
@@ -312,6 +327,46 @@ export default function AppRouter() {
           }
         />
         <Route
+          path="/admin"
+          element={
+            <AdminOnlyRoute>
+              <AdminHome />
+            </AdminOnlyRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminOnlyRoute>
+              <AdminUsersPage />
+            </AdminOnlyRoute>
+          }
+        />
+        <Route
+          path="/admin/submissions"
+          element={
+            <AdminOnlyRoute>
+              <AdminSubmissionsPage />
+            </AdminOnlyRoute>
+          }
+        />
+        <Route
+          path="/admin/submissions/:submissionId"
+          element={
+            <AdminOnlyRoute>
+              <AdminSubmissionDetailsPage />
+            </AdminOnlyRoute>
+          }
+        />
+        <Route
+          path="/admin/print-jobs"
+          element={
+            <AdminOnlyRoute>
+              <AdminPrintJobsPage />
+            </AdminOnlyRoute>
+          }
+        />
+        <Route
           path="/result"
           element={
             submissions ? (
@@ -330,11 +385,11 @@ export default function AppRouter() {
                 }
               />
             ) : (
-              <Navigate to={isAuthenticated ? "/account/verify" : "/"} replace />
+              <Navigate to={isAuthenticated ? defaultAuthenticatedRoute : "/"} replace />
             )
           }
         />
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/account/verify" : "/"} replace />} />
+        <Route path="*" element={<Navigate to={isAuthenticated ? defaultAuthenticatedRoute : "/"} replace />} />
       </Routes>
     </>
   );
