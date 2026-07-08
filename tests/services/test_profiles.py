@@ -135,7 +135,7 @@ def test_prefill_returns_ice_and_identity_fields():
     assert prefill.ice_phone == "+48 700 800 900"
 
 
-def test_prefill_legal_guardian_returns_minimal_payload():
+def test_prefill_legal_guardian_returns_profile_fields():
     user = _user()
     profile = _profile(
         user.id,
@@ -149,9 +149,9 @@ def test_prefill_legal_guardian_returns_minimal_payload():
         get_form_prefill(db, user, ParticipantRole.LEGAL_GUARDIAN, VehicleType.CAR)
     )
 
-    assert prefill.address is None
-    assert prefill.pesel is None
-    assert prefill.ice_name is None
+    assert prefill.address == "Warszawa"
+    assert prefill.pesel == "12345678901"
+    assert prefill.ice_name == "Anna"
 
 
 def test_update_profile_saves_ice_pesel_and_vehicle():

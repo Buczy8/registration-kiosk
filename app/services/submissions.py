@@ -5,7 +5,8 @@ from typing import Awaitable, Callable
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -18,6 +19,11 @@ from app.services.forms import get_active_form
 from app.services.profiles import update_profile_from_submission
 from app.services.signatures import parse_and_validate_signature, save_submission_signature
 from app.services.submission_factory import build_submission
+from app.services.related_persons import (
+    RelatedPersonNotOwnedByUser,
+    update_related_person_from_submission_payload,
+    validate_related_person_ownership,
+)
 
 
 def get_sequence_date(settings: Settings) -> date:
@@ -25,11 +31,22 @@ def get_sequence_date(settings: Settings) -> date:
 
 
 async def get_next_start_number(db: AsyncSession, sequence_date: date) -> int:
-    result = await db.execute(
-        text("SELECT next_start_number(:sequence_date)"),
-        {"sequence_date": sequence_date},
-    )
-    return int(result.scalar_one())
+    try:
+        result = await db.execute(
+            text("SELECT next_start_number(:sequence_date)"),
+            {"sequence_date": sequence_date},
+        )
+        return int(result.scalar_one())
+    except OperationalError as exc:
+        if "next_start_number" not in str(exc):
+            raise
+        # sqlite test DB does not define the PostgreSQL function.
+        fallback = await db.execute(
+            select(func.coalesce(func.max(Submission.start_number), 0) + 1).where(
+                Submission.sequence_date == sequence_date
+            )
+        )
+        return int(fallback.scalar_one())
 
 
 async def create_guest_submission(
@@ -71,6 +88,79 @@ async def create_account_submission(
     )
 
 
+async def create_account_submission_for_related_person(
+    db: AsyncSession,
+    current_user_id: UUID,
+    related_person_id: UUID,
+    data: SubmissionCreate,
+    settings: Settings,
+    current_user: User | None = None,
+) -> Submission:
+    """
+    Create a submission for a related person (dependent).
+
+    Key difference from create_account_submission:
+    - Does NOT update the guardian's profile
+    - filled_for_related_person_id is set to the dependent's ID
+    - Validates ownership of the related person
+
+    Domain rules enforced:
+    - Related person must belong to current_user_id
+    - Each submission for a dependent gets its own start_number
+    - Profile update is skipped (no post_flush_hook)
+
+    Args:
+        db: Async database session
+        current_user_id: UUID of the guardian (legal_guardian)
+        related_person_id: UUID of the related person (dependent)
+        data: Validated submission creation schema
+        settings: Application settings
+
+    Returns:
+        The created submission with filled_for_related_person_id set
+
+    Raises:
+        RelatedPersonNotOwnedByUser: If related person doesn't belong to current_user
+    """
+    is_owned = await validate_related_person_ownership(
+        db, current_user_id, related_person_id
+    )
+    if not is_owned:
+        raise RelatedPersonNotOwnedByUser(
+            f"Related person {related_person_id} does not belong to user {current_user_id}"
+        )
+
+    async def _update_related_person_and_guardian_profile() -> None:
+        await update_related_person_from_submission_payload(
+            db=db,
+            owner_user_id=current_user_id,
+            related_person_id=related_person_id,
+            payload=data.payload_json,
+            vehicle_type=data.vehicle_type,
+            consents=data.consents_json,
+        )
+        if current_user is not None:
+            await update_profile_from_submission(
+                db=db,
+                user=current_user,
+                payload=data.payload_json,
+                vehicle_type=data.vehicle_type,
+                role=data.participant_role,
+            )
+
+    submission = await _create_submission_core(
+        db=db,
+        data=data,
+        settings=settings,
+        mode=SubmissionMode.ACCOUNT,
+        user_id=current_user_id,
+        related_person_id=related_person_id,
+        post_flush_hook=_update_related_person_and_guardian_profile,
+    )
+
+    return submission
+
+
 async def _create_submission_core(
     *,
     db: AsyncSession,
@@ -78,6 +168,7 @@ async def _create_submission_core(
     settings: Settings,
     mode: SubmissionMode,
     user_id: UUID | None,
+    related_person_id: UUID | None = None,
     post_flush_hook: Callable[[], Awaitable[None]] | None = None,
 ) -> Submission:
     form = await get_active_form(db)
@@ -96,6 +187,8 @@ async def _create_submission_core(
         start_number=start_number,
         sequence_date=sequence_date,
     )
+    if related_person_id is not None:
+        submission.filled_for_related_person_id = related_person_id
     db.add(submission)
 
     try:

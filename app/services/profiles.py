@@ -72,17 +72,6 @@ async def get_form_prefill(
     profile = await get_or_create_profile(db, user.id)
     vehicle = build_vehicle_from_json(profile.vehicles_json, vehicle_type)
 
-    if role == ParticipantRole.LEGAL_GUARDIAN:
-        return FormPrefillResponse(
-            first_name=user.first_name,
-            last_name=user.last_name,
-            email=user.email,
-            phone=user.phone,
-            participant_role=role,
-            vehicle_type=vehicle_type,
-            vehicle=vehicle,
-        )
-
     return FormPrefillResponse(
         first_name=user.first_name,
         last_name=user.last_name,

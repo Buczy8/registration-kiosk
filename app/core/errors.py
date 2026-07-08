@@ -11,6 +11,11 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.services.signatures import SignatureValidationError
+from app.services.related_persons import (
+    RelatedPersonError,
+    RelatedPersonNotFound,
+    RelatedPersonNotOwnedByUser,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +35,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(SignatureValidationError, signature_validation_exception_handler)
+    app.add_exception_handler(RelatedPersonNotFound, related_person_not_found_handler)
+    app.add_exception_handler(RelatedPersonNotOwnedByUser, related_person_not_owned_handler)
+    app.add_exception_handler(RelatedPersonError, related_person_error_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
@@ -105,6 +113,42 @@ async def signature_validation_exception_handler(
         request=request,
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         code=ApplicationErrorCode.VALIDATION_ERROR,
+        message=str(exc),
+    )
+
+
+async def related_person_not_found_handler(
+        request: Request,
+        exc: RelatedPersonNotFound,
+) -> JSONResponse:
+    return error_response(
+        request=request,
+        status_code=HTTPStatus.NOT_FOUND,
+        code=ApplicationErrorCode.NOT_FOUND,
+        message=str(exc),
+    )
+
+
+async def related_person_not_owned_handler(
+        request: Request,
+        exc: RelatedPersonNotOwnedByUser,
+) -> JSONResponse:
+    return error_response(
+        request=request,
+        status_code=HTTPStatus.FORBIDDEN,
+        code=ApplicationErrorCode.UNAUTHORIZED,
+        message="Related person does not belong to current user",
+    )
+
+
+async def related_person_error_handler(
+        request: Request,
+        exc: RelatedPersonError,
+) -> JSONResponse:
+    return error_response(
+        request=request,
+        status_code=HTTPStatus.BAD_REQUEST,
+        code=ApplicationErrorCode.BAD_REQUEST,
         message=str(exc),
     )
 
