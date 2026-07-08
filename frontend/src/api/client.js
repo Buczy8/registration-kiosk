@@ -12,8 +12,22 @@ async function parseApiError(response) {
 
   try {
     const data = await response.json();
-    if (data?.error?.message) {
+    if (Array.isArray(data?.error?.details)) {
+      message = data.error.details
+        .map((item) => {
+          const path = Array.isArray(item.loc) ? item.loc.join(".") : item.loc;
+          return `${path}: ${item.msg}`;
+        })
+        .join("; ");
+    } else if (data?.error?.message) {
       message = data.error.message;
+    } else if (Array.isArray(data?.detail)) {
+      message = data.detail
+        .map((item) => {
+          const path = Array.isArray(item.loc) ? item.loc.join(".") : item.loc;
+          return `${path}: ${item.msg}`;
+        })
+        .join("; ");
     } else if (data?.detail) {
       message = data.detail;
     }

@@ -13,7 +13,13 @@ import {
 } from "../lib/registrationFormShared.js";
 import { buildFormSchema } from "../lib/registrationSchemas.js";
 
-export function useRegistrationForm({ schemaJson, mode, role, vehicleType }) {
+export function useRegistrationForm({
+  schemaJson,
+  mode,
+  role,
+  vehicleType,
+  useGuardianMinorPayload = false,
+}) {
   const schema = useMemo(() => schemaJson || {}, [schemaJson]);
   const properties = schema.properties || {};
   const requireRoleSelection = mode === "guest";
@@ -67,9 +73,16 @@ export function useRegistrationForm({ schemaJson, mode, role, vehicleType }) {
       if (mode === "guest") {
         return buildGuestSubmissions(data, schema);
       }
-      return [buildAccountSubmission(data, schema, role, vehicleType)];
+      if (data.participantRole === ParticipantRole.LEGAL_GUARDIAN) {
+        return buildGuestSubmissions(data, schema);
+      }
+      return [
+        buildAccountSubmission(data, schema, data.participantRole, data.vehicleType, {
+          includeGuardianFields: data.participantRole === ParticipantRole.LEGAL_GUARDIAN,
+        }),
+      ];
     },
-    [mode, role, schema, vehicleType],
+    [mode, role, schema, useGuardianMinorPayload, vehicleType],
   );
 
   return {

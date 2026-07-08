@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { createAccountSubmission, createGuestSubmission, getActiveForm } from "../api/kiosk.js";
+import { createRelatedPerson, createSubmissionForRelatedPerson } from "../api/account.js";
 import GuestRegistrationForm from "../components/GuestRegistrationForm.jsx";
 import SubmissionResult from "../components/SubmissionResult.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useIdleLogout } from "../hooks/useIdleLogout.js";
-import GuardianPlaceholder from "../pages/GuardianPlaceholder.jsx";
 import LoginPage from "../pages/LoginPage.jsx";
 import RegisterPage from "../pages/RegisterPage.jsx";
-import RoleVehicleSelect from "../pages/RoleVehicleSelect.jsx";
 import StartScreen from "../pages/StartScreen.jsx";
-import VerifyDataForm from "../pages/VerifyDataForm.jsx";
 import GuestOnlyRoute from "./GuestOnlyRoute.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 
@@ -107,13 +105,60 @@ export default function AppRouter() {
     }
   }
 
-  async function handleAccountSubmit(payload) {
+  async function createRelatedPersonFromSubmissionPayload(payload) {
+    const firstName = payload.payload_json.minor_first_name?.trim();
+    const lastName = payload.payload_json.minor_last_name?.trim();
+    const guardianRelation = payload.payload_json.guardian_relation?.trim();
+
+    if (!firstName || !lastName || !guardianRelation) {
+      throw new Error("Uzupełnij imię, nazwisko i typ opiekuna dla każdego podopiecznego.");
+    }
+
+    return createRelatedPerson(token, {
+      first_name: firstName,
+      last_name: lastName,
+      birth_date: null,
+      guardian_relation: guardianRelation,
+      image_publication_consent: Boolean(payload.consents_json.image_publication),
+      vehicle_type: payload.vehicle_type,
+      vehicle_brand: payload.payload_json.vehicle_brand || null,
+      vehicle_model: payload.payload_json.vehicle_model || null,
+      vehicle_registration_number:
+        payload.payload_json.vehicle_registration_number || null,
+    });
+  }
+
+  async function handleAccountSubmit(payloadOrArray) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await createAccountSubmission(payload, token);
+      let results;
+      const payloads = Array.isArray(payloadOrArray) ? payloadOrArray : [payloadOrArray];
+
+      if (payloads[0]?.participant_role === "legal_guardian") {
+        setSelectedRole("legal_guardian");
+        setSelectedVehicle(payloads[0]?.vehicle_type || selectedVehicle || "car");
+        results = [];
+        for (const payload of payloads) {
+          const { related_person_id: relatedPersonId, ...submissionPayload } = payload;
+          const relatedPerson = relatedPersonId
+            ? { id: relatedPersonId }
+            : await createRelatedPersonFromSubmissionPayload(payload);
+          results.push(
+            await createSubmissionForRelatedPerson(
+              token,
+              relatedPerson.id,
+              submissionPayload,
+            ),
+          );
+        }
+      } else {
+        setSelectedRole(payloads[0]?.participant_role || null);
+        setSelectedVehicle(payloads[0]?.vehicle_type || null);
+        results = [await createAccountSubmission(payloads[0], token)];
+      }
       setSubmissionIsAccount(true);
-      setSubmissions([result]);
+      setSubmissions(results);
       navigate("/result");
     } catch (error) {
       setSubmitError(error.message);
@@ -132,12 +177,14 @@ export default function AppRouter() {
     setSubmissions(null);
     setSubmitError(null);
     resetAccountSelection();
-    navigate("/account/role");
+    navigate("/account/verify");
   }
 
-  function handleRoleVehicleContinue({ role, vehicle }) {
-    setSelectedRole(role);
-    setSelectedVehicle(vehicle);
+  function handleNextDependent() {
+    setSubmissions(null);
+    setSubmitError(null);
+    setSelectedRole("legal_guardian");
+    setSelectedVehicle(submissions?.[0]?.vehicle_type || selectedVehicle || "car");
     navigate("/account/verify");
   }
 
@@ -209,7 +256,7 @@ export default function AppRouter() {
           path="/login"
           element={
             <GuestOnlyRoute>
-              <LoginPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/role")} />
+              <LoginPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/verify")} />
             </GuestOnlyRoute>
           }
         />
@@ -217,7 +264,7 @@ export default function AppRouter() {
           path="/register"
           element={
             <GuestOnlyRoute>
-              <RegisterPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/role")} />
+              <RegisterPage onBack={() => navigate("/")} onSuccess={() => navigate("/account/verify")} />
             </GuestOnlyRoute>
           }
         />
@@ -243,42 +290,24 @@ export default function AppRouter() {
         />
         <Route
           path="/account/role"
-          element={
-            <ProtectedRoute>
-              <div className="app-container">
-                <RoleVehicleSelect
-                  onContinue={handleRoleVehicleContinue}
-                  defaultRole={user?.last_participant_role || ""}
-                  defaultVehicle={user?.last_vehicle_type || ""}
-                />
-              </div>
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/account/verify" replace />}
         />
         <Route
           path="/account/verify"
           element={
             <ProtectedRoute>
-              {!selectedRole || !selectedVehicle ? (
-                <Navigate to="/account/role" replace />
-              ) : selectedRole === "legal_guardian" ? (
-                <div className="app-container">
-                  <GuardianPlaceholder onBack={() => navigate("/account/role")} />
-                </div>
-              ) : (
-                <div className="app-container">
-                  <VerifyDataForm
+              <div className="app-container">
+                  <GuestRegistrationForm
                     form={form}
-                    role={selectedRole}
-                    vehicleType={selectedVehicle}
+                    mode="account"
+                    role={selectedRole || ""}
+                    vehicleType={selectedVehicle || ""}
                     token={token}
                     onSubmit={handleAccountSubmit}
-                    onBack={() => navigate("/account/role")}
                     submitting={submitting}
                     submitError={submitError}
                   />
                 </div>
-              )}
             </ProtectedRoute>
           }
         />
@@ -292,13 +321,20 @@ export default function AppRouter() {
                 onNewSubmission={handleGuestNewSubmission}
                 onNewForm={handleAccountNewForm}
                 onLogout={handleLogout}
+                onNextDependent={
+                  submissions.some(
+                    (submission) => submission.participant_role === "legal_guardian",
+                  )
+                    ? handleNextDependent
+                    : undefined
+                }
               />
             ) : (
-              <Navigate to={isAuthenticated ? "/account/role" : "/"} replace />
+              <Navigate to={isAuthenticated ? "/account/verify" : "/"} replace />
             )
           }
         />
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/account/role" : "/"} replace />} />
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/account/verify" : "/"} replace />} />
       </Routes>
     </>
   );

@@ -204,6 +204,62 @@ select {
   font-size: 1rem;
 }
 
+.minor-table-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.minor-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.minor-table-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.minor-add-button {
+  min-height: 36px;
+  padding: 6px 14px;
+}
+
+.minor-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.minor-table th,
+.minor-table td {
+  padding: 10px 8px;
+  border-top: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.minor-table th {
+  color: #4b5563;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.minor-table tr.is-active td {
+  background: #eff6ff;
+}
+
+.minor-table-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .minor-remove-button {
   min-height: 36px;
   padding: 6px 14px;

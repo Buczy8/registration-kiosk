@@ -78,6 +78,7 @@ export function getDefaultSignaturePlace() {
 export function createEmptyMinor() {
   return {
     id: crypto.randomUUID(),
+    related_person_id: null,
     guardian_relation: "",
     minor_first_name: "",
     minor_last_name: "",
@@ -219,13 +220,13 @@ export function buildPayloadJson(
   formData,
   schema,
   identityDocumentType,
-  { excludeVehicleFields = false } = {},
+  { excludeVehicleFields = false, includeGuardianFields = false } = {},
 ) {
   const payload = {};
   const properties = schema.properties || {};
 
   for (const fieldName of Object.keys(properties)) {
-    if (isGuardianField(fieldName)) {
+    if (!includeGuardianFields && isGuardianField(fieldName)) {
       continue;
     }
     if (excludeVehicleFields && isVehicleField(fieldName)) {
@@ -270,16 +271,9 @@ export function buildSubmissionPayload({
   signatureImageBase64,
 }) {
   const payloadJson = { ...basePayload };
-  if (participantRole === ParticipantRole.LEGAL_GUARDIAN && minor) {
-    payloadJson.guardian_relation = minor.guardian_relation;
-    payloadJson.minor_first_name = minor.minor_first_name.trim();
-    payloadJson.minor_last_name = minor.minor_last_name.trim();
-    applyVehicleFields(payloadJson, minor);
-  }
-
-  return {
+  const submission = {
     participant_role: participantRole,
-    vehicle_type: minor?.vehicle_type ?? vehicleType,
+    vehicle_type: minor?.vehicle_type || vehicleType || VehicleType.CAR,
     payload_json: payloadJson,
     consents_json: {
       image_publication: consents.image_publication,
@@ -287,6 +281,18 @@ export function buildSubmissionPayload({
     declarations_accepted: true,
     signature_image_base64: signatureImageBase64,
   };
+
+  if (participantRole === ParticipantRole.LEGAL_GUARDIAN && minor) {
+    payloadJson.guardian_relation = minor.guardian_relation;
+    payloadJson.minor_first_name = minor.minor_first_name.trim();
+    payloadJson.minor_last_name = minor.minor_last_name.trim();
+    applyVehicleFields(payloadJson, minor);
+    if (minor.related_person_id) {
+      submission.related_person_id = minor.related_person_id;
+    }
+  }
+
+  return submission;
 }
 
 export function buildGuestSubmissions(data, schema) {
@@ -318,12 +324,15 @@ export function buildGuestSubmissions(data, schema) {
   ];
 }
 
-export function buildAccountSubmission(data, schema, role, vehicleType) {
-  const basePayload = buildPayloadJson(data.payload, schema, data.identityDocumentType);
+export function buildAccountSubmission(data, schema, role, vehicleType, { includeGuardianFields = false } = {}) {
+  const basePayload = buildPayloadJson(data.payload, schema, data.identityDocumentType, {
+    includeGuardianFields,
+  });
   return buildSubmissionPayload({
     basePayload,
     participantRole: role,
     vehicleType,
+    consents: data.consents,
     signatureImageBase64: data.signatureImageBase64,
   });
 }

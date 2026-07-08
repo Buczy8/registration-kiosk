@@ -9,6 +9,7 @@ import {
 
 const minorDraftSchema = z.object({
   id: z.string().optional(),
+  related_person_id: z.string().nullable().optional(),
   guardian_relation: z.string().optional(),
   minor_first_name: z.string().optional(),
   minor_last_name: z.string().optional(),
@@ -145,6 +146,13 @@ export function buildFormSchema({ schemaJson, requireRoleSelection = true }) {
           });
         } else {
           addMinorFieldIssues(minors, ctx);
+        }
+        if (!data.consents?.image_publication) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Zaznacz zgodę na publikację wizerunku podopiecznego.",
+            path: ["consents", "image_publication"],
+          });
         }
       }
 

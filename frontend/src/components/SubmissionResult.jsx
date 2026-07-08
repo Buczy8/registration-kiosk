@@ -9,6 +9,7 @@ export default function SubmissionResult({
   isAccountMode = false,
   onLogout,
   onNewForm,
+  onNextDependent,
 }) {
   const isMultiple = submissions.length > 1;
   const [activeSubmissionId, setActiveSubmissionId] = useState(submissions[0]?.id ?? null);
@@ -102,7 +103,12 @@ export default function SubmissionResult({
       <div className="actions">
         {isAccountMode ? (
           <>
-            {onNewForm && (
+            {onNextDependent && (
+              <button className="primary-button" type="button" onClick={onNextDependent}>
+                Kolejny podopieczny
+              </button>
+            )}
+            {onNewForm && !onNextDependent && (
               <button className="primary-button" type="button" onClick={onNewForm}>
                 Nowy formularz
               </button>

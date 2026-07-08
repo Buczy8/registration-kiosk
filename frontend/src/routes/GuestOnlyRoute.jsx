@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 export default function GuestOnlyRoute({ children }) {
   const { isAuthenticated } = useAuth();
   if (isAuthenticated) {
-    return <Navigate to="/account/role" replace />;
+    return <Navigate to="/account/verify" replace />;
   }
   return children;
 }

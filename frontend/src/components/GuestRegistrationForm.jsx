@@ -1,10 +1,16 @@
+import { useCallback, useEffect, useState } from "react";
 import { FormProvider } from "react-hook-form";
 
+import { listRelatedPersons } from "../api/account.js";
+import { getFormPrefill } from "../api/auth.js";
 import { FORM_SUBTITLE } from "../content/participantDeclarations.js";
 import { useRegistrationForm } from "../hooks/useRegistrationForm.js";
 import {
   PERSONAL_DATA_FIELDS,
   ParticipantRole,
+  createEmptyMinor,
+  inferIdentityDocumentType,
+  mapPrefillToFormData,
 } from "../lib/registrationFormShared.js";
 import DeclarationsSection from "./form/DeclarationsSection.jsx";
 import FormValidationSummary from "./form/FormValidationSummary.jsx";
@@ -15,7 +21,21 @@ import PersonalDataSection from "./form/PersonalDataSection.jsx";
 import SignatureSection from "./form/SignatureSection.jsx";
 import VehicleDataSection from "./form/VehicleDataSection.jsx";
 
-export default function GuestRegistrationForm({ form, onSubmit, submitting, submitError }) {
+export default function GuestRegistrationForm({
+  form,
+  mode = "guest",
+  token,
+  role,
+  vehicleType,
+  onSubmit,
+  onBack,
+  submitting,
+  submitError,
+}) {
+  const isAccountMode = mode === "account";
+  const useGuardianMinorPayload =
+    isAccountMode && role === ParticipantRole.LEGAL_GUARDIAN;
+
   const {
     methods,
     properties,
@@ -26,8 +46,75 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
     buildSubmissions,
   } = useRegistrationForm({
     schemaJson: form.schema_json,
-    mode: "guest",
+    mode,
+    role,
+    vehicleType,
+    useGuardianMinorPayload,
   });
+
+  const [loadingPrefill, setLoadingPrefill] = useState(isAccountMode);
+  const [prefillError, setPrefillError] = useState(null);
+
+  const loadPrefill = useCallback(async () => {
+    if (!isAccountMode) {
+      return;
+    }
+
+    setLoadingPrefill(true);
+    setPrefillError(null);
+    try {
+      const relatedPersons = await listRelatedPersons(token);
+      const effectiveRole =
+        role || (relatedPersons.length > 0 ? ParticipantRole.LEGAL_GUARDIAN : ParticipantRole.DRIVER);
+      const effectiveVehicleType = vehicleType || "car";
+      const prefill = await getFormPrefill(token, effectiveRole, effectiveVehicleType);
+      const mapped = mapPrefillToFormData(prefill);
+      let minors = [];
+      let imagePublicationConsent = false;
+
+      if (effectiveRole === ParticipantRole.LEGAL_GUARDIAN) {
+        minors = relatedPersons.map((person) => ({
+          id: crypto.randomUUID(),
+          related_person_id: person.id,
+          guardian_relation: person.guardian_relation || "",
+          minor_first_name: person.first_name || "",
+          minor_last_name: person.last_name || "",
+          vehicle_type: person.vehicle_type || effectiveVehicleType,
+          vehicle_brand: person.vehicle_brand || "",
+          vehicle_model: person.vehicle_model || "",
+          vehicle_registration_number:
+            person.vehicle_registration_number || "",
+        }));
+        imagePublicationConsent = relatedPersons.some(
+          (person) => person.image_publication_consent,
+        );
+        if (minors.length === 0) {
+          minors = [createEmptyMinor()];
+        }
+      }
+
+      const resetValues = {
+        participantRole: effectiveRole,
+        vehicleType: effectiveVehicleType,
+        identityDocumentType: inferIdentityDocumentType(mapped),
+        payload: mapped,
+        declarationsReviewed: false,
+        signatureImageBase64: "",
+        minors,
+        consents: { image_publication: imagePublicationConsent },
+      };
+
+      methods.reset(resetValues);
+    } catch (error) {
+      setPrefillError(error.message || "Nie udało się pobrać danych profilu.");
+    } finally {
+      setLoadingPrefill(false);
+    }
+  }, [isAccountMode, methods, role, token, vehicleType]);
+
+  useEffect(() => {
+    loadPrefill();
+  }, [loadPrefill]);
 
   function handleValidSubmit(data) {
     const submissions = buildSubmissions(data);
@@ -36,11 +123,33 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
 
   const isGuardian = participantRole === ParticipantRole.LEGAL_GUARDIAN;
 
+  if (loadingPrefill) {
+    return <p className="status-card">Ładowanie danych profilu...</p>;
+  }
+
+  if (prefillError) {
+    return (
+      <div className="status-card alert" role="alert">
+        <p>Nie udało się pobrać danych: {prefillError}</p>
+        <div className="actions">
+          {onBack && (
+            <button className="secondary-button" type="button" onClick={onBack}>
+              &larr; Wróć
+            </button>
+          )}
+          <button className="primary-button" type="button" onClick={loadPrefill}>
+            Spróbuj ponownie
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <FormProvider {...methods}>
       <form className="guest-form" onSubmit={methods.handleSubmit(handleValidSubmit)}>
         <header className="form-header">
-          <p className="eyebrow">Kiosk gościa</p>
+          <p className="eyebrow">{isAccountMode ? "Konto użytkownika" : "Kiosk gościa"}</p>
           <h1>Oświadczenie uczestnika – Autodrom Biłgoraj</h1>
           <p>{FORM_SUBTITLE}</p>
           <p className="hint">Wersja formularza: {form.version}</p>
@@ -71,7 +180,12 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
 
         <DeclarationsSection />
 
-        {isGuardian && <GuardianMinorsSection properties={properties} />}
+        {isGuardian && (
+          <GuardianMinorsSection
+            properties={properties}
+            allowMultiple
+          />
+        )}
 
         <SignatureSection
           properties={properties}
@@ -87,9 +201,16 @@ export default function GuestRegistrationForm({ form, onSubmit, submitting, subm
           </div>
         )}
 
-        <button className="primary-button" type="submit" disabled={submitting}>
-          {submitting ? "Wysyłanie..." : "Wyślij"}
-        </button>
+        <div className="actions">
+          {onBack && (
+            <button className="secondary-button" type="button" onClick={onBack} disabled={submitting}>
+              &larr; Wróć
+            </button>
+          )}
+          <button className="primary-button" type="submit" disabled={submitting}>
+            {submitting ? "Wysyłanie..." : "Wyślij"}
+          </button>
+        </div>
       </form>
     </FormProvider>
   );
