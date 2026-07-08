@@ -7,12 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import CurrentAdminUser
 from app.db.session import get_db
 from app.models.enums import SubmissionStatus
+from app.schemas.admin import (
+    AdminSubmissionDetail,
+    AdminSubmissionListResponse,
+)
+from app.schemas.auth import MessageResponse
 from app.services import admin as admin_services
 
 router = APIRouter(prefix="/admin/submissions", tags=["Admin Submissions"])
 
 
-@router.get("")
+@router.get("", response_model=AdminSubmissionListResponse)
 async def get_submissions(
         admin: CurrentAdminUser,
         db: AsyncSession = Depends(get_db),
@@ -29,11 +34,11 @@ async def get_submissions(
         "items": submissions,
         "total": total_count,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }
 
 
-@router.get("/{submission_id}")
+@router.get("/{submission_id}", response_model=AdminSubmissionDetail)
 async def get_submission_details(
         submission_id: UUID,
         admin: CurrentAdminUser,
@@ -42,7 +47,7 @@ async def get_submission_details(
     return await admin_services.get_admin_submission_by_id(db, submission_id)
 
 
-@router.post("/{submission_id}/print")
+@router.post("/{submission_id}/print", response_model=MessageResponse)
 async def queue_submission_for_print(
         submission_id: UUID,
         admin: CurrentAdminUser,

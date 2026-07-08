@@ -4,12 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentAdminUser
 from app.db.session import get_db
+from app.schemas.admin import AdminUserListResponse
+from app.schemas.auth import MessageResponse
 from app.services import admin as admin_services
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
 
 
-@router.get("")
+@router.get("", response_model=AdminUserListResponse)
 async def get_users(
         admin: CurrentAdminUser,
         db: AsyncSession = Depends(get_db),
@@ -22,15 +24,15 @@ async def get_users(
         "items": users,
         "total": total_count,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }
 
 
-@router.patch("/{user_id}/lock")
+@router.patch("/{user_id}/lock", response_model=MessageResponse)
 async def lock_user(
         user_id: UUID,
         admin: CurrentAdminUser,
-        days: int = Query(7, description="Na ile dni zablokować konto?"),
+        days: int = Query(7, ge=1, le=365, description="Na ile dni zablokować konto?"),
         db: AsyncSession = Depends(get_db),
 ):
     await admin_services.lock_user_account(db, user_id, admin.id, days)

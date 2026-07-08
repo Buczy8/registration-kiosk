@@ -16,6 +16,11 @@ from app.services.related_persons import (
     RelatedPersonNotFound,
     RelatedPersonNotOwnedByUser,
 )
+from app.services.admin import (
+    AdminCannotLockSelf,
+    AdminSubmissionNotFound,
+    AdminUserNotFound,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +43,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RelatedPersonNotFound, related_person_not_found_handler)
     app.add_exception_handler(RelatedPersonNotOwnedByUser, related_person_not_owned_handler)
     app.add_exception_handler(RelatedPersonError, related_person_error_handler)
+    app.add_exception_handler(AdminSubmissionNotFound, admin_not_found_handler)
+    app.add_exception_handler(AdminUserNotFound, admin_not_found_handler)
+    app.add_exception_handler(AdminCannotLockSelf, admin_bad_request_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
@@ -144,6 +152,30 @@ async def related_person_not_owned_handler(
 async def related_person_error_handler(
         request: Request,
         exc: RelatedPersonError,
+) -> JSONResponse:
+    return error_response(
+        request=request,
+        status_code=HTTPStatus.BAD_REQUEST,
+        code=ApplicationErrorCode.BAD_REQUEST,
+        message=str(exc),
+    )
+
+
+async def admin_not_found_handler(
+        request: Request,
+        exc: AdminSubmissionNotFound | AdminUserNotFound,
+) -> JSONResponse:
+    return error_response(
+        request=request,
+        status_code=HTTPStatus.NOT_FOUND,
+        code=ApplicationErrorCode.NOT_FOUND,
+        message=str(exc),
+    )
+
+
+async def admin_bad_request_handler(
+        request: Request,
+        exc: AdminCannotLockSelf,
 ) -> JSONResponse:
     return error_response(
         request=request,

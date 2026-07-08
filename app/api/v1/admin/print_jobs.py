@@ -5,12 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import CurrentAdminUser
 from app.db.session import get_db
 from app.models.enums import PrintJobStatus
+from app.schemas.admin import AdminPrintJobListResponse
 from app.services import admin as admin_services
 
 router = APIRouter(prefix="/admin/print-jobs", tags=["Admin Print Jobs"])
 
 
-@router.get("")
+@router.get("", response_model=AdminPrintJobListResponse)
 async def get_print_jobs(
         admin: CurrentAdminUser,
         db: AsyncSession = Depends(get_db),
@@ -26,5 +27,5 @@ async def get_print_jobs(
         "items": print_jobs,
         "total": total_count,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }

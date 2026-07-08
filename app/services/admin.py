@@ -1,7 +1,6 @@
-from datetime import date, timedelta, UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,6 +9,22 @@ from app.models.enums import PrintJobStatus, SubmissionStatus
 from app.models.print_job import PrintJob
 from app.models.submission import Submission
 from app.models.user import User
+
+
+class AdminError(Exception):
+    """Bazowy wyjatek domenowy panelu admina."""
+
+
+class AdminSubmissionNotFound(AdminError):
+    """Zgloszenie nie zostalo znalezione."""
+
+
+class AdminUserNotFound(AdminError):
+    """Uzytkownik nie zostal znaleziony."""
+
+
+class AdminCannotLockSelf(AdminError):
+    """Admin nie moze zablokowac wlasnego konta."""
 
 
 async def get_admin_submissions(
@@ -47,10 +62,7 @@ async def get_admin_submission_by_id(db: AsyncSession, submission_id: UUID) -> S
     submission = result.scalar_one_or_none()
 
     if submission is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Zgłoszenie nie zostało znalezione"
-        )
+        raise AdminSubmissionNotFound(f"Zgloszenie {submission_id} nie zostalo znalezione")
     return submission
 
 
@@ -66,6 +78,7 @@ async def requeue_submission_for_print(db: AsyncSession, submission_id: UUID) ->
     db.add(new_print_job)
     await db.commit()
 
+
 async def get_admin_print_jobs(
         db: AsyncSession,
         status_filter: PrintJobStatus | None,
@@ -77,7 +90,7 @@ async def get_admin_print_jobs(
     if status_filter:
         query = query.where(PrintJob.status == status_filter)
 
-    query = query.order_by(PrintJob.created_at.desc()).offset(offset).limit(limit)
+    query = query.order_by(PrintJob.queued_at.desc()).offset(offset).limit(limit)
 
     result = await db.execute(query)
     print_jobs = result.scalars().all()
@@ -89,6 +102,7 @@ async def get_admin_print_jobs(
     total_count = (await db.execute(count_query)).scalar_one()
 
     return print_jobs, total_count
+
 
 async def get_admin_users(
         db: AsyncSession,
@@ -113,19 +127,13 @@ async def lock_user_account(
         days: int
 ) -> None:
     if user_id == admin_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nie możesz zablokować własnego konta"
-        )
+        raise AdminCannotLockSelf("Nie mozesz zablokowac wlasnego konta")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Użytkownik nie znaleziony"
-        )
+        raise AdminUserNotFound(f"Uzytkownik {user_id} nie zostal znaleziony")
 
     user.locked_until = datetime.now(UTC) + timedelta(days=days)
     await db.commit()
