@@ -5,7 +5,6 @@ import {
   getAdminSubmissions,
   queueSubmissionForPrint,
 } from "../../api/admin.js";
-import { downloadPdfBlob } from "../../lib/adminPrint.js";
 import { todaySequenceDate } from "../../lib/adminFilters.js";
 import { humanizePrintJobStatus } from "../../lib/adminLabels.js";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -126,13 +125,12 @@ export default function AdminSubmissionsPage() {
     await load(0);
   }
 
-  async function handleQueuePrint(submissionId, startNumber) {
+  async function handleQueuePrint(submissionId) {
     setActionMessage(null);
     setActingSubmissionId(submissionId);
     try {
-      const blob = await queueSubmissionForPrint({ token, submissionId });
-      downloadPdfBlob(blob, `wydruk_zgloszenia_${startNumber || submissionId}.pdf`);
-      setActionMessage("Plik pobrany do druku.");
+      await queueSubmissionForPrint({ token, submissionId });
+      setActionMessage("Wydruk został wysłany.");
       await load();
     } catch (e) {
       setError(e.message || "Nie udało się wydrukować zgłoszenia.");
@@ -147,12 +145,8 @@ export default function AdminSubmissionsPage() {
     setActionMessage(null);
     setRetryingPrintJobId(submission.last_print_job_id);
     try {
-      const blob = await executePrintJob(submission.last_print_job_id, token);
-      downloadPdfBlob(
-        blob,
-        `wydruk_zgloszenia_${submission.start_number || submission.id}.pdf`,
-      );
-      setActionMessage("Plik pobrany do druku.");
+      await executePrintJob(submission.last_print_job_id, token);
+      setActionMessage("Ponowiono wydruk.");
       await load();
     } catch (e) {
       setError(e.message || "Nie udało się pobrać pliku do druku.");
@@ -331,7 +325,7 @@ export default function AdminSubmissionsPage() {
                             s.status === "print_queued" ||
                             s.status === "print_done"
                           }
-                          onClick={() => handleQueuePrint(s.id, s.start_number)}
+                          onClick={() => handleQueuePrint(s.id)}
                         >
                           {actingSubmissionId === s.id
                             ? "Drukowanie…"

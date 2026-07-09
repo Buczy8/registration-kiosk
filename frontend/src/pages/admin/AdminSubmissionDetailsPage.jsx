@@ -69,9 +69,8 @@ export default function AdminSubmissionDetailsPage() {
     setActionMessage(null);
     setActing(true);
     try {
-      const blob = await queueSubmissionForPrint({ token, submissionId });
-      downloadPdfBlob(blob, submissionPdfFilename(data, submissionId));
-      setActionMessage("Plik pobrany do druku.");
+      await queueSubmissionForPrint({ token, submissionId });
+      setActionMessage("Wydruk został wysłany.");
       await load();
     } catch (e) {
       setError(e.message || "Nie udało się wydrukować zgłoszenia.");

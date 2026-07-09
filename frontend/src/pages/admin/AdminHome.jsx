@@ -112,7 +112,7 @@ export default function AdminHome() {
                 Baza: {systemStatus?.db_ok ? "OK" : "BŁĄD"}
               </span>
               <span className="admin-status-pill">
-                Drukarka: —
+                Drukarka: {systemStatus?.printer_ok ? "OK" : "BŁĄD"}
               </span>
             </div>
           </div>

@@ -112,7 +112,7 @@ export async function queueSubmissionForPrint({ token, submissionId }) {
     token,
     contentType: null,
   });
-  return response.blob();
+  return response.json();
 }
 
 export async function getAdminPrintJobs({
@@ -136,13 +136,10 @@ export async function getAdminPrintJobs({
 }
 
 export async function executePrintJob(jobId, token) {
-  // Ponieważ potrzebujemy zwrócić plik binarny, wywołujemy bezpośrednio API
   const response = await apiRequest(`/admin/print-jobs/${jobId}/print`, {
     method: "POST",
-    token, // przekazujemy token z autoryzacji
-    contentType: null, // nie ustawiamy JSON
+    token,
+    contentType: null,
   });
-
-  // Zwracamy obiekt Blob zamiast JSON
-  return response.blob();
+  return response.json();
 }
