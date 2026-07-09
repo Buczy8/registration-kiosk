@@ -37,6 +37,26 @@ const SUBMISSION_STATUSES = [
   { value: "print_failed", label: "Błąd druku" },
 ];
 
+const SUBMISSION_MODES = [
+  { value: "", label: "Wszystkie tryby" },
+  { value: "guest", label: "Gość" },
+  { value: "account", label: "Konto" },
+];
+
+const PARTICIPANT_ROLES = [
+  { value: "", label: "Wszystkie role" },
+  { value: "driver", label: "Kierowca" },
+  { value: "passenger", label: "Pasażer" },
+  { value: "legal_guardian", label: "Opiekun prawny" },
+];
+
+const VEHICLE_TYPES = [
+  { value: "", label: "Wszystkie pojazdy" },
+  { value: "car", label: "Samochód" },
+  { value: "motorcycle", label: "Motocykl" },
+  { value: "gokart", label: "Gokart" },
+];
+
 function humanizeStatus(value) {
   if (value === "submitted") return "Zgłoszone";
   if (value === "print_queued") return "W kolejce do druku";
@@ -55,6 +75,10 @@ export default function AdminSubmissionsPage() {
   const [sequenceDate, setSequenceDate] = useState(
     () => searchParams.get("date") || todaySequenceDate(),
   );
+  const [mode, setMode] = useState("");
+  const [role, setRole] = useState("");
+  const [vehicleType, setVehicleType] = useState("");
+  const [lastName, setLastName] = useState("");
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +101,10 @@ export default function AdminSubmissionsPage() {
         token,
         status: status || null,
         sequenceDate: sequenceDate || null,
+        mode: mode || null,
+        role: role || null,
+        vehicleType: vehicleType || null,
+        lastName: lastName.trim() || null,
         limit,
         offset: requestOffset,
       });
@@ -171,6 +199,45 @@ export default function AdminSubmissionsPage() {
               onChange={(e) => setSequenceDate(e.target.value)}
             />
           </label>
+          <label className="field">
+            <span>Tryb</span>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              {SUBMISSION_MODES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Rola</span>
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
+              {PARTICIPANT_ROLES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Pojazd</span>
+            <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
+              {VEHICLE_TYPES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Nazwisko</span>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="np. Kowalski"
+            />
+          </label>
         </div>
         <div className="actions">
           <button type="button" className="primary-button" onClick={applyFilters}>
@@ -182,6 +249,10 @@ export default function AdminSubmissionsPage() {
             onClick={() => {
               setStatus("");
               setSequenceDate(todaySequenceDate());
+              setMode("");
+              setRole("");
+              setVehicleType("");
+              setLastName("");
               setOffset(0);
               setActionMessage(null);
             }}

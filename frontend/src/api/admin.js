@@ -49,12 +49,20 @@ export async function getAdminSubmissions({
   token,
   status = null,
   sequenceDate = null,
+  mode = null,
+  role = null,
+  vehicleType = null,
+  lastName = null,
   limit = 20,
   offset = 0,
 }) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (sequenceDate) params.set("sequence_date", sequenceDate);
+  if (mode) params.set("mode", mode);
+  if (role) params.set("role", role);
+  if (vehicleType) params.set("vehicle_type", vehicleType);
+  if (lastName) params.set("last_name", lastName);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
 
