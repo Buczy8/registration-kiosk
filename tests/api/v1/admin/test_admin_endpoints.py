@@ -228,6 +228,39 @@ def test_queue_submission_for_print_updates_status(client: TestClient, monkeypat
     assert db.added[0].status == PrintJobStatus.DONE
 
 
+def test_get_dashboard_returns_day_stats(client: TestClient, monkeypatch):
+    admin = _user(is_superuser=True)
+    app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])
+
+    async def _fake_dashboard_stats(_db, sequence_date):
+        return {
+            "sequence_date": sequence_date,
+            "total_submissions": 5,
+            "submitted_count": 2,
+            "print_queued_count": 1,
+            "print_done_count": 1,
+            "print_failed_count": 1,
+            "guest_count": 3,
+            "account_count": 2,
+            "last_start_number": 42,
+        }
+
+    monkeypatch.setattr(
+        "app.services.admin.get_admin_dashboard_stats",
+        _fake_dashboard_stats,
+    )
+
+    response = client.get("/api/v1/admin/dashboard", headers=_auth_headers(admin.id))
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_submissions"] == 5
+    assert data["guest_count"] == 3
+    assert data["account_count"] == 2
+    assert data["last_start_number"] == 42
+    assert data["print_done_count"] == 1
+
+
 def test_lock_user_account(client: TestClient):
     admin = _user(is_superuser=True)
     target_user = _user(is_superuser=False)
