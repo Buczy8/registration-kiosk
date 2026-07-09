@@ -88,6 +88,9 @@ class _FakeAdminDb:
     def add(self, obj):
         self.added.append(obj)
 
+    async def flush(self):
+        pass
+
     async def commit(self):
         self.commits += 1
 
@@ -199,18 +202,30 @@ def test_get_submissions_returns_paginated_list(client: TestClient):
     assert data["items"][0]["id"] == str(sub.id)
 
 
-def test_queue_submission_for_print_updates_status(client: TestClient):
+def test_queue_submission_for_print_updates_status(client: TestClient, monkeypatch):
     admin = _user(is_superuser=True)
     sub = _submission()
     db = _FakeAdminDb(users=[admin], submissions=[sub])
     app.dependency_overrides[get_db] = lambda: db
 
+    async def _fake_generate_submission_pdf(_db, submission_id):
+        assert submission_id == sub.id
+        return sub, b"%PDF-1.4 test"
+
+    monkeypatch.setattr(
+        "app.services.pdf.generate_submission_pdf",
+        _fake_generate_submission_pdf,
+    )
+
     response = client.post(f"/api/v1/admin/submissions/{sub.id}/print", headers=_auth_headers(admin.id))
 
     assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
     assert db.commits == 1
-    assert len(db.added) == 1  # Powinien zostać dodany nowy PrintJob
-    assert sub.status == SubmissionStatus.PRINT_QUEUED
+    assert len(db.added) == 1
+    assert sub.status == SubmissionStatus.PRINT_DONE
+    assert db.added[0].status == PrintJobStatus.DONE
 
 
 def test_lock_user_account(client: TestClient):
