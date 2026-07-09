@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 import os
 from pathlib import Path
+import re
 from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -12,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATABASE_URL = "postgresql+psycopg_async://kiosk:kiosk@localhost:5432/kiosk"
 PLACEHOLDER_KIOSK_TOKEN = "change-me-kiosk-token-min-16-chars"
 PLACEHOLDER_JWT_SECRET_KEY = "change-me-jwt-secret-key-min-32-characters-long"
+_SECRET_COMPLEXITY_RE = re.compile(r"[A-Za-z].*[0-9]|[0-9].*[A-Za-z]")
 
 
 class Settings(BaseSettings):
@@ -51,6 +53,7 @@ class Settings(BaseSettings):
     auth_cookie_name: str = "kiosk_access_token"
     auth_cookie_samesite: Literal["lax", "strict", "none"] = "strict"
     auth_cookie_secure: bool = False
+    trusted_hosts: list[str] = Field(default_factory=lambda: ["*"])
 
     # --- Numer startowy ---
     start_number_timezone: str = "Europe/Warsaw"
@@ -68,6 +71,8 @@ class Settings(BaseSettings):
     # --- Bezpieczenstwo logowania ---
     login_max_attempts: int = 5
     login_lockout_minutes: int = 15
+    login_rate_limit_window_seconds: int = 60
+    login_rate_limit_max_requests: int = 10
 
     # --- Kiosk UX ---
     kiosk_idle_logout_seconds: int = 30
@@ -117,6 +122,18 @@ class Settings(BaseSettings):
             errors.append("KIOSK_TOKEN must be changed in production")
         if self.jwt_secret_key == PLACEHOLDER_JWT_SECRET_KEY:
             errors.append("JWT_SECRET_KEY must be changed in production")
+        if len(set(self.kiosk_token)) < 8 or not _SECRET_COMPLEXITY_RE.search(self.kiosk_token):
+            errors.append(
+                "KIOSK_TOKEN must contain mixed alphanumeric characters and enough entropy"
+            )
+        if len(set(self.jwt_secret_key)) < 12 or not _SECRET_COMPLEXITY_RE.search(self.jwt_secret_key):
+            errors.append(
+                "JWT_SECRET_KEY must contain mixed alphanumeric characters and enough entropy"
+            )
+        if not self.auth_cookie_secure:
+            self.auth_cookie_secure = True
+        if self.auth_cookie_samesite == "none" and not self.auth_cookie_secure:
+            errors.append("AUTH_COOKIE_SAMESITE=none requires AUTH_COOKIE_SECURE=true")
         if errors:
             raise ValueError("; ".join(errors))
         return self

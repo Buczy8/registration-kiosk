@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from hashlib import sha256
 from hmac import compare_digest
-from secrets import token_urlsafe
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerifyMismatchError
 
 import jwt
 from datetime import datetime, timedelta, UTC
@@ -25,7 +24,11 @@ __all__ = [
     "hash_reset_token",
 ]
 
-_password_hasher = PasswordHasher()
+_password_hasher = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,
+    parallelism=2,
+)
 
 
 def constant_time_equals(left: str, right: str) -> bool:
@@ -38,7 +41,7 @@ def sha256_hex(value: str) -> str:
 
 
 def generate_secret(length_bytes: int = 32) -> str:
-    return token_urlsafe(length_bytes)
+    return secrets.token_urlsafe(length_bytes)
 
 
 def hash_password(plain: str) -> str:
@@ -50,7 +53,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     """Return True when plain matches the Argon2id hash."""
     try:
         _password_hasher.verify(hashed, plain)
-    except VerifyMismatchError:
+    except (VerifyMismatchError, InvalidHashError):
         return False
     return True
 
@@ -90,13 +93,6 @@ def decode_access_token(token: str, settings: Settings) -> UUID:
 
     except ValueError as e:
         raise jwt.InvalidTokenError("Nieprawidłowy format UUID w tokenie") from e
-
-def generate_secret(length: int = 32) -> str:
-    """
-    Generuje bezpieczny kryptograficznie, losowy ciąg znaków.
-    Zwracany ciąg jest bezpieczny do użycia w adresach URL.
-    """
-    return secrets.token_urlsafe(length)
 
 def generate_reset_token() -> str:
     """

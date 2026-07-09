@@ -1,5 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 const KIOSK_TOKEN = import.meta.env.VITE_KIOSK_TOKEN || "";
+const IS_HTTPS_PAGE =
+  typeof window !== "undefined" ? window.location.protocol === "https:" : true;
 
 let onUnauthorized = null;
 
@@ -61,6 +63,14 @@ export async function apiRequest(path, options = {}) {
     contentType = "application/json",
     credentials = "include",
   } = options;
+
+  if (
+    IS_HTTPS_PAGE &&
+    typeof API_BASE_URL === "string" &&
+    API_BASE_URL.startsWith("http://")
+  ) {
+    throw new Error("Niezabezpieczony VITE_API_BASE_URL (http://) przy stronie HTTPS.");
+  }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,

@@ -15,6 +15,7 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
 }
 
 
@@ -32,4 +33,10 @@ class CoreSecurityMiddleware(BaseHTTPMiddleware):
         response.headers[REQUEST_ID_HEADER] = request_id
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
+        forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if forwarded_proto.lower() == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains; preload",
+            )
         return response

@@ -1,4 +1,21 @@
 services:
+  reverse-proxy:
+    image: caddy:2.8-alpine
+    container_name: kiosk-reverse-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      node:
+        condition: service_started
+
   db:
     image: postgres:15-alpine
     container_name: kiosk-postgres
@@ -40,8 +57,8 @@ services:
       START_NUMBER_TIMEZONE: ${START_NUMBER_TIMEZONE:-Europe/Warsaw}
       STORAGE_ROOT: /app/storage
       FORM_TEMPLATES_DIR: /app/templates/forms
-    ports:
-      - "${PORT:-8000}:8000"
+    expose:
+      - "8000"
     volumes:
       - ./storage:/app/storage
       - ./templates:/app/templates
@@ -66,8 +83,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./:/workspace
-    ports:
-      - "5173:5173"
+    expose:
+      - "5173"
     environment:
       VITE_KIOSK_TOKEN: ${KIOSK_TOKEN:-change-me-kiosk-token-min-16-chars}
       VITE_API_BASE_URL: /api/v1
@@ -80,3 +97,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
