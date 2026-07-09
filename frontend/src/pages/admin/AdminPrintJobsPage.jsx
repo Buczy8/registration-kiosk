@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getAdminPrintJobs } from "../../api/admin.js";
+import { getAdminPrintJobs, executePrintJob } from "../../api/admin.js";
+import { downloadPdfBlob } from "../../lib/adminPrint.js";
+import { todaySequenceDate } from "../../lib/adminFilters.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -15,10 +17,10 @@ function formatDateTime(value) {
 
 const PRINT_JOB_STATUSES = [
   { value: "", label: "Wszystkie" },
-  { value: "queued", label: "queued" },
-  { value: "printing", label: "printing" },
-  { value: "done", label: "done" },
-  { value: "failed", label: "failed" },
+  { value: "queued", label: "W kolejce (queued)" },
+  { value: "printing", label: "W trakcie (printing)" },
+  { value: "completed", label: "Zakończone (completed)" },
+  { value: "failed", label: "Błąd (failed)" },
 ];
 
 export default function AdminPrintJobsPage() {
@@ -26,6 +28,7 @@ export default function AdminPrintJobsPage() {
   const [limit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState("");
+  const [sequenceDate, setSequenceDate] = useState(todaySequenceDate);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,22 @@ export default function AdminPrintJobsPage() {
     return Math.max(1, Math.ceil(total / limit));
   }, [data, limit]);
 
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async (jobId, submissionId, startNumber) => {
+    try {
+      setIsPrinting(true);
+      const blob = await executePrintJob(jobId, token);
+      downloadPdfBlob(blob, `wydruk_zgloszenia_${startNumber || submissionId}.pdf`);
+      await load();
+    } catch (error) {
+      console.error("Błąd podczas pobierania pliku do druku:", error);
+      alert("Nie udało się pobrać pliku do druku.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   async function load(requestOffset = offset) {
     setLoading(true);
     setError(null);
@@ -44,6 +63,7 @@ export default function AdminPrintJobsPage() {
       const result = await getAdminPrintJobs({
         token,
         status: status || null,
+        sequenceDate: sequenceDate || null,
         limit,
         offset: requestOffset,
       });
@@ -68,10 +88,9 @@ export default function AdminPrintJobsPage() {
   return (
     <AdminLayout
       title="Kolejka wydruków"
-      subtitle="Podgląd zleceń druku oraz ich statusów."
+      subtitle="Historia zleceń druku. Nowe wydruki uruchamiasz ze strony Zgłoszenia."
       activeHref="/admin/print-jobs"
     >
-
       {error && (
         <div className="status-card alert" role="alert">
           {error}
@@ -90,9 +109,21 @@ export default function AdminPrintJobsPage() {
               ))}
             </select>
           </label>
+          <label className="field">
+            <span>Data dnia</span>
+            <input
+              type="date"
+              value={sequenceDate}
+              onChange={(e) => setSequenceDate(e.target.value)}
+            />
+          </label>
           <div className="field" style={{ alignSelf: "end" }}>
             <div className="actions" style={{ marginTop: 0 }}>
-              <button type="button" className="primary-button" onClick={applyFilters}>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={applyFilters}
+              >
                 Zastosuj
               </button>
               <button
@@ -100,6 +131,7 @@ export default function AdminPrintJobsPage() {
                 className="secondary-button"
                 onClick={() => {
                   setStatus("");
+                  setSequenceDate(todaySequenceDate());
                   setOffset(0);
                 }}
               >
@@ -131,6 +163,7 @@ export default function AdminPrintJobsPage() {
                   <th>Attempts</th>
                   <th>Queued at</th>
                   <th>Submission</th>
+                  <th>Akcje</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,12 +174,12 @@ export default function AdminPrintJobsPage() {
                       {j.status === "queued"
                         ? "W kolejce"
                         : j.status === "printing"
-                          ? "W trakcie"
-                          : j.status === "done"
-                            ? "Zakończone"
-                            : j.status === "failed"
-                              ? "Błąd"
-                              : j.status}
+                        ? "W trakcie"
+                        : j.status === "completed" || j.status === "done"
+                        ? "Zakończone"
+                        : j.status === "failed"
+                        ? "Błąd"
+                        : j.status}
                     </td>
                     <td>{j.copies}</td>
                     <td>{j.attempts}</td>
@@ -159,6 +192,28 @@ export default function AdminPrintJobsPage() {
                       ) : (
                         String(j.submission_id).slice(0, 8) + "…"
                       )}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        style={{ padding: "4px 12px", fontSize: "0.85rem" }}
+                        disabled={
+                          isPrinting ||
+                          j.status === "completed" ||
+                          j.status === "done" ||
+                          j.status === "failed"
+                        }
+                        onClick={() =>
+                          handlePrint(
+                            j.id,
+                            j.submission?.id || j.submission_id,
+                            j.submission?.start_number
+                          )
+                        }
+                      >
+                        {isPrinting ? "Ładowanie..." : "Pobierz ponownie"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -194,4 +249,3 @@ export default function AdminPrintJobsPage() {
     </AdminLayout>
   );
 }
-

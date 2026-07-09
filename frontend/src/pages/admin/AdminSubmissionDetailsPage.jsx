@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getAdminSubmissionDetails, queueSubmissionForPrint } from "../../api/admin.js";
+import { downloadPdfBlob } from "../../lib/adminPrint.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -44,11 +45,13 @@ export default function AdminSubmissionDetailsPage() {
     setActionMessage(null);
     setActing(true);
     try {
-      const result = await queueSubmissionForPrint({ token, submissionId });
-      setActionMessage(result?.message || "Dodano do kolejki wydruku.");
+      const blob = await queueSubmissionForPrint({ token, submissionId });
+      const startNumber = data?.start_number;
+      downloadPdfBlob(blob, `wydruk_zgloszenia_${startNumber || submissionId}.pdf`);
+      setActionMessage("Plik pobrany do druku.");
       await load();
     } catch (e) {
-      setError(e.message || "Nie udało się dodać do kolejki wydruku.");
+      setError(e.message || "Nie udało się wydrukować zgłoszenia.");
     } finally {
       setActing(false);
     }
@@ -70,7 +73,7 @@ export default function AdminSubmissionDetailsPage() {
               &larr; Powrót
             </Link>
             <button type="button" className="primary-button" disabled={acting} onClick={handleQueuePrint}>
-              {acting ? "Dodawanie…" : "Dodaj do druku"}
+              {acting ? "Drukowanie…" : "Drukuj"}
             </button>
           </div>
         </div>

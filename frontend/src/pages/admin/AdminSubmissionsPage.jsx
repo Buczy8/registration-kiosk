@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAdminSubmissions, queueSubmissionForPrint } from "../../api/admin.js";
+import { downloadPdfBlob } from "../../lib/adminPrint.js";
+import { todaySequenceDate } from "../../lib/adminFilters.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -44,7 +46,7 @@ export default function AdminSubmissionsPage() {
   const [offset, setOffset] = useState(0);
 
   const [status, setStatus] = useState("");
-  const [sequenceDate, setSequenceDate] = useState("");
+  const [sequenceDate, setSequenceDate] = useState(todaySequenceDate);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,15 +89,16 @@ export default function AdminSubmissionsPage() {
     await load(0);
   }
 
-  async function handleQueuePrint(submissionId) {
+  async function handleQueuePrint(submissionId, startNumber) {
     setActionMessage(null);
     setActingSubmissionId(submissionId);
     try {
-      const result = await queueSubmissionForPrint({ token, submissionId });
-      setActionMessage(result?.message || "Dodano do kolejki wydruku.");
+      const blob = await queueSubmissionForPrint({ token, submissionId });
+      downloadPdfBlob(blob, `wydruk_zgloszenia_${startNumber || submissionId}.pdf`);
+      setActionMessage("Plik pobrany do druku.");
       await load();
     } catch (e) {
-      setError(e.message || "Nie udało się dodać do kolejki wydruku.");
+      setError(e.message || "Nie udało się wydrukować zgłoszenia.");
     } finally {
       setActingSubmissionId(null);
     }
@@ -104,7 +107,7 @@ export default function AdminSubmissionsPage() {
   return (
     <AdminLayout
       title="Zgłoszenia"
-      subtitle="Przeglądaj zgłoszenia i dodawaj je do kolejki wydruku."
+      subtitle="Przeglądaj zgłoszenia i drukuj je jednym kliknięciem."
       activeHref="/admin/submissions"
     >
 
@@ -132,7 +135,7 @@ export default function AdminSubmissionsPage() {
             </select>
           </label>
           <label className="field">
-            <span>Sequence date</span>
+            <span>Data dnia</span>
             <input
               type="date"
               value={sequenceDate}
@@ -149,7 +152,7 @@ export default function AdminSubmissionsPage() {
             className="secondary-button"
             onClick={() => {
               setStatus("");
-              setSequenceDate("");
+              setSequenceDate(todaySequenceDate());
               setOffset(0);
               setActionMessage(null);
             }}
@@ -207,21 +210,21 @@ export default function AdminSubmissionsPage() {
                           onClick={() => {
                             const label =
                               s.status === "submitted"
-                                ? "dodaj do kolejki druku"
-                                : "ponów druk";
-                            if (!window.confirm(`Czy na pewno chcesz ${label}?`)) return;
-                            handleQueuePrint(s.id);
+                                ? "wydrukować"
+                                : "ponowić druk";
+                            if (!window.confirm(`Czy na pewno chcesz ${label} to zgłoszenie?`)) return;
+                            handleQueuePrint(s.id, s.start_number);
                           }}
                         >
                           {actingSubmissionId === s.id
-                            ? "Dodawanie…"
+                            ? "Drukowanie…"
                             : s.status === "print_queued"
                               ? "W kolejce"
                               : s.status === "print_done"
                                 ? "Wydrukowane"
                                 : s.status === "print_failed"
                                   ? "Ponów druk"
-                                  : "Do druku"}
+                                  : "Drukuj"}
                         </button>
                       </div>
                     </td>
