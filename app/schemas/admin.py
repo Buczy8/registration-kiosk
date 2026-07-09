@@ -59,6 +59,9 @@ class AdminSubmissionListItem(BaseModel):
     user_id: UUID | None = None
     display_name: str | None = None
     created_at: datetime
+    last_print_job_id: UUID | None = None
+    last_print_status: PrintJobStatus | None = None
+    last_print_at: datetime | None = None
 
 
 class AdminSubmissionDetail(AdminSubmissionListItem):
@@ -109,3 +112,17 @@ class AdminPrintJobListItem(BaseModel):
 AdminUserListResponse = PaginatedResponse[AdminUserListItem]
 AdminSubmissionListResponse = PaginatedResponse[AdminSubmissionListItem]
 AdminPrintJobListResponse = PaginatedResponse[AdminPrintJobListItem]
+
+
+class AdminDashboardStats(BaseModel):
+    """Statystyki panelu admina dla wybranego dnia (sequence_date)."""
+
+    sequence_date: date
+    total_submissions: int
+    submitted_count: int
+    print_queued_count: int
+    print_done_count: int
+    print_failed_count: int
+    guest_count: int
+    account_count: int
+    last_start_number: int | None = None

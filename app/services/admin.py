@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.enums import PrintJobStatus, SubmissionStatus
+from app.models.enums import PrintJobStatus, SubmissionMode, SubmissionStatus
 from app.models.print_job import PrintJob
 from app.models.submission import Submission
 from app.models.user import User
@@ -30,6 +30,76 @@ class AdminCannotLockSelf(AdminError):
 class AdminPrintJobNotFound(AdminError):
     """Zadanie wydruku nie zostalo znalezione."""
 
+
+def _attach_submission_list_metadata(submission: Submission) -> None:
+    try:
+        payload = submission.payload_json or {}
+        first_name = (payload.get("first_name") or "").strip()
+        last_name = (payload.get("last_name") or "").strip()
+        full_name = f"{first_name} {last_name}".strip()
+        submission.display_name = full_name or None
+    except Exception:
+        submission.display_name = None
+
+    try:
+        print_jobs = list(submission.print_jobs or [])
+    except Exception:
+        print_jobs = []
+    if print_jobs:
+        latest_job = max(print_jobs, key=lambda job: job.queued_at)
+        submission.last_print_job_id = latest_job.id
+        submission.last_print_status = latest_job.status
+        submission.last_print_at = latest_job.queued_at
+    else:
+        submission.last_print_job_id = None
+        submission.last_print_status = None
+        submission.last_print_at = None
+
+
+async def get_admin_dashboard_stats(db: AsyncSession, sequence_date: date) -> dict:
+    day_filter = Submission.sequence_date == sequence_date
+
+    total_submissions = (
+        await db.execute(select(func.count()).select_from(Submission).where(day_filter))
+    ).scalar_one()
+
+    status_rows = (
+        await db.execute(
+            select(Submission.status, func.count())
+            .where(day_filter)
+            .group_by(Submission.status)
+        )
+    ).all()
+    status_counts = {status: count for status, count in status_rows}
+
+    mode_rows = (
+        await db.execute(
+            select(Submission.mode, func.count())
+            .where(day_filter)
+            .group_by(Submission.mode)
+        )
+    ).all()
+    mode_counts = {mode: count for mode, count in mode_rows}
+
+    last_start_number = (
+        await db.execute(
+            select(func.max(Submission.start_number)).where(day_filter)
+        )
+    ).scalar_one()
+
+    return {
+        "sequence_date": sequence_date,
+        "total_submissions": total_submissions,
+        "submitted_count": status_counts.get(SubmissionStatus.SUBMITTED, 0),
+        "print_queued_count": status_counts.get(SubmissionStatus.PRINT_QUEUED, 0),
+        "print_done_count": status_counts.get(SubmissionStatus.PRINT_DONE, 0),
+        "print_failed_count": status_counts.get(SubmissionStatus.PRINT_FAILED, 0),
+        "guest_count": mode_counts.get(SubmissionMode.GUEST, 0),
+        "account_count": mode_counts.get(SubmissionMode.ACCOUNT, 0),
+        "last_start_number": last_start_number,
+    }
+
+
 async def get_admin_submissions(
         db: AsyncSession,
         status_filter: SubmissionStatus | None,
@@ -37,7 +107,7 @@ async def get_admin_submissions(
         limit: int,
         offset: int,
 ) -> tuple[list[Submission], int]:
-    query = select(Submission)
+    query = select(Submission).options(selectinload(Submission.print_jobs))
 
     if status_filter:
         query = query.where(Submission.status == status_filter)
@@ -49,16 +119,8 @@ async def get_admin_submissions(
     result = await db.execute(query)
     submissions = result.scalars().all()
 
-    # Ustawienie czytelnej nazwy do wyswietlenia w panelu admina
     for submission in submissions:
-        try:
-            payload = submission.payload_json or {}
-            first_name = (payload.get("first_name") or "").strip()
-            last_name = (payload.get("last_name") or "").strip()
-            full_name = f"{first_name} {last_name}".strip()
-            submission.display_name = full_name or None
-        except Exception:
-            submission.display_name = None
+        _attach_submission_list_metadata(submission)
 
     count_query = select(func.count()).select_from(Submission)
     if status_filter:
