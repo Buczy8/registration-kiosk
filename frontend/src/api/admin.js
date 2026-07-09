@@ -53,6 +53,15 @@ export async function unlockAdminUser({ token, userId }) {
   return response.json();
 }
 
+export async function deleteAdminUser({ token, userId }) {
+  const response = await apiRequest(`/admin/users/${userId}`, {
+    method: "DELETE",
+    token,
+    contentType: null,
+  });
+  return response.json();
+}
+
 export async function getAdminSubmissions({
   token,
   status = null,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminUsers, lockAdminUser, unlockAdminUser } from "../../api/admin.js";
+import { deleteAdminUser, getAdminUsers, lockAdminUser, unlockAdminUser } from "../../api/admin.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -82,6 +82,20 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleDelete(userId) {
+    setActionMessage(null);
+    setActingUserId(userId);
+    try {
+      const result = await deleteAdminUser({ token, userId });
+      setActionMessage(result?.message || "Usunięto konto.");
+      await load();
+    } catch (e) {
+      setError(e.message || "Nie udało się usunąć konta.");
+    } finally {
+      setActingUserId(null);
+    }
+  }
+
   return (
     <AdminLayout
       title="Użytkownicy"
@@ -141,11 +155,21 @@ export default function AdminUsersPage() {
                     <td>{formatDateTime(u.locked_until)}</td>
                     <td>{formatDateTime(u.created_at)}</td>
                     <td>
-                      <div className="minor-table-actions">
+                      <div
+                        className="minor-table-actions"
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          justifyContent: "flex-end",
+                          flexWrap: "nowrap",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {userCanBeUnlocked(u) ? (
                           <button
                             type="button"
                             className="primary-button"
+                            style={{ minHeight: "36px", padding: "6px 12px" }}
                             disabled={actingUserId === u.id}
                             onClick={() => handleUnlock(u.id)}
                           >
@@ -155,6 +179,7 @@ export default function AdminUsersPage() {
                           <button
                             type="button"
                             className="secondary-button"
+                            style={{ minHeight: "36px", padding: "6px 12px" }}
                             disabled={actingUserId === u.id}
                             onClick={() => {
                               const confirmText = `Zablokować konto użytkownika ${u.email} na ${lockDays} dni?`;
@@ -165,6 +190,24 @@ export default function AdminUsersPage() {
                             {actingUserId === u.id ? "Blokowanie…" : "Zablokuj"}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          style={{
+                            minHeight: "36px",
+                            padding: "6px 12px",
+                            backgroundColor: "#b91c1c",
+                            borderColor: "#b91c1c",
+                            color: "#fff",
+                          }}
+                          disabled={actingUserId === u.id}
+                          onClick={() => {
+                            if (!window.confirm(`Usunąć konto użytkownika ${u.email}?`)) return;
+                            handleDelete(u.id);
+                          }}
+                        >
+                          {actingUserId === u.id ? "Usuwanie…" : "Usuń"}
+                        </button>
                       </div>
                     </td>
                   </tr>
