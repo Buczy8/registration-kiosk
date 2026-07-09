@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAdminDashboard } from "../../api/admin.js";
+import { getAdminDashboard, getAdminSystemStatus } from "../../api/admin.js";
 import { todaySequenceDate } from "../../lib/adminFilters.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
@@ -18,6 +18,7 @@ export default function AdminHome() {
   const { token } = useAuth();
   const [sequenceDate, setSequenceDate] = useState(todaySequenceDate);
   const [data, setData] = useState(null);
+  const [systemStatus, setSystemStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -25,8 +26,12 @@ export default function AdminHome() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAdminDashboard({ token, sequenceDate: requestDate });
+      const [result, status] = await Promise.all([
+        getAdminDashboard({ token, sequenceDate: requestDate }),
+        getAdminSystemStatus({ token }),
+      ]);
       setData(result);
+      setSystemStatus(status);
     } catch (e) {
       setError(e.message || "Nie udało się pobrać statystyk dnia.");
     } finally {
@@ -90,6 +95,28 @@ export default function AdminHome() {
         <p className="status-card">Ładowanie…</p>
       ) : data ? (
         <>
+          <div className="form-card">
+            <div className="minor-table-header">
+              <h3>Status systemu</h3>
+              <p className="hint" style={{ margin: 0 }}>
+                {systemStatus?.checked_at
+                  ? `Ostatnia kontrola: ${new Date(systemStatus.checked_at).toLocaleString("pl-PL")}`
+                  : "—"}
+              </p>
+            </div>
+            <div className="actions" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+              <span className="admin-status-pill">
+                API: {systemStatus?.api_ok ? "OK" : "BŁĄD"}
+              </span>
+              <span className="admin-status-pill">
+                Baza: {systemStatus?.db_ok ? "OK" : "BŁĄD"}
+              </span>
+              <span className="admin-status-pill">
+                Drukarka: —
+              </span>
+            </div>
+          </div>
+
           <div className="admin-stat-grid">
             <StatCard label="Zgłoszenia łącznie" value={data.total_submissions} />
             <StatCard label="Wydrukowane" value={data.print_done_count} />

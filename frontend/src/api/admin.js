@@ -12,6 +12,14 @@ export async function getAdminDashboard({ token, sequenceDate = null }) {
   return response.json();
 }
 
+export async function getAdminSystemStatus({ token }) {
+  const response = await apiRequest("/admin/dashboard/system-status", {
+    token,
+    contentType: null,
+  });
+  return response.json();
+}
+
 export async function getAdminUsers({ token, limit = 20, offset = 0 }) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
