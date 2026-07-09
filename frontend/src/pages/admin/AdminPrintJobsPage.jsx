@@ -50,7 +50,7 @@ export default function AdminPrintJobsPage() {
       await load();
     } catch (error) {
       console.error("Błąd podczas pobierania pliku do druku:", error);
-      alert("Nie udało się pobrać pliku do druku.");
+      setError(error.message || "Nie udało się pobrać pliku do druku.");
     } finally {
       setIsPrinting(false);
     }

@@ -207,14 +207,7 @@ export default function AdminSubmissionsPage() {
                             s.status === "print_queued" ||
                             s.status === "print_done"
                           }
-                          onClick={() => {
-                            const label =
-                              s.status === "submitted"
-                                ? "wydrukować"
-                                : "ponowić druk";
-                            if (!window.confirm(`Czy na pewno chcesz ${label} to zgłoszenie?`)) return;
-                            handleQueuePrint(s.id, s.start_number);
-                          }}
+                          onClick={() => handleQueuePrint(s.id, s.start_number)}
                         >
                           {actingSubmissionId === s.id
                             ? "Drukowanie…"
