@@ -65,15 +65,6 @@ class Settings(BaseSettings):
     signature_storage_dir: str = "signatures"
     form_templates_dir: Path = Field(default=PROJECT_ROOT / "templates" / "forms")
 
-    # --- E-mail (reset hasla) ---
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_user: str | None = None
-    smtp_password: str | None = None
-    smtp_from_email: str | None = None
-    smtp_use_tls: bool = True
-    password_reset_token_expire_minutes: int = 60
-
     # --- Bezpieczenstwo logowania ---
     login_max_attempts: int = 5
     login_lockout_minutes: int = 15

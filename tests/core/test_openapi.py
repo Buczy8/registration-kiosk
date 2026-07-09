@@ -60,13 +60,9 @@ def test_openapi_auth_endpoints_require_kiosk_token_security():
 
     register_path = schema["paths"]["/api/v1/auth/register"]["post"]
     login_path = schema["paths"]["/api/v1/auth/login"]["post"]
-    reset_req_path = schema["paths"]["/api/v1/auth/password-reset/request"]["post"]
-    reset_confirm_path = schema["paths"]["/api/v1/auth/password-reset/confirm"]["post"]
 
     assert {"KioskToken": []} in register_path["security"]
     assert {"KioskToken": []} in login_path["security"]
-    assert {"KioskToken": []} in reset_req_path["security"]
-    assert {"KioskToken": []} in reset_confirm_path["security"]
 
 
 def test_openapi_schema_contains_me_endpoints():

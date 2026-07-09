@@ -47,9 +47,6 @@ class User(Base):
     profile: Mapped[UserProfile | None] = relationship(back_populates="user", uselist=False)
     related_persons: Mapped[list[RelatedPerson]] = relationship(back_populates="owner")
     submissions: Mapped[list[Submission]] = relationship(back_populates="user")
-    password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
-        back_populates="user"
-    )
 
 
 class UserProfile(Base):
@@ -81,23 +78,3 @@ class UserProfile(Base):
     user: Mapped[User] = relationship(back_populates="profile")
 
 
-class PasswordResetToken(Base):
-    __tablename__ = "password_reset_tokens"
-    __table_args__ = (Index("idx_password_reset_tokens_user_id", "user_id"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        server_default=text("gen_random_uuid()"),
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-
-    user: Mapped[User] = relationship(back_populates="password_reset_tokens")

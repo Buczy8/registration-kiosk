@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 
 from app.core.config import Settings, get_settings
 from app.core.deps import KIOSK_TOKEN_HEADER
-from app.core.security import decode_access_token, hash_password, hash_reset_token
+from app.core.security import decode_access_token, hash_password
 from app.db.session import get_db
-from app.models.user import PasswordResetToken, User
+from app.models.user import User
 from main import app
 from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
 
@@ -22,9 +22,8 @@ class _FakeResult:
 
 
 class _FakeAuthDb:
-    def __init__(self, users=None, reset_tokens=None):
+    def __init__(self, users=None):
         self.users = list(users or [])
-        self.reset_tokens = list(reset_tokens or [])
         self.added = []
         self.commits = 0
         self.refreshed = []
@@ -39,19 +38,12 @@ class _FakeAuthDb:
             match = next((u for u in self.users if u.email.lower() == expected), None)
             return _FakeResult(match)
 
-        if "password_reset_tokens.token_hash" in sql:
-            expected = next(iter(bound.values()))
-            match = next((t for t in self.reset_tokens if t.token_hash == expected), None)
-            return _FakeResult(match)
-
         return _FakeResult(None)
 
     def add(self, obj):
         self.added.append(obj)
         if isinstance(obj, User):
             self.users.append(obj)
-        if isinstance(obj, PasswordResetToken):
-            self.reset_tokens.append(obj)
 
     async def flush(self):
         for obj in self.added:
@@ -192,39 +184,4 @@ def test_login_locked_returns_423(client: TestClient):
     assert response.json()["error"]["code"] == "locked"
 
 
-def test_password_reset_request_always_returns_202(client: TestClient):
-    db = _FakeAuthDb()
-    app.dependency_overrides[get_db] = lambda: db
-
-    response = client.post(
-        "/api/v1/auth/password-reset/request",
-        headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
-        json={"email": "missing@example.com"},
-    )
-
-    assert response.status_code == 202
-
-
-def test_password_reset_confirm_ok_returns_200(client: TestClient):
-    user = _user()
-    raw_token = "reset-token"
-    reset_token = PasswordResetToken(
-        id=uuid4(),
-        user_id=user.id,
-        user=user,
-        token_hash=hash_reset_token(raw_token),
-        expires_at=datetime.now(UTC) + timedelta(minutes=30),
-        used_at=None,
-    )
-    db = _FakeAuthDb(users=[user], reset_tokens=[reset_token])
-    app.dependency_overrides[get_db] = lambda: db
-
-    response = client.post(
-        "/api/v1/auth/password-reset/confirm",
-        headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
-        json={"token": raw_token, "new_password": "NewStrongPass1"},
-    )
-
-    assert response.status_code == 200
-    assert response.json()["message"]
 

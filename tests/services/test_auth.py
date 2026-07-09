@@ -6,11 +6,11 @@ import pytest
 from fastapi import HTTPException
 
 from app.core.config import Settings
-from app.core.security import decode_access_token, hash_reset_token, hash_password, verify_password
-from app.models.user import PasswordResetToken, User
-from app.schemas.auth import LoginRequest, PasswordResetConfirm, PasswordResetRequest, RegisterRequest
+from app.core.security import decode_access_token, hash_password
+from app.models.user import User
+from app.schemas.auth import LoginRequest, RegisterRequest
 import app.services.auth as auth_service
-from app.services.auth import confirm_password_reset, login, register, request_password_reset
+from app.services.auth import login, register
 from tests.conftest import TEST_JWT_SECRET, TEST_KIOSK_TOKEN
 
 
@@ -23,9 +23,8 @@ class _FakeResult:
 
 
 class _FakeAuthDb:
-    def __init__(self, users=None, reset_tokens=None):
+    def __init__(self, users=None):
         self.users = list(users or [])
-        self.reset_tokens = list(reset_tokens or [])
         self.added = []
         self.commits = 0
         self.rolled_back = False
@@ -41,19 +40,12 @@ class _FakeAuthDb:
             match = next((u for u in self.users if u.email.lower() == expected), None)
             return _FakeResult(match)
 
-        if "password_reset_tokens.token_hash" in sql:
-            expected = next(iter(bound.values()))
-            match = next((t for t in self.reset_tokens if t.token_hash == expected), None)
-            return _FakeResult(match)
-
         return _FakeResult(None)
 
     def add(self, obj):
         self.added.append(obj)
         if isinstance(obj, User):
             self.users.append(obj)
-        if isinstance(obj, PasswordResetToken):
-            self.reset_tokens.append(obj)
 
     async def flush(self):
         for obj in self.added:
@@ -194,106 +186,6 @@ def test_login_with_five_bad_passwords_locks_account():
     assert user.locked_until is not None
 
 
-def test_confirm_password_reset_updates_hash_and_marks_token_used():
-    user = _user(password="OldPass1")
-    raw_token = "reset-token"
-    reset_token = PasswordResetToken(
-        id=uuid4(),
-        user_id=user.id,
-        user=user,
-        token_hash=hash_reset_token(raw_token),
-        expires_at=datetime.now(UTC) + timedelta(minutes=30),
-        used_at=None,
-    )
-    db = _FakeAuthDb(users=[user], reset_tokens=[reset_token])
-
-    response = asyncio.run(
-        confirm_password_reset(
-            db,
-            PasswordResetConfirm(token=raw_token, new_password="NewStrongPass1"),
-        )
-    )
-
-    assert response.message
-    assert verify_password("NewStrongPass1", user.password_hash)
-    assert reset_token.used_at is not None
-
-
-def test_request_password_reset_returns_success_without_revealing_unknown_email():
-    db = _FakeAuthDb()
-
-    response = asyncio.run(
-        request_password_reset(
-            db,
-            PasswordResetRequest(email="missing@example.com"),
-            _settings(),
-        )
-    )
-
-    assert response.message
-    assert db.reset_tokens == []
-
-
-def test_request_password_reset_stores_hashed_token_for_existing_user():
-    user = _user()
-    db = _FakeAuthDb(users=[user])
-
-    response = asyncio.run(
-        request_password_reset(db, PasswordResetRequest(email=user.email), _settings())
-    )
-
-    assert response.message
-    assert len(db.reset_tokens) == 1
-    assert db.reset_tokens[0].user_id == user.id
-    assert db.reset_tokens[0].token_hash
-
-
-def test_confirm_password_reset_rejects_expired_token():
-    user = _user()
-    raw_token = "expired-token"
-    reset_token = PasswordResetToken(
-        id=uuid4(),
-        user_id=user.id,
-        user=user,
-        token_hash=hash_reset_token(raw_token),
-        expires_at=datetime.now(UTC) - timedelta(minutes=1),
-        used_at=None,
-    )
-    db = _FakeAuthDb(users=[user], reset_tokens=[reset_token])
-
-    with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(
-            confirm_password_reset(
-                db,
-                PasswordResetConfirm(token=raw_token, new_password="NewStrongPass1"),
-            )
-        )
-
-    assert exc_info.value.status_code == 400
-
-
-def test_confirm_password_reset_rejects_used_token():
-    user = _user()
-    raw_token = "used-token"
-    reset_token = PasswordResetToken(
-        id=uuid4(),
-        user_id=user.id,
-        user=user,
-        token_hash=hash_reset_token(raw_token),
-        expires_at=datetime.now(UTC) + timedelta(minutes=30),
-        used_at=datetime.now(UTC),
-    )
-    db = _FakeAuthDb(users=[user], reset_tokens=[reset_token])
-
-    with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(
-            confirm_password_reset(
-                db,
-                PasswordResetConfirm(token=raw_token, new_password="NewStrongPass1"),
-            )
-        )
-
-    assert exc_info.value.status_code == 400
 
 
 def test_login_does_not_access_user_attributes_after_reset_commit(monkeypatch):
@@ -322,35 +214,4 @@ def test_login_does_not_access_user_attributes_after_reset_commit(monkeypatch):
     assert decode_access_token(response.access_token, _settings()) == user_id
 
 
-def test_request_password_reset_does_not_access_user_email_after_commit(monkeypatch):
-    user_id = uuid4()
-    user = _ExpiringUser(user_id, "jan.kowalski@example.com", hash_password("StrongPass1"))
-
-    class _CommitExpiresDb:
-        def __init__(self):
-            self.added = []
-
-        def add(self, obj):
-            self.added.append(obj)
-
-        async def commit(self):
-            user.expire()
-
-    async def _fake_get_user_by_email(db, email):
-        return user
-
-    monkeypatch.setattr(auth_service, "get_user_by_email", _fake_get_user_by_email)
-    monkeypatch.setattr(auth_service, "generate_reset_token", lambda: "reset-token")
-
-    db = _CommitExpiresDb()
-    response = asyncio.run(
-        auth_service.request_password_reset(
-            db=db,
-            data=PasswordResetRequest(email="jan.kowalski@example.com"),
-            settings=_settings(),
-        )
-    )
-
-    assert response.message
-    assert len(db.added) == 1
 

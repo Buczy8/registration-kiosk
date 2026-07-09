@@ -72,20 +72,6 @@ class AuthResponse(BaseModel):
     user: UserPublic
 
 
-class PasswordResetRequest(BaseModel):
-    email: str
-
-    @field_validator("email")
-    @classmethod
-    def validate_email(cls, value: str) -> str:
-        return _validate_email(value)
-
-
-class PasswordResetConfirm(BaseModel):
-    token: str = Field(min_length=1)
-    new_password: str = Field(min_length=_PASSWORD_MIN_LEN)
-
-
 class MessageResponse(BaseModel):
     message: str
 
