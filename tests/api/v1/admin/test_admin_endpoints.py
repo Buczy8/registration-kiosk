@@ -303,6 +303,25 @@ def test_lock_user_account(client: TestClient):
     assert abs((target_user.locked_until - expected_lock).total_seconds()) < 5
 
 
+def test_unlock_user_account(client: TestClient):
+    admin = _user(is_superuser=True)
+    target_user = _user(is_superuser=False)
+    target_user.locked_until = datetime.now(UTC) + timedelta(days=3)
+    target_user.failed_login_count = 5
+    db = _FakeAdminDb(users=[target_user, admin])
+    app.dependency_overrides[get_db] = lambda: db
+
+    response = client.patch(
+        f"/api/v1/admin/users/{target_user.id}/unlock",
+        headers=_auth_headers(admin.id),
+    )
+
+    assert response.status_code == 200
+    assert db.commits == 1
+    assert target_user.locked_until is None
+    assert target_user.failed_login_count == 0
+
+
 def test_admin_cannot_lock_own_account(client: TestClient):
     admin = _user(is_superuser=True)
     app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])

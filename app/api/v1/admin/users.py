@@ -37,3 +37,13 @@ async def lock_user(
 ):
     await admin_services.lock_user_account(db, user_id, admin.id, days)
     return {"message": f"Konto zablokowane na {days} dni."}
+
+
+@router.patch("/{user_id}/unlock", response_model=MessageResponse)
+async def unlock_user(
+        user_id: UUID,
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+):
+    await admin_services.unlock_user_account(db, user_id)
+    return {"message": "Konto zostało odblokowane."}

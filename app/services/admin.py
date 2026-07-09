@@ -258,6 +258,18 @@ async def lock_user_account(
     await db.commit()
 
 
+async def unlock_user_account(db: AsyncSession, user_id: UUID) -> None:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise AdminUserNotFound(f"Uzytkownik {user_id} nie zostal znaleziony")
+
+    user.locked_until = None
+    user.failed_login_count = 0
+    await db.commit()
+
+
 async def get_admin_print_job_by_id(db: AsyncSession, job_id: UUID) -> PrintJob:
     result = await db.execute(select(PrintJob).where(PrintJob.id == job_id))
     job = result.scalar_one_or_none()
