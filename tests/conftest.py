@@ -116,3 +116,26 @@ def active_form() -> Form:
         pdf_template_path="templates/forms/participant-v2.pdf",
         is_active=True,
     )
+
+
+@pytest.fixture(autouse=True)
+def mock_printer_printing(request, monkeypatch):
+    """Automatically mock printer printing and health check in tests to avoid socket connection errors, except in test_printer.py."""
+    if "test_printer.py" in str(request.node.fspath):
+        return
+
+    async def _mock_print(*args, **kwargs):
+        pass
+
+    def _mock_health(*args, **kwargs):
+        return True
+
+    monkeypatch.setattr(
+        "app.services.printer.send_print_job",
+        _mock_print
+    )
+    monkeypatch.setattr(
+        "app.services.printer.get_printer_health",
+        _mock_health
+    )
+

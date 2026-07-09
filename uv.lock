@@ -191,15 +191,6 @@ wheels = [
 ]
 
 [[package]]
-name = "email-validaor"
-version = "1.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8d/64/a0d3558a47b13ffd94774fedc34b666b7f3edbd5c9e8bd678de73a3b47d1/email_validaor-1.0.1.tar.gz", hash = "sha256:e2dc6b20fdf81e82f911c7974def2f7d93a878d86ffd8ef875ffa5ca7c1c1617", size = 1695, upload-time = "2024-02-21T10:59:48.272Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/cf/756af729a32bc5b20b94c254b7e8b5d139a069327cc23380b7ce479d2951/email_validaor-1.0.1-py3-none-any.whl", hash = "sha256:0dde5acaba4102bde78873070e76ccdf80c1c745e9c4facd0a9ab69e956f2032", size = 2311, upload-time = "2024-02-21T10:59:46.725Z" },
-]
-
-[[package]]
 name = "fastapi"
 version = "0.139.0"
 source = { registry = "https://pypi.org/simple" }
@@ -332,7 +323,6 @@ source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
     { name = "argon2-cffi" },
-    { name = "email-validaor" },
     { name = "fastapi" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic-settings" },
@@ -355,7 +345,6 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "argon2-cffi", specifier = ">=23.2.0" },
-    { name = "email-validaor", specifier = ">=1.0.1" },
     { name = "fastapi", specifier = ">=0.139.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.3" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },

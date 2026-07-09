@@ -112,7 +112,7 @@ async def get_admin_dashboard_stats(db: AsyncSession, sequence_date: date) -> di
 
 
 async def get_admin_system_status(db: AsyncSession) -> dict:
-    from app.services.printer_simulator import get_simulated_printer_health
+    from app.services.printer import get_printer_health
 
     settings = get_settings()
     checked_at = datetime.now(UTC)
@@ -126,7 +126,7 @@ async def get_admin_system_status(db: AsyncSession) -> dict:
         "checked_at": checked_at,
         "api_ok": True,
         "db_ok": db_ok,
-        "printer_ok": get_simulated_printer_health(settings),
+        "printer_ok": get_printer_health(settings),
     }
 
 
@@ -232,7 +232,7 @@ async def queue_and_execute_submission_print(
         settings: Settings,
 ) -> tuple[bytes, str, UUID, PrintJobStatus]:
     from app.services.pdf import generate_submission_pdf
-    from app.services.printer_simulator import simulate_printer_print
+    from app.services.printer import send_print_job
 
     print_job = await requeue_submission_for_print(db, submission_id)
     print_job_id = print_job.id
@@ -246,7 +246,7 @@ async def queue_and_execute_submission_print(
     print_job.attempts = (current_attempts or 0) + 1
 
     try:
-        await simulate_printer_print(pdf_bytes=pdf_bytes, settings=settings)
+        await send_print_job(pdf_bytes=pdf_bytes, settings=settings)
     except Exception as e:
         print_job.status = PrintJobStatus.FAILED
         print_job.finished_at = datetime.now(UTC)
@@ -379,7 +379,7 @@ async def process_and_complete_print_job(
         settings: Settings,
 ) -> tuple[bytes, str, UUID, PrintJobStatus]:
     from app.services.pdf import generate_submission_pdf
-    from app.services.printer_simulator import simulate_printer_print
+    from app.services.printer import send_print_job
 
     job = await get_admin_print_job_by_id(db, job_id)
     existing_job_id = job.id
@@ -393,7 +393,7 @@ async def process_and_complete_print_job(
     job.attempts = (current_attempts or 0) + 1
 
     try:
-        await simulate_printer_print(pdf_bytes=pdf_bytes, settings=settings)
+        await send_print_job(pdf_bytes=pdf_bytes, settings=settings)
     except Exception as e:
         job.status = PrintJobStatus.FAILED
         job.finished_at = datetime.now(UTC)

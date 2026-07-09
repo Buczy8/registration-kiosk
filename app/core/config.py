@@ -60,6 +60,8 @@ class Settings(BaseSettings):
 
     # --- Drukarka ---
     printer_name: str = "default"
+    printer_host: str = "localhost"
+    printer_port: int = 9100
     print_enabled: bool = True
     # Symulacja drukowania (brak fizycznej drukarki na dev/lokalnie).
     # Domyślnie: od razu sukces (żeby nie wydłużać testów).

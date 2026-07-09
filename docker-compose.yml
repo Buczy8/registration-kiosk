@@ -57,6 +57,8 @@ services:
       START_NUMBER_TIMEZONE: ${START_NUMBER_TIMEZONE:-Europe/Warsaw}
       STORAGE_ROOT: /app/storage
       FORM_TEMPLATES_DIR: /app/templates/forms
+      PRINTER_HOST: printer-simulator
+      PRINTER_PORT: 9100
     expose:
       - "8000"
     volumes:
@@ -94,6 +96,21 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  printer-simulator:
+    image: python:3.12-alpine
+    container_name: kiosk-printer-simulator
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/printer_simulator:/app
+      - ./storage:/storage
+    environment:
+      PORT: 9100
+      OUTPUT_DIR: /storage/printed_files
+    ports:
+      - "9100:9100"
+    command: python /app/printer_server.py
+
 
 volumes:
   postgres_data:
