@@ -3,7 +3,9 @@ localhost {
     encode zstd gzip
 
     @api path /api/*
+    @api_docs path /docs* /redoc* /openapi.json
     reverse_proxy @api api:8000
+    reverse_proxy @api_docs api:8000
     reverse_proxy node:5173
 }
 

@@ -15,8 +15,21 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+    "Content-Security-Policy": (
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+        "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+        "frame-ancestors 'none'"
+    ),
 }
+
+DOCS_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "img-src 'self' data: https://fastapi.tiangolo.com; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "font-src 'self' https://cdn.jsdelivr.net; "
+    "connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+)
 
 
 class CoreSecurityMiddleware(BaseHTTPMiddleware):
@@ -33,6 +46,8 @@ class CoreSecurityMiddleware(BaseHTTPMiddleware):
         response.headers[REQUEST_ID_HEADER] = request_id
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
+        if request.url.path.startswith("/docs") or request.url.path.startswith("/redoc"):
+            response.headers["Content-Security-Policy"] = DOCS_CONTENT_SECURITY_POLICY
         forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
         if forwarded_proto.lower() == "https":
             response.headers.setdefault(
