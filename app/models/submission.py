@@ -106,4 +106,8 @@ class Submission(Base):
     form: Mapped[Form] = relationship(back_populates="submissions")
     user: Mapped[User | None] = relationship(back_populates="submissions")
     related_person: Mapped[RelatedPerson | None] = relationship(back_populates="submissions")
-    print_jobs: Mapped[list[PrintJob]] = relationship(back_populates="submission")
+    print_jobs: Mapped[list[PrintJob]] = relationship(
+        back_populates="submission",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

@@ -91,6 +91,10 @@ class _FakeAdminDb:
     async def flush(self):
         pass
 
+    async def delete(self, obj):
+        if isinstance(obj, User):
+            self.users = [u for u in self.users if str(u.id) != str(obj.id)]
+
     async def commit(self):
         self.commits += 1
 
@@ -358,11 +362,36 @@ def test_unlock_user_account(client: TestClient):
     assert target_user.failed_login_count == 0
 
 
+def test_delete_user_account(client: TestClient):
+    admin = _user(is_superuser=True)
+    target_user = _user(is_superuser=False)
+    db = _FakeAdminDb(users=[target_user, admin])
+    app.dependency_overrides[get_db] = lambda: db
+
+    response = client.delete(
+        f"/api/v1/admin/users/{target_user.id}",
+        headers=_auth_headers(admin.id),
+    )
+
+    assert response.status_code == 200
+    assert db.commits == 1
+    assert all(str(user.id) != str(target_user.id) for user in db.users)
+
+
 def test_admin_cannot_lock_own_account(client: TestClient):
     admin = _user(is_superuser=True)
     app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])
 
     response = client.patch(f"/api/v1/admin/users/{admin.id}/lock", headers=_auth_headers(admin.id))
+
+    assert response.status_code == 400
+
+
+def test_admin_cannot_delete_own_account(client: TestClient):
+    admin = _user(is_superuser=True)
+    app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])
+
+    response = client.delete(f"/api/v1/admin/users/{admin.id}", headers=_auth_headers(admin.id))
 
     assert response.status_code == 400
 

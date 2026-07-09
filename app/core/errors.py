@@ -17,6 +17,7 @@ from app.services.related_persons import (
     RelatedPersonNotOwnedByUser,
 )
 from app.services.admin import (
+    AdminCannotDeleteSelf,
     AdminCannotLockSelf,
     AdminSubmissionNotFound,
     AdminUserNotFound,
@@ -46,6 +47,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AdminSubmissionNotFound, admin_not_found_handler)
     app.add_exception_handler(AdminUserNotFound, admin_not_found_handler)
     app.add_exception_handler(AdminCannotLockSelf, admin_bad_request_handler)
+    app.add_exception_handler(AdminCannotDeleteSelf, admin_bad_request_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
@@ -175,7 +177,7 @@ async def admin_not_found_handler(
 
 async def admin_bad_request_handler(
         request: Request,
-        exc: AdminCannotLockSelf,
+        exc: AdminCannotLockSelf | AdminCannotDeleteSelf,
 ) -> JSONResponse:
     return error_response(
         request=request,

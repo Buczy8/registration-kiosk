@@ -47,3 +47,13 @@ async def unlock_user(
 ):
     await admin_services.unlock_user_account(db, user_id)
     return {"message": "Konto zostało odblokowane."}
+
+
+@router.delete("/{user_id}", response_model=MessageResponse)
+async def delete_user(
+        user_id: UUID,
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+):
+    await admin_services.delete_user_account(db, user_id, admin.id)
+    return {"message": "Konto zostało usunięte."}

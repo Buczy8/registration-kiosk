@@ -33,6 +33,10 @@ class AdminCannotLockSelf(AdminError):
     """Admin nie moze zablokowac wlasnego konta."""
 
 
+class AdminCannotDeleteSelf(AdminError):
+    """Admin nie moze usunac wlasnego konta."""
+
+
 class AdminPrintJobNotFound(AdminError):
     """Zadanie wydruku nie zostalo znalezione."""
 
@@ -312,6 +316,24 @@ async def unlock_user_account(db: AsyncSession, user_id: UUID) -> None:
 
     user.locked_until = None
     user.failed_login_count = 0
+    await db.commit()
+
+
+async def delete_user_account(
+        db: AsyncSession,
+        user_id: UUID,
+        admin_id: UUID,
+) -> None:
+    if user_id == admin_id:
+        raise AdminCannotDeleteSelf("Nie mozesz usunac wlasnego konta")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise AdminUserNotFound(f"Uzytkownik {user_id} nie zostal znaleziony")
+
+    await db.delete(user)
     await db.commit()
 
 

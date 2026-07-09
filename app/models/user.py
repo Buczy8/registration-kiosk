@@ -44,9 +44,22 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    profile: Mapped[UserProfile | None] = relationship(back_populates="user", uselist=False)
-    related_persons: Mapped[list[RelatedPerson]] = relationship(back_populates="owner")
-    submissions: Mapped[list[Submission]] = relationship(back_populates="user")
+    profile: Mapped[UserProfile | None] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        single_parent=True,
+    )
+    related_persons: Mapped[list[RelatedPerson]] = relationship(
+        back_populates="owner",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    submissions: Mapped[list[Submission]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class UserProfile(Base):
