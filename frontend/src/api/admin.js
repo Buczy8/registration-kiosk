@@ -64,6 +64,14 @@ export async function getAdminSubmissionDetails({ token, submissionId }) {
   return response.json();
 }
 
+export async function fetchAdminSubmissionPdf({ token, submissionId }) {
+  const response = await apiRequest(`/admin/submissions/${submissionId}/pdf`, {
+    token,
+    contentType: null,
+  });
+  return response.blob();
+}
+
 export async function queueSubmissionForPrint({ token, submissionId }) {
   const response = await apiRequest(`/admin/submissions/${submissionId}/print`, {
     method: "POST",

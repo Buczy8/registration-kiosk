@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getAdminSubmissionDetails, queueSubmissionForPrint } from "../../api/admin.js";
+import {
+  fetchAdminSubmissionPdf,
+  getAdminSubmissionDetails,
+  queueSubmissionForPrint,
+} from "../../api/admin.js";
+import PdfPreview from "../../components/PdfPreview.jsx";
 import { downloadPdfBlob } from "../../lib/adminPrint.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
-function prettyJson(value) {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
+function submissionPdfFilename(data, submissionId) {
+  return `wydruk_zgloszenia_${data?.start_number || submissionId}.pdf`;
 }
 
 export default function AdminSubmissionDetailsPage() {
@@ -23,12 +24,33 @@ export default function AdminSubmissionDetailsPage() {
   const [actionMessage, setActionMessage] = useState(null);
   const [acting, setActing] = useState(false);
 
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [loadingPdf, setLoadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
+
+  async function loadPdfPreview() {
+    setLoadingPdf(true);
+    setPdfError(null);
+    try {
+      const blob = await fetchAdminSubmissionPdf({ token, submissionId });
+      setPdfBlob(blob);
+      return blob;
+    } catch (e) {
+      setPdfError(e.message || "Nie udało się pobrać podglądu PDF.");
+      setPdfBlob(null);
+      return null;
+    } finally {
+      setLoadingPdf(false);
+    }
+  }
+
   async function load() {
     setLoading(true);
     setError(null);
     try {
       const result = await getAdminSubmissionDetails({ token, submissionId });
       setData(result);
+      await loadPdfPreview();
     } catch (e) {
       setError(e.message || "Nie udało się pobrać szczegółów zgłoszenia.");
     } finally {
@@ -37,6 +59,8 @@ export default function AdminSubmissionDetailsPage() {
   }
 
   useEffect(() => {
+    setPdfBlob(null);
+    setPdfError(null);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submissionId]);
@@ -46,8 +70,7 @@ export default function AdminSubmissionDetailsPage() {
     setActing(true);
     try {
       const blob = await queueSubmissionForPrint({ token, submissionId });
-      const startNumber = data?.start_number;
-      downloadPdfBlob(blob, `wydruk_zgloszenia_${startNumber || submissionId}.pdf`);
+      downloadPdfBlob(blob, submissionPdfFilename(data, submissionId));
       setActionMessage("Plik pobrany do druku.");
       await load();
     } catch (e) {
@@ -55,6 +78,13 @@ export default function AdminSubmissionDetailsPage() {
     } finally {
       setActing(false);
     }
+  }
+
+  function handleDownloadPdf() {
+    if (!pdfBlob) return;
+    setActionMessage(null);
+    downloadPdfBlob(pdfBlob, submissionPdfFilename(data, submissionId));
+    setActionMessage("Plik PDF pobrany.");
   }
 
   return (
@@ -89,6 +119,11 @@ export default function AdminSubmissionDetailsPage() {
           {actionMessage}
         </div>
       )}
+      {pdfError && (
+        <div className="status-card alert" role="alert">
+          {pdfError}
+        </div>
+      )}
 
       {loading ? (
         <p className="status-card">Ładowanie…</p>
@@ -114,23 +149,24 @@ export default function AdminSubmissionDetailsPage() {
             </div>
           </div>
 
-          <div className="form-card">
-            <details open>
-              <summary style={{ fontWeight: 800, marginBottom: 10 }}>Dane formularza</summary>
-              <pre className="admin-json" style={{ margin: 0, maxHeight: 380 }}>
-                {prettyJson(data.payload_json)}
-              </pre>
-            </details>
-          </div>
+          {loadingPdf ? (
+            <p className="status-card">Ładowanie podglądu PDF…</p>
+          ) : pdfBlob ? (
+            <div className="form-card pdf-preview-panel">
+              <div className="minor-table-header">
+                <h3 style={{ margin: 0 }}>Podgląd PDF</h3>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handleDownloadPdf}
+                >
+                  Pobierz plik
+                </button>
+              </div>
+              <PdfPreview blob={pdfBlob} title="Podgląd zgłoszenia PDF" />
+            </div>
+          ) : null}
 
-          <div className="form-card">
-            <details>
-              <summary style={{ fontWeight: 800, marginBottom: 10 }}>Zgody</summary>
-              <pre className="admin-json" style={{ margin: 0, maxHeight: 320 }}>
-                {prettyJson(data.consents_json)}
-              </pre>
-            </details>
-          </div>
         </>
       ) : (
         <p className="status-card">Brak danych.</p>
@@ -138,4 +174,3 @@ export default function AdminSubmissionDetailsPage() {
     </AdminLayout>
   );
 }
-
