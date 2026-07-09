@@ -142,6 +142,16 @@ async def get_admin_submission_by_id(db: AsyncSession, submission_id: UUID) -> S
     return submission
 
 
+async def get_admin_submission_pdf(
+        db: AsyncSession,
+        submission_id: UUID,
+) -> tuple[bytes, str]:
+    from app.services.pdf import generate_submission_pdf
+
+    submission, pdf_bytes = await generate_submission_pdf(db, submission_id)
+    return pdf_bytes, _build_print_filename(submission)
+
+
 def _build_print_filename(submission: Submission) -> str:
     file_id = submission.start_number if submission.start_number else submission.id
     return f"wydruk_zgloszenia_{file_id}.pdf"

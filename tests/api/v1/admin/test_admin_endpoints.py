@@ -228,6 +228,33 @@ def test_queue_submission_for_print_updates_status(client: TestClient, monkeypat
     assert db.added[0].status == PrintJobStatus.DONE
 
 
+def test_get_submission_pdf_returns_pdf_without_print_job(client: TestClient, monkeypatch):
+    admin = _user(is_superuser=True)
+    sub = _submission()
+    db = _FakeAdminDb(users=[admin], submissions=[sub])
+    app.dependency_overrides[get_db] = lambda: db
+
+    async def _fake_generate_submission_pdf(_db, submission_id):
+        assert submission_id == sub.id
+        return sub, b"%PDF-1.4 preview"
+
+    monkeypatch.setattr(
+        "app.services.pdf.generate_submission_pdf",
+        _fake_generate_submission_pdf,
+    )
+
+    response = client.get(
+        f"/api/v1/admin/submissions/{sub.id}/pdf",
+        headers=_auth_headers(admin.id),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+    assert db.commits == 0
+    assert len(db.added) == 0
+
+
 def test_get_dashboard_returns_day_stats(client: TestClient, monkeypatch):
     admin = _user(is_superuser=True)
     app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])

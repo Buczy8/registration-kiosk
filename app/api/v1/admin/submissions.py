@@ -37,6 +37,20 @@ async def get_submissions(
     }
 
 
+@router.get("/{submission_id}/pdf")
+async def get_submission_pdf(
+        submission_id: UUID,
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+):
+    pdf_bytes, filename = await admin_services.get_admin_submission_pdf(db, submission_id)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
 @router.get("/{submission_id}", response_model=AdminSubmissionDetail)
 async def get_submission_details(
         submission_id: UUID,
