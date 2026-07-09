@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminUsers, lockAdminUser } from "../../api/admin.js";
+import { getAdminUsers, lockAdminUser, unlockAdminUser } from "../../api/admin.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -10,6 +10,12 @@ function formatDateTime(value) {
   } catch {
     return String(value);
   }
+}
+
+function userCanBeUnlocked(user) {
+  if (user.failed_login_count > 0) return true;
+  if (!user.locked_until) return false;
+  return new Date(user.locked_until) > new Date();
 }
 
 export default function AdminUsersPage() {
@@ -62,10 +68,24 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleUnlock(userId) {
+    setActionMessage(null);
+    setActingUserId(userId);
+    try {
+      const result = await unlockAdminUser({ token, userId });
+      setActionMessage(result?.message || "Odblokowano konto.");
+      await load();
+    } catch (e) {
+      setError(e.message || "Nie udało się odblokować konta.");
+    } finally {
+      setActingUserId(null);
+    }
+  }
+
   return (
     <AdminLayout
       title="Użytkownicy"
-      subtitle="Zarządzaj dostępem do systemu: blokowanie konta na wybrane dni."
+      subtitle="Zarządzaj dostępem do systemu: blokowanie i odblokowywanie kont."
       activeHref="/admin/users"
     >
 
@@ -122,18 +142,29 @@ export default function AdminUsersPage() {
                     <td>{formatDateTime(u.created_at)}</td>
                     <td>
                       <div className="minor-table-actions">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={actingUserId === u.id}
-                          onClick={() => {
-                            const confirmText = `Zablokować konto użytkownika ${u.email} na ${lockDays} dni?`;
-                            if (!window.confirm(confirmText)) return;
-                            handleLock(u.id);
-                          }}
-                        >
-                          {actingUserId === u.id ? "Blokowanie…" : "Zablokuj"}
-                        </button>
+                        {userCanBeUnlocked(u) ? (
+                          <button
+                            type="button"
+                            className="primary-button"
+                            disabled={actingUserId === u.id}
+                            onClick={() => handleUnlock(u.id)}
+                          >
+                            {actingUserId === u.id ? "Odblokowywanie…" : "Odblokuj"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={actingUserId === u.id}
+                            onClick={() => {
+                              const confirmText = `Zablokować konto użytkownika ${u.email} na ${lockDays} dni?`;
+                              if (!window.confirm(confirmText)) return;
+                              handleLock(u.id);
+                            }}
+                          >
+                            {actingUserId === u.id ? "Blokowanie…" : "Zablokuj"}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

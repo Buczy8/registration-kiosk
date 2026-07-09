@@ -36,6 +36,15 @@ export async function lockAdminUser({ token, userId, days = 7 }) {
   return response.json();
 }
 
+export async function unlockAdminUser({ token, userId }) {
+  const response = await apiRequest(`/admin/users/${userId}/unlock`, {
+    method: "PATCH",
+    token,
+    contentType: null,
+  });
+  return response.json();
+}
+
 export async function getAdminSubmissions({
   token,
   status = null,
