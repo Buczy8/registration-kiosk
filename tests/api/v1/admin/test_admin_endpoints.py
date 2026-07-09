@@ -307,6 +307,23 @@ def test_get_dashboard_returns_day_stats(client: TestClient, monkeypatch):
     assert data["print_done_count"] == 1
 
 
+def test_get_system_status_returns_api_and_db_flags(client: TestClient, monkeypatch):
+    admin = _user(is_superuser=True)
+    app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])
+
+    async def _fake_status(_db):
+        return {"checked_at": datetime.now(UTC), "api_ok": True, "db_ok": True}
+
+    monkeypatch.setattr("app.services.admin.get_admin_system_status", _fake_status)
+
+    response = client.get("/api/v1/admin/dashboard/system-status", headers=_auth_headers(admin.id))
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["api_ok"] is True
+    assert data["db_ok"] is True
+
+
 def test_lock_user_account(client: TestClient):
     admin = _user(is_superuser=True)
     target_user = _user(is_superuser=False)

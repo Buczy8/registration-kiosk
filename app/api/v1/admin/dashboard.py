@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentAdminUser
 from app.db.session import get_db
-from app.schemas.admin import AdminDashboardStats
+from app.schemas.admin import AdminDashboardStats, AdminSystemStatus
 from app.services import admin as admin_services
 
 router = APIRouter(prefix="/admin/dashboard", tags=["Admin Dashboard"])
@@ -19,3 +19,11 @@ async def get_dashboard_stats(
 ):
     target_date = sequence_date or date.today()
     return await admin_services.get_admin_dashboard_stats(db, target_date)
+
+
+@router.get("/system-status", response_model=AdminSystemStatus)
+async def get_system_status(
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+):
+    return await admin_services.get_admin_system_status(db)

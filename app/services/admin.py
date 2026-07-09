@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -103,6 +103,21 @@ async def get_admin_dashboard_stats(db: AsyncSession, sequence_date: date) -> di
         "guest_count": mode_counts.get(SubmissionMode.GUEST, 0),
         "account_count": mode_counts.get(SubmissionMode.ACCOUNT, 0),
         "last_start_number": last_start_number,
+    }
+
+
+async def get_admin_system_status(db: AsyncSession) -> dict:
+    checked_at = datetime.now(UTC)
+    try:
+        await db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    return {
+        "checked_at": checked_at,
+        "api_ok": True,
+        "db_ok": db_ok,
     }
 
 

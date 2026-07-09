@@ -126,3 +126,9 @@ class AdminDashboardStats(BaseModel):
     guest_count: int
     account_count: int
     last_start_number: int | None = None
+
+
+class AdminSystemStatus(BaseModel):
+    checked_at: datetime
+    api_ok: bool
+    db_ok: bool
