@@ -1,12 +1,13 @@
 from uuid import UUID
 from datetime import date
-from fastapi import APIRouter, Depends, Query, Response, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentAdminUser
+from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.models.enums import PrintJobStatus
-from app.schemas.admin import AdminPrintJobListResponse
+from app.schemas.admin import AdminPrintActionResponse, AdminPrintJobListResponse
 from app.services import admin as admin_services
 
 router = APIRouter(prefix="/admin/print-jobs", tags=["Admin Print Jobs"])
@@ -33,18 +34,21 @@ async def get_print_jobs(
     }
 
 
-@router.post("/{job_id}/print")
+@router.post("/{job_id}/print", response_model=AdminPrintActionResponse)
 async def execute_print_job(
         job_id: UUID,
         admin: CurrentAdminUser,
+        settings: Settings = Depends(get_settings),
         db: AsyncSession = Depends(get_db),
 ):
     try:
-        pdf_bytes, filename = await admin_services.process_and_complete_print_job(db, job_id)
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        _, _, job_id_result, job_status = await admin_services.process_and_complete_print_job(
+            db, job_id, settings=settings
+        )
+        return AdminPrintActionResponse(
+            message="Print job completed",
+            job_id=job_id_result,
+            status=job_status,
         )
     except admin_services.AdminPrintJobNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

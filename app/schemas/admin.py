@@ -109,6 +109,12 @@ class AdminPrintJobListItem(BaseModel):
     submission: AdminPrintJobSubmission | None = None
 
 
+class AdminPrintActionResponse(BaseModel):
+    message: str
+    job_id: UUID
+    status: PrintJobStatus
+
+
 AdminUserListResponse = PaginatedResponse[AdminUserListItem]
 AdminSubmissionListResponse = PaginatedResponse[AdminSubmissionListItem]
 AdminPrintJobListResponse = PaginatedResponse[AdminPrintJobListItem]
@@ -132,3 +138,4 @@ class AdminSystemStatus(BaseModel):
     checked_at: datetime
     api_ok: bool
     db_ok: bool
+    printer_ok: bool

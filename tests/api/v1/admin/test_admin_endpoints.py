@@ -86,6 +86,8 @@ class _FakeAdminDb:
         return _FakeResult()
 
     def add(self, obj):
+        if isinstance(obj, PrintJob) and getattr(obj, "id", None) is None:
+            obj.id = uuid4()
         self.added.append(obj)
 
     async def flush(self):
@@ -243,8 +245,10 @@ def test_queue_submission_for_print_updates_status(client: TestClient, monkeypat
     response = client.post(f"/api/v1/admin/submissions/{sub.id}/print", headers=_auth_headers(admin.id))
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "application/pdf"
-    assert response.content.startswith(b"%PDF")
+    assert response.headers["content-type"].startswith("application/json")
+    payload = response.json()
+    assert payload["message"] == "Print job completed"
+    assert payload["status"] == PrintJobStatus.DONE.value
     assert db.commits == 1
     assert len(db.added) == 1
     assert sub.status == SubmissionStatus.PRINT_DONE
@@ -316,7 +320,12 @@ def test_get_system_status_returns_api_and_db_flags(client: TestClient, monkeypa
     app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin])
 
     async def _fake_status(_db):
-        return {"checked_at": datetime.now(UTC), "api_ok": True, "db_ok": True}
+        return {
+            "checked_at": datetime.now(UTC),
+            "api_ok": True,
+            "db_ok": True,
+            "printer_ok": True,
+        }
 
     monkeypatch.setattr("app.services.admin.get_admin_system_status", _fake_status)
 
@@ -326,6 +335,7 @@ def test_get_system_status_returns_api_and_db_flags(client: TestClient, monkeypa
     data = response.json()
     assert data["api_ok"] is True
     assert data["db_ok"] is True
+    assert data["printer_ok"] is True
 
 
 def test_lock_user_account(client: TestClient):

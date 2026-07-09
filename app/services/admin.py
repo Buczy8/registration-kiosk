@@ -5,6 +5,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import Settings, get_settings
 from app.models.enums import (
     ParticipantRole,
     PrintJobStatus,
@@ -111,6 +112,9 @@ async def get_admin_dashboard_stats(db: AsyncSession, sequence_date: date) -> di
 
 
 async def get_admin_system_status(db: AsyncSession) -> dict:
+    from app.services.printer_simulator import get_simulated_printer_health
+
+    settings = get_settings()
     checked_at = datetime.now(UTC)
     try:
         await db.execute(text("SELECT 1"))
@@ -122,6 +126,7 @@ async def get_admin_system_status(db: AsyncSession) -> dict:
         "checked_at": checked_at,
         "api_ok": True,
         "db_ok": db_ok,
+        "printer_ok": get_simulated_printer_health(settings),
     }
 
 
@@ -223,18 +228,40 @@ async def requeue_submission_for_print(db: AsyncSession, submission_id: UUID) ->
 async def queue_and_execute_submission_print(
         db: AsyncSession,
         submission_id: UUID,
-) -> tuple[bytes, str]:
+        *,
+        settings: Settings,
+) -> tuple[bytes, str, UUID, PrintJobStatus]:
     from app.services.pdf import generate_submission_pdf
+    from app.services.printer_simulator import simulate_printer_print
 
     print_job = await requeue_submission_for_print(db, submission_id)
+    print_job_id = print_job.id
     submission, pdf_bytes = await generate_submission_pdf(db, submission_id)
     filename = _build_print_filename(submission)
 
+    now = datetime.now(UTC)
+    print_job.status = PrintJobStatus.PRINTING
+    print_job.started_at = now
+    current_attempts = print_job.__dict__.get("attempts")
+    print_job.attempts = (current_attempts or 0) + 1
+
+    try:
+        await simulate_printer_print(pdf_bytes=pdf_bytes, settings=settings)
+    except Exception as e:
+        print_job.status = PrintJobStatus.FAILED
+        print_job.finished_at = datetime.now(UTC)
+        print_job.last_error = str(e)
+        submission.status = SubmissionStatus.PRINT_FAILED
+        await db.commit()
+        raise
+
     print_job.status = PrintJobStatus.DONE
+    print_job.finished_at = datetime.now(UTC)
+    print_job.last_error = None
     submission.status = SubmissionStatus.PRINT_DONE
     await db.commit()
 
-    return pdf_bytes, filename
+    return pdf_bytes, filename, print_job_id, PrintJobStatus.DONE
 
 
 async def get_admin_print_jobs(
@@ -345,15 +372,40 @@ async def get_admin_print_job_by_id(db: AsyncSession, job_id: UUID) -> PrintJob:
         raise AdminPrintJobNotFound(f"Zadanie druku {job_id} nie zostalo znalezione")
     return job
 
-async def process_and_complete_print_job(db: AsyncSession, job_id: UUID) -> tuple[bytes, str]:
+async def process_and_complete_print_job(
+        db: AsyncSession,
+        job_id: UUID,
+        *,
+        settings: Settings,
+) -> tuple[bytes, str, UUID, PrintJobStatus]:
     from app.services.pdf import generate_submission_pdf
+    from app.services.printer_simulator import simulate_printer_print
 
     job = await get_admin_print_job_by_id(db, job_id)
+    existing_job_id = job.id
     submission, pdf_bytes = await generate_submission_pdf(db, job.submission_id)
     filename = _build_print_filename(submission)
 
+    now = datetime.now(UTC)
+    job.status = PrintJobStatus.PRINTING
+    job.started_at = now
+    current_attempts = job.__dict__.get("attempts")
+    job.attempts = (current_attempts or 0) + 1
+
+    try:
+        await simulate_printer_print(pdf_bytes=pdf_bytes, settings=settings)
+    except Exception as e:
+        job.status = PrintJobStatus.FAILED
+        job.finished_at = datetime.now(UTC)
+        job.last_error = str(e)
+        submission.status = SubmissionStatus.PRINT_FAILED
+        await db.commit()
+        raise
+
     job.status = PrintJobStatus.DONE
+    job.finished_at = datetime.now(UTC)
+    job.last_error = None
     submission.status = SubmissionStatus.PRINT_DONE
     await db.commit()
 
-    return pdf_bytes, filename
+    return pdf_bytes, filename, existing_job_id, PrintJobStatus.DONE

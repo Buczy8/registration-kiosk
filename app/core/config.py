@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     # --- Drukarka ---
     printer_name: str = "default"
     print_enabled: bool = True
+    # Symulacja drukowania (brak fizycznej drukarki na dev/lokalnie).
+    # Domyślnie: od razu sukces (żeby nie wydłużać testów).
+    print_simulation_delay_seconds: float = Field(default=0, ge=0)
+    print_simulation_failure_probability: float = Field(default=0, ge=0, le=1)
 
     # --- Pliki (PDF, podpisy) ---
     storage_root: Path = Field(default=PROJECT_ROOT / "storage")

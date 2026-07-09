@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentAdminUser
+from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.schemas.admin import (
+    AdminPrintActionResponse,
     AdminSubmissionDetail,
     AdminSubmissionListResponse,
 )
@@ -72,17 +74,18 @@ async def get_submission_details(
     return await admin_services.get_admin_submission_by_id(db, submission_id)
 
 
-@router.post("/{submission_id}/print")
+@router.post("/{submission_id}/print", response_model=AdminPrintActionResponse)
 async def queue_submission_for_print(
         submission_id: UUID,
         admin: CurrentAdminUser,
+        settings: Settings = Depends(get_settings),
         db: AsyncSession = Depends(get_db),
 ):
-    pdf_bytes, filename = await admin_services.queue_and_execute_submission_print(
-        db, submission_id
+    _, _, job_id, job_status = await admin_services.queue_and_execute_submission_print(
+        db, submission_id, settings=settings
     )
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    return AdminPrintActionResponse(
+        message="Print job completed",
+        job_id=job_id,
+        status=job_status,
     )
