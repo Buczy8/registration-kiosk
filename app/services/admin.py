@@ -27,6 +27,9 @@ class AdminCannotLockSelf(AdminError):
     """Admin nie moze zablokowac wlasnego konta."""
 
 
+class AdminPrintJobNotFound(AdminError):
+    """Zadanie wydruku nie zostalo znalezione."""
+
 async def get_admin_submissions(
         db: AsyncSession,
         status_filter: SubmissionStatus | None,
@@ -77,7 +80,12 @@ async def get_admin_submission_by_id(db: AsyncSession, submission_id: UUID) -> S
     return submission
 
 
-async def requeue_submission_for_print(db: AsyncSession, submission_id: UUID) -> None:
+def _build_print_filename(submission: Submission) -> str:
+    file_id = submission.start_number if submission.start_number else submission.id
+    return f"wydruk_zgloszenia_{file_id}.pdf"
+
+
+async def requeue_submission_for_print(db: AsyncSession, submission_id: UUID) -> PrintJob:
     submission = await get_admin_submission_by_id(db, submission_id)
 
     submission.status = SubmissionStatus.PRINT_QUEUED
@@ -87,16 +95,40 @@ async def requeue_submission_for_print(db: AsyncSession, submission_id: UUID) ->
         status=PrintJobStatus.QUEUED,
     )
     db.add(new_print_job)
+    await db.flush()
+    return new_print_job
+
+
+async def queue_and_execute_submission_print(
+        db: AsyncSession,
+        submission_id: UUID,
+) -> tuple[bytes, str]:
+    from app.services.pdf import generate_submission_pdf
+
+    print_job = await requeue_submission_for_print(db, submission_id)
+    submission, pdf_bytes = await generate_submission_pdf(db, submission_id)
+    filename = _build_print_filename(submission)
+
+    print_job.status = PrintJobStatus.DONE
+    submission.status = SubmissionStatus.PRINT_DONE
     await db.commit()
+
+    return pdf_bytes, filename
 
 
 async def get_admin_print_jobs(
         db: AsyncSession,
         status_filter: PrintJobStatus | None,
+        sequence_date: date | None,
         limit: int,
         offset: int,
 ) -> tuple[list[PrintJob], int]:
     query = select(PrintJob).options(selectinload(PrintJob.submission))
+
+    if sequence_date:
+        query = query.join(Submission, PrintJob.submission_id == Submission.id).where(
+            Submission.sequence_date == sequence_date
+        )
 
     if status_filter:
         query = query.where(PrintJob.status == status_filter)
@@ -107,6 +139,10 @@ async def get_admin_print_jobs(
     print_jobs = result.scalars().all()
 
     count_query = select(func.count()).select_from(PrintJob)
+    if sequence_date:
+        count_query = count_query.join(
+            Submission, PrintJob.submission_id == Submission.id
+        ).where(Submission.sequence_date == sequence_date)
     if status_filter:
         count_query = count_query.where(PrintJob.status == status_filter)
 
@@ -148,3 +184,25 @@ async def lock_user_account(
 
     user.locked_until = datetime.now(UTC) + timedelta(days=days)
     await db.commit()
+
+
+async def get_admin_print_job_by_id(db: AsyncSession, job_id: UUID) -> PrintJob:
+    result = await db.execute(select(PrintJob).where(PrintJob.id == job_id))
+    job = result.scalar_one_or_none()
+
+    if job is None:
+        raise AdminPrintJobNotFound(f"Zadanie druku {job_id} nie zostalo znalezione")
+    return job
+
+async def process_and_complete_print_job(db: AsyncSession, job_id: UUID) -> tuple[bytes, str]:
+    from app.services.pdf import generate_submission_pdf
+
+    job = await get_admin_print_job_by_id(db, job_id)
+    submission, pdf_bytes = await generate_submission_pdf(db, job.submission_id)
+    filename = _build_print_filename(submission)
+
+    job.status = PrintJobStatus.DONE
+    submission.status = SubmissionStatus.PRINT_DONE
+    await db.commit()
+
+    return pdf_bytes, filename

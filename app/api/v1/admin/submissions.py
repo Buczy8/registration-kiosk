@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentAdminUser
@@ -11,7 +11,6 @@ from app.schemas.admin import (
     AdminSubmissionDetail,
     AdminSubmissionListResponse,
 )
-from app.schemas.auth import MessageResponse
 from app.services import admin as admin_services
 
 router = APIRouter(prefix="/admin/submissions", tags=["Admin Submissions"])
@@ -47,11 +46,17 @@ async def get_submission_details(
     return await admin_services.get_admin_submission_by_id(db, submission_id)
 
 
-@router.post("/{submission_id}/print", response_model=MessageResponse)
+@router.post("/{submission_id}/print")
 async def queue_submission_for_print(
         submission_id: UUID,
         admin: CurrentAdminUser,
         db: AsyncSession = Depends(get_db),
 ):
-    await admin_services.requeue_submission_for_print(db, submission_id)
-    return {"message": "Zgłoszenie zostało pomyślnie dodane do kolejki wydruku."}
+    pdf_bytes, filename = await admin_services.queue_and_execute_submission_print(
+        db, submission_id
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
