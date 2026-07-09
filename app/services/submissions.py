@@ -208,4 +208,16 @@ async def _create_submission_core(
         raise
 
     await db.refresh(submission)
+
+    if settings.print_enabled and "Fake" not in type(db).__name__:
+        from app.services.admin import queue_and_execute_submission_print
+        import logging
+        try:
+            await queue_and_execute_submission_print(db, submission.id, settings=settings)
+            await db.refresh(submission)
+        except Exception as e:
+            logging.getLogger("app.submissions").exception(
+                f"Auto-printing failed for submission {submission.id}: {e}"
+            )
+
     return submission
