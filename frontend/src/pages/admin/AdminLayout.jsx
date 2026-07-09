@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 
 const NAV = [
-  { href: "/admin/users", label: "Użytkownicy" },
+  { href: "/admin", label: "Pulpit" },
   { href: "/admin/submissions", label: "Zgłoszenia" },
-  { href: "/admin/print-jobs", label: "Wydruki" },
+  { href: "/admin/users", label: "Użytkownicy" },
 ];
 
 export default function AdminLayout({ title, subtitle, activeHref, children }) {

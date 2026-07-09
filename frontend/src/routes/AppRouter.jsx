@@ -9,10 +9,10 @@ import { useIdleLogout } from "../hooks/useIdleLogout.js";
 import LoginPage from "../pages/LoginPage.jsx";
 import RegisterPage from "../pages/RegisterPage.jsx";
 import StartScreen from "../pages/StartScreen.jsx";
+import AdminHome from "../pages/admin/AdminHome.jsx";
 import AdminUsersPage from "../pages/admin/AdminUsersPage.jsx";
 import AdminSubmissionsPage from "../pages/admin/AdminSubmissionsPage.jsx";
 import AdminSubmissionDetailsPage from "../pages/admin/AdminSubmissionDetailsPage.jsx";
-import AdminPrintJobsPage from "../pages/admin/AdminPrintJobsPage.jsx";
 import GuestOnlyRoute from "./GuestOnlyRoute.jsx";
 import AdminOnlyRoute from "./AdminOnlyRoute.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -32,7 +32,7 @@ export default function AppRouter() {
   const [startInfoMessage, setStartInfoMessage] = useState(null);
   const defaultUserIdleLogoutSeconds = 30;
   const adminIdleLogoutSeconds = 5 * 60;
-  const defaultAuthenticatedRoute = user?.is_superuser ? "/admin/submissions" : "/account/verify";
+  const defaultAuthenticatedRoute = user?.is_superuser ? "/admin" : "/account/verify";
 
   function resetAccountSelection() {
     setSelectedRole(null);
@@ -268,7 +268,7 @@ export default function AppRouter() {
               <LoginPage
                 onBack={() => navigate("/")}
                 onSuccess={(profile) =>
-                  navigate(profile?.is_superuser ? "/admin/submissions" : "/account/verify", { replace: true })
+                  navigate(profile?.is_superuser ? "/admin" : "/account/verify", { replace: true })
                 }
               />
             </GuestOnlyRoute>
@@ -329,7 +329,7 @@ export default function AppRouter() {
           path="/admin"
           element={
             <AdminOnlyRoute>
-              <Navigate to="/admin/submissions" replace />
+              <AdminHome />
             </AdminOnlyRoute>
           }
         />
@@ -354,14 +354,6 @@ export default function AppRouter() {
           element={
             <AdminOnlyRoute>
               <AdminSubmissionDetailsPage />
-            </AdminOnlyRoute>
-          }
-        />
-        <Route
-          path="/admin/print-jobs"
-          element={
-            <AdminOnlyRoute>
-              <AdminPrintJobsPage />
             </AdminOnlyRoute>
           }
         />

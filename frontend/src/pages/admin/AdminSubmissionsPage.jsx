@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { getAdminSubmissions, queueSubmissionForPrint } from "../../api/admin.js";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  executePrintJob,
+  getAdminSubmissions,
+  queueSubmissionForPrint,
+} from "../../api/admin.js";
 import { downloadPdfBlob } from "../../lib/adminPrint.js";
 import { todaySequenceDate } from "../../lib/adminFilters.js";
+import { humanizePrintJobStatus } from "../../lib/adminLabels.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -42,17 +47,21 @@ function humanizeStatus(value) {
 
 export default function AdminSubmissionsPage() {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const [limit] = useState(20);
   const [offset, setOffset] = useState(0);
 
   const [status, setStatus] = useState("");
-  const [sequenceDate, setSequenceDate] = useState(todaySequenceDate);
+  const [sequenceDate, setSequenceDate] = useState(
+    () => searchParams.get("date") || todaySequenceDate(),
+  );
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionMessage, setActionMessage] = useState(null);
   const [actingSubmissionId, setActingSubmissionId] = useState(null);
+  const [retryingPrintJobId, setRetryingPrintJobId] = useState(null);
 
   const page = useMemo(() => Math.floor(offset / limit) + 1, [offset, limit]);
   const totalPages = useMemo(() => {
@@ -101,6 +110,26 @@ export default function AdminSubmissionsPage() {
       setError(e.message || "Nie udało się wydrukować zgłoszenia.");
     } finally {
       setActingSubmissionId(null);
+    }
+  }
+
+  async function handleRetryPrint(submission) {
+    if (!submission.last_print_job_id) return;
+
+    setActionMessage(null);
+    setRetryingPrintJobId(submission.last_print_job_id);
+    try {
+      const blob = await executePrintJob(submission.last_print_job_id, token);
+      downloadPdfBlob(
+        blob,
+        `wydruk_zgloszenia_${submission.start_number || submission.id}.pdf`,
+      );
+      setActionMessage("Plik pobrany do druku.");
+      await load();
+    } catch (e) {
+      setError(e.message || "Nie udało się pobrać pliku do druku.");
+    } finally {
+      setRetryingPrintJobId(null);
     }
   }
 
@@ -182,6 +211,7 @@ export default function AdminSubmissionsPage() {
                   <th>Start #</th>
                   <th>Sequence</th>
                   <th>Status</th>
+                  <th>Ostatni druk</th>
                   <th>Created</th>
                   <th style={{ textAlign: "right" }}>Akcje</th>
                 </tr>
@@ -196,6 +226,29 @@ export default function AdminSubmissionsPage() {
                     <td>{s.start_number}</td>
                     <td>{formatDate(s.sequence_date)}</td>
                     <td>{humanizeStatus(s.status)}</td>
+                    <td>
+                      {s.last_print_status ? (
+                        <div className="admin-last-print">
+                          <span>{humanizePrintJobStatus(s.last_print_status)}</span>
+                          <span className="hint">{formatDateTime(s.last_print_at)}</span>
+                          {s.last_print_status === "queued" && s.last_print_job_id ? (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              style={{ padding: "4px 10px", fontSize: "0.8rem" }}
+                              disabled={retryingPrintJobId === s.last_print_job_id}
+                              onClick={() => handleRetryPrint(s)}
+                            >
+                              {retryingPrintJobId === s.last_print_job_id
+                                ? "Pobieranie…"
+                                : "Pobierz"}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td>{formatDateTime(s.created_at)}</td>
                     <td>
                       <div className="minor-table-actions">

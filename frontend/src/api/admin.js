@@ -1,5 +1,17 @@
 import { apiRequest } from "./client.js";
 
+export async function getAdminDashboard({ token, sequenceDate = null }) {
+  const params = new URLSearchParams();
+  if (sequenceDate) params.set("sequence_date", sequenceDate);
+
+  const query = params.toString();
+  const response = await apiRequest(`/admin/dashboard${query ? `?${query}` : ""}`, {
+    token,
+    contentType: null,
+  });
+  return response.json();
+}
+
 export async function getAdminUsers({ token, limit = 20, offset = 0 }) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
