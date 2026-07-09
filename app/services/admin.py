@@ -5,7 +5,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.enums import PrintJobStatus, SubmissionMode, SubmissionStatus
+from app.models.enums import (
+    ParticipantRole,
+    PrintJobStatus,
+    SubmissionMode,
+    SubmissionStatus,
+    VehicleType,
+)
 from app.models.print_job import PrintJob
 from app.models.submission import Submission
 from app.models.user import User
@@ -104,6 +110,10 @@ async def get_admin_submissions(
         db: AsyncSession,
         status_filter: SubmissionStatus | None,
         sequence_date: date | None,
+        mode_filter: SubmissionMode | None,
+        role_filter: ParticipantRole | None,
+        vehicle_type_filter: VehicleType | None,
+        last_name_query: str | None,
         limit: int,
         offset: int,
 ) -> tuple[list[Submission], int]:
@@ -113,6 +123,16 @@ async def get_admin_submissions(
         query = query.where(Submission.status == status_filter)
     if sequence_date:
         query = query.where(Submission.sequence_date == sequence_date)
+    if mode_filter:
+        query = query.where(Submission.mode == mode_filter)
+    if role_filter:
+        query = query.where(Submission.participant_role == role_filter)
+    if vehicle_type_filter:
+        query = query.where(Submission.vehicle_type == vehicle_type_filter)
+    if last_name_query:
+        query = query.where(
+            Submission.payload_json["last_name"].astext.ilike(f"%{last_name_query.strip()}%")
+        )
 
     query = query.order_by(Submission.created_at.desc()).offset(offset).limit(limit)
 
@@ -127,6 +147,16 @@ async def get_admin_submissions(
         count_query = count_query.where(Submission.status == status_filter)
     if sequence_date:
         count_query = count_query.where(Submission.sequence_date == sequence_date)
+    if mode_filter:
+        count_query = count_query.where(Submission.mode == mode_filter)
+    if role_filter:
+        count_query = count_query.where(Submission.participant_role == role_filter)
+    if vehicle_type_filter:
+        count_query = count_query.where(Submission.vehicle_type == vehicle_type_filter)
+    if last_name_query:
+        count_query = count_query.where(
+            Submission.payload_json["last_name"].astext.ilike(f"%{last_name_query.strip()}%")
+        )
 
     total_count = (await db.execute(count_query)).scalar_one()
 

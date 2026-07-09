@@ -202,6 +202,25 @@ def test_get_submissions_returns_paginated_list(client: TestClient):
     assert data["items"][0]["id"] == str(sub.id)
 
 
+def test_get_submissions_accepts_extended_filters(client: TestClient):
+    admin = _user(is_superuser=True)
+    sub = _submission()
+    app.dependency_overrides[get_db] = lambda: _FakeAdminDb(users=[admin], submissions=[sub])
+
+    response = client.get(
+        "/api/v1/admin/submissions"
+        "?status=submitted"
+        "&sequence_date=2026-07-09"
+        "&mode=guest"
+        "&role=driver"
+        "&vehicle_type=car"
+        "&last_name=Kowalski",
+        headers=_auth_headers(admin.id),
+    )
+
+    assert response.status_code == 200
+
+
 def test_queue_submission_for_print_updates_status(client: TestClient, monkeypatch):
     admin = _user(is_superuser=True)
     sub = _submission()

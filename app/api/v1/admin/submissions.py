@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentAdminUser
 from app.db.session import get_db
-from app.models.enums import SubmissionStatus
+from app.models.enums import ParticipantRole, SubmissionMode, SubmissionStatus, VehicleType
 from app.schemas.admin import (
     AdminSubmissionDetail,
     AdminSubmissionListResponse,
@@ -22,11 +22,23 @@ async def get_submissions(
         db: AsyncSession = Depends(get_db),
         status_filter: SubmissionStatus | None = Query(None, alias="status"),
         sequence_date: date | None = Query(None),
+        mode_filter: SubmissionMode | None = Query(None, alias="mode"),
+        role_filter: ParticipantRole | None = Query(None, alias="role"),
+        vehicle_type_filter: VehicleType | None = Query(None, alias="vehicle_type"),
+        last_name: str | None = Query(None, min_length=1, max_length=120),
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
 ):
     submissions, total_count = await admin_services.get_admin_submissions(
-        db, status_filter, sequence_date, limit, offset
+        db,
+        status_filter,
+        sequence_date,
+        mode_filter,
+        role_filter,
+        vehicle_type_filter,
+        last_name,
+        limit,
+        offset,
     )
 
     return {
