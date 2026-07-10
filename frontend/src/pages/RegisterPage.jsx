@@ -51,20 +51,20 @@ export default function RegisterPage({ onBack, onSuccess }) {
   };
 
   return (
-    <div className="login-screen" style={{ padding: "24px 0" }}>
-      <div className="form-card" style={{ maxWidth: "480px", margin: "0 auto" }}>
-        <h2 style={{ marginTop: 0, marginBottom: "20px", fontSize: "1.5rem" }}>Rejestracja nowego konta</h2>
-        <p className="hint" style={{ marginBottom: "16px" }}>
+    <div className="register-screen">
+      <div className="form-card auth-card">
+        <h2>Rejestracja nowego konta</h2>
+        <p className="hint">
           Podaj adres e-mail i hasło. Pozostałe dane uzupełnisz przy pierwszym formularzu.
         </p>
 
         {error && (
-          <div className="alert" role="alert" style={{ marginBottom: "16px" }}>
+          <div className="alert" role="alert">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "20px" }}>
+        <form className="auth-form" onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="email">Adres e-mail</label>
             <input
@@ -75,7 +75,6 @@ export default function RegisterPage({ onBack, onSuccess }) {
               required
               disabled={loading}
               placeholder="np. jan.kowalski@example.com"
-              style={{ padding: "14px", fontSize: "1.1rem" }}
             />
           </div>
 
@@ -89,7 +88,6 @@ export default function RegisterPage({ onBack, onSuccess }) {
               required
               disabled={loading}
               minLength={8}
-              style={{ padding: "14px", fontSize: "1.1rem" }}
             />
           </div>
 
@@ -103,19 +101,10 @@ export default function RegisterPage({ onBack, onSuccess }) {
               required
               disabled={loading}
               minLength={8}
-              style={{ padding: "14px", fontSize: "1.1rem" }}
             />
           </div>
 
-          <div
-            className="actions"
-            style={{
-              marginTop: "8px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+          <div className="actions auth-actions">
             <button
               type="button"
               className="secondary-button"

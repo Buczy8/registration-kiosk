@@ -33,6 +33,7 @@ export default function PdfPreview({ blob, title = "Podgląd dokumentu PDF" }) {
   useEffect(() => {
     let cancelled = false;
     let resizeObserver = null;
+    let resizeTimer = null;
     let renderId = 0;
     let loadingTask = null;
     let pdfDoc = null;
@@ -58,6 +59,79 @@ export default function PdfPreview({ blob, title = "Podgląd dokumentu PDF" }) {
       }
     }
 
+    async function renderPages(pageSizes, { showLoading }) {
+      if (cancelled) {
+        return;
+      }
+
+      const currentRenderId = ++renderId;
+      cancelActiveRenderTasks();
+
+      const containerWidth = getContentWidth(container);
+      if (!containerWidth) {
+        return;
+      }
+
+      if (showLoading) {
+        setLoading(true);
+      }
+
+      const baseScale = calculateWidthScale(pageSizes, containerWidth);
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const fragment = document.createDocumentFragment();
+
+      for (const { page } of pageSizes) {
+        if (cancelled || currentRenderId !== renderId) {
+          return;
+        }
+
+        const renderViewport = page.getViewport({ scale: baseScale * pixelRatio });
+        const cssViewport = page.getViewport({ scale: baseScale });
+
+        const canvas = document.createElement("canvas");
+
+        canvas.width = Math.floor(renderViewport.width);
+        canvas.height = Math.floor(renderViewport.height);
+
+        canvas.style.width = `${Math.floor(cssViewport.width)}px`;
+        canvas.style.height = `${Math.floor(cssViewport.height)}px`;
+
+        canvas.className = "pdf-preview-page";
+
+        const renderTask = page.render({
+          canvasContext: canvas.getContext("2d"),
+          viewport: renderViewport,
+        });
+        activeRenderTasks.push(renderTask);
+
+        try {
+          await renderTask.promise;
+        } catch (renderTaskError) {
+          if (renderTaskError?.name !== "RenderingCancelledException") {
+            throw renderTaskError;
+          }
+          return;
+        } finally {
+          const index = activeRenderTasks.indexOf(renderTask);
+          if (index >= 0) {
+            activeRenderTasks.splice(index, 1);
+          }
+        }
+
+        if (cancelled || currentRenderId !== renderId) {
+          return;
+        }
+
+        fragment.appendChild(canvas);
+      }
+
+      container.replaceChildren(fragment);
+
+      if (!cancelled && currentRenderId === renderId) {
+        setLoading(false);
+      }
+    }
+
     async function renderPdf() {
       setLoading(true);
       setError(null);
@@ -79,81 +153,18 @@ export default function PdfPreview({ blob, title = "Podgląd dokumentu PDF" }) {
           return;
         }
 
-        const renderAtCurrentSize = async () => {
-          if (cancelled) {
-            return;
-          }
-
-          const currentRenderId = ++renderId;
-          cancelActiveRenderTasks();
-
-          const containerWidth = getContentWidth(container);
-          if (!containerWidth) {
-            return;
-          }
-
-          const baseScale = calculateWidthScale(pageSizes, containerWidth);
-          const pixelRatio = window.devicePixelRatio || 1;
-
-          container.replaceChildren();
-
-          for (const { page } of pageSizes) {
-            if (cancelled || currentRenderId !== renderId) {
-              return;
-            }
-
-            const renderViewport = page.getViewport({ scale: baseScale * pixelRatio });
-            const cssViewport = page.getViewport({ scale: baseScale });
-
-            const canvas = document.createElement("canvas");
-
-            canvas.width = Math.floor(renderViewport.width);
-            canvas.height = Math.floor(renderViewport.height);
-
-            canvas.style.width = `${Math.floor(cssViewport.width)}px`;
-            canvas.style.height = `${Math.floor(cssViewport.height)}px`;
-
-            canvas.className = "pdf-preview-page";
-
-            const renderTask = page.render({
-              canvasContext: canvas.getContext("2d"),
-              viewport: renderViewport,
-            });
-            activeRenderTasks.push(renderTask);
-
-            try {
-              await renderTask.promise;
-            } catch (renderTaskError) {
-              if (renderTaskError?.name !== "RenderingCancelledException") {
-                throw renderTaskError;
-              }
-              return;
-            } finally {
-              const index = activeRenderTasks.indexOf(renderTask);
-              if (index >= 0) {
-                activeRenderTasks.splice(index, 1);
-              }
-            }
-
-            if (cancelled || currentRenderId !== renderId) {
-              return;
-            }
-
-            container.appendChild(canvas);
-          }
-        };
-
-        await renderAtCurrentSize();
+        await renderPages(pageSizes, { showLoading: true });
         if (cancelled) {
           return;
         }
 
         resizeObserver = new ResizeObserver(() => {
-          void renderAtCurrentSize();
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            void renderPages(pageSizes, { showLoading: false });
+          }, 180);
         });
         resizeObserver.observe(container);
-
-        setLoading(false);
       } catch (renderError) {
         if (!cancelled) {
           setError(renderError.message);
@@ -166,6 +177,7 @@ export default function PdfPreview({ blob, title = "Podgląd dokumentu PDF" }) {
 
     return () => {
       cancelled = true;
+      clearTimeout(resizeTimer);
       resizeObserver?.disconnect();
       loadingTask?.destroy();
       void destroyPdf();
@@ -181,7 +193,7 @@ export default function PdfPreview({ blob, title = "Podgląd dokumentu PDF" }) {
           Nie udało się wyświetlić PDF: {error}
         </p>
       )}
-      <div className="pdf-preview-canvas-stack" ref={containerRef} />
+      <div className="pdf-preview-canvas-stack" ref={containerRef} tabIndex={0} />
     </div>
   );
 }

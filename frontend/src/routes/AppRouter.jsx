@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { createAccountSubmission, createGuestSubmission, getActiveForm } from "../api/kiosk.js";
 import { createRelatedPerson, createSubmissionForRelatedPerson } from "../api/account.js";
 import GuestRegistrationForm from "../components/GuestRegistrationForm.jsx";
@@ -19,6 +19,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 
 export default function AppRouter() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, logout, isInitializing, user, refreshProfile } = useAuth();
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -104,6 +105,25 @@ export default function AppRouter() {
     };
   }, []);
 
+  useEffect(() => {
+    document.body.classList.toggle("app-submitting", submitting);
+    return () => {
+      document.body.classList.remove("app-submitting");
+    };
+  }, [submitting]);
+
+  useEffect(() => {
+    if (location.pathname !== "/result") {
+      return undefined;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      setSubmitting(false);
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [location.pathname]);
+
   async function handleGuestSubmit(payloadOrArray) {
     setSubmitting(true);
     setSubmitError(null);
@@ -118,7 +138,6 @@ export default function AppRouter() {
       navigate("/result");
     } catch (error) {
       setSubmitError(error.message);
-    } finally {
       setSubmitting(false);
     }
   }
@@ -182,7 +201,6 @@ export default function AppRouter() {
       navigate("/result");
     } catch (error) {
       setSubmitError(error.message);
-    } finally {
       setSubmitting(false);
     }
   }
@@ -230,6 +248,12 @@ export default function AppRouter() {
 
   return (
     <>
+      {submitting && (
+        <div className="app-loader-overlay" role="status" aria-live="polite" aria-busy="true">
+          <div className="app-loader-spinner" aria-hidden="true"></div>
+          <p>Wysyłanie formularza...</p>
+        </div>
+      )}
       {isAuthenticated && (
         <div className="app-container">
           <div
