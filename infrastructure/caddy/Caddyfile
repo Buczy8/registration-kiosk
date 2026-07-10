@@ -1,15 +1,21 @@
 localhost {
     tls internal
     encode zstd gzip
+    log
+
+    root * /usr/share/caddy
 
     @api path /api/*
-    @api_docs path /docs* /redoc* /openapi.json
     reverse_proxy @api api:8000
+
+    @api_docs path /docs* /redoc* /openapi.json
     reverse_proxy @api_docs api:8000
-    # Serve static frontend files directly
-    root * /usr/share/caddy
-    try_files {path} {path}/ /index.html
-    file_server
+
+    @not_api not path /api/* /docs* /redoc* /openapi.json
+    handle @not_api {
+        try_files {path} {path}/ /index.html
+        file_server
+    }
 }
 
 :80 {
