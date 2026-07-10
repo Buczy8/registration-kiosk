@@ -7,7 +7,6 @@ import {
 } from "../../api/admin.js";
 import { todaySequenceDate } from "../../lib/adminFilters.js";
 import { humanizePrintJobStatus } from "../../lib/adminLabels.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
 function formatDate(value) {
@@ -65,7 +64,6 @@ function humanizeStatus(value) {
 }
 
 export default function AdminSubmissionsPage() {
-  const { token } = useAuth();
   const [searchParams] = useSearchParams();
   const [limit] = useState(20);
   const [offset, setOffset] = useState(0);
@@ -97,7 +95,6 @@ export default function AdminSubmissionsPage() {
     setError(null);
     try {
       const result = await getAdminSubmissions({
-        token,
         status: status || null,
         sequenceDate: sequenceDate || null,
         mode: mode || null,
@@ -129,7 +126,7 @@ export default function AdminSubmissionsPage() {
     setActionMessage(null);
     setActingSubmissionId(submissionId);
     try {
-      await queueSubmissionForPrint({ token, submissionId });
+      await queueSubmissionForPrint({ submissionId });
       setActionMessage("Wydruk został wysłany.");
       await load();
     } catch (e) {
@@ -145,11 +142,11 @@ export default function AdminSubmissionsPage() {
     setActionMessage(null);
     setRetryingPrintJobId(submission.last_print_job_id);
     try {
-      await executePrintJob(submission.last_print_job_id, token);
+      await executePrintJob(submission.last_print_job_id);
       setActionMessage("Ponowiono wydruk.");
       await load();
     } catch (e) {
-      setError(e.message || "Nie udało się pobrać pliku do druku.");
+      setError(e.message || "Nie udało się ponowić wydruku.");
     } finally {
       setRetryingPrintJobId(null);
     }
@@ -305,8 +302,8 @@ export default function AdminSubmissionsPage() {
                               onClick={() => handleRetryPrint(s)}
                             >
                               {retryingPrintJobId === s.last_print_job_id
-                                ? "Pobieranie…"
-                                : "Pobierz"}
+                                ? "Ponawianie…"
+                                : "Ponów"}
                             </button>
                           ) : null}
                         </div>

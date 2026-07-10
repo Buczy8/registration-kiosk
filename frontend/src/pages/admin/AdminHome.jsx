@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAdminDashboard, getAdminSystemStatus } from "../../api/admin.js";
 import { todaySequenceDate } from "../../lib/adminFilters.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
 function StatCard({ label, value, hint }) {
@@ -15,7 +14,6 @@ function StatCard({ label, value, hint }) {
 }
 
 export default function AdminHome() {
-  const { token } = useAuth();
   const [sequenceDate, setSequenceDate] = useState(todaySequenceDate);
   const [data, setData] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
@@ -27,8 +25,8 @@ export default function AdminHome() {
     setError(null);
     try {
       const [result, status] = await Promise.all([
-        getAdminDashboard({ token, sequenceDate: requestDate }),
-        getAdminSystemStatus({ token }),
+        getAdminDashboard({ sequenceDate: requestDate }),
+        getAdminSystemStatus(),
       ]);
       setData(result);
       setSystemStatus(status);

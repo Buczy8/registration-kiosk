@@ -1,69 +1,62 @@
 import { apiRequest } from "./client.js";
 
-export async function getAdminDashboard({ token, sequenceDate = null }) {
+export async function getAdminDashboard({ sequenceDate = null }) {
   const params = new URLSearchParams();
   if (sequenceDate) params.set("sequence_date", sequenceDate);
 
   const query = params.toString();
   const response = await apiRequest(`/admin/dashboard${query ? `?${query}` : ""}`, {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function getAdminSystemStatus({ token }) {
+export async function getAdminSystemStatus() {
   const response = await apiRequest("/admin/dashboard/system-status", {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function getAdminUsers({ token, limit = 20, offset = 0 }) {
+export async function getAdminUsers({ limit = 20, offset = 0 }) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   params.set("offset", String(offset));
 
   const response = await apiRequest(`/admin/users?${params.toString()}`, {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function lockAdminUser({ token, userId, days = 7 }) {
+export async function lockAdminUser({ userId, days = 7 }) {
   const params = new URLSearchParams();
   params.set("days", String(days));
 
   const response = await apiRequest(`/admin/users/${userId}/lock?${params.toString()}`, {
     method: "PATCH",
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function unlockAdminUser({ token, userId }) {
+export async function unlockAdminUser({ userId }) {
   const response = await apiRequest(`/admin/users/${userId}/unlock`, {
     method: "PATCH",
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function deleteAdminUser({ token, userId }) {
+export async function deleteAdminUser({ userId }) {
   const response = await apiRequest(`/admin/users/${userId}`, {
     method: "DELETE",
-    token,
     contentType: null,
   });
   return response.json();
 }
 
 export async function getAdminSubmissions({
-  token,
   status = null,
   sequenceDate = null,
   mode = null,
@@ -84,39 +77,34 @@ export async function getAdminSubmissions({
   params.set("offset", String(offset));
 
   const response = await apiRequest(`/admin/submissions?${params.toString()}`, {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function getAdminSubmissionDetails({ token, submissionId }) {
+export async function getAdminSubmissionDetails({ submissionId }) {
   const response = await apiRequest(`/admin/submissions/${submissionId}`, {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function fetchAdminSubmissionPdf({ token, submissionId }) {
+export async function fetchAdminSubmissionPdf({ submissionId }) {
   const response = await apiRequest(`/admin/submissions/${submissionId}/pdf`, {
-    token,
     contentType: null,
   });
   return response.blob();
 }
 
-export async function queueSubmissionForPrint({ token, submissionId }) {
+export async function queueSubmissionForPrint({ submissionId }) {
   const response = await apiRequest(`/admin/submissions/${submissionId}/print`, {
     method: "POST",
-    token,
     contentType: null,
   });
   return response.json();
 }
 
 export async function getAdminPrintJobs({
-  token,
   status = null,
   sequenceDate = null,
   limit = 20,
@@ -129,16 +117,14 @@ export async function getAdminPrintJobs({
   params.set("offset", String(offset));
 
   const response = await apiRequest(`/admin/print-jobs?${params.toString()}`, {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function executePrintJob(jobId, token) {
+export async function executePrintJob(jobId) {
   const response = await apiRequest(`/admin/print-jobs/${jobId}/print`, {
     method: "POST",
-    token,
     contentType: null,
   });
   return response.json();

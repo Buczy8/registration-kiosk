@@ -7,7 +7,6 @@ import {
 } from "../../api/admin.js";
 import PdfPreview from "../../components/PdfPreview.jsx";
 import { downloadPdfBlob } from "../../lib/adminPrint.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
 function submissionPdfFilename(data, submissionId) {
@@ -15,7 +14,6 @@ function submissionPdfFilename(data, submissionId) {
 }
 
 export default function AdminSubmissionDetailsPage() {
-  const { token } = useAuth();
   const { submissionId } = useParams();
 
   const [data, setData] = useState(null);
@@ -32,7 +30,7 @@ export default function AdminSubmissionDetailsPage() {
     setLoadingPdf(true);
     setPdfError(null);
     try {
-      const blob = await fetchAdminSubmissionPdf({ token, submissionId });
+      const blob = await fetchAdminSubmissionPdf({ submissionId });
       setPdfBlob(blob);
       return blob;
     } catch (e) {
@@ -48,7 +46,7 @@ export default function AdminSubmissionDetailsPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAdminSubmissionDetails({ token, submissionId });
+      const result = await getAdminSubmissionDetails({ submissionId });
       setData(result);
       await loadPdfPreview();
     } catch (e) {
@@ -69,7 +67,7 @@ export default function AdminSubmissionDetailsPage() {
     setActionMessage(null);
     setActing(true);
     try {
-      await queueSubmissionForPrint({ token, submissionId });
+      await queueSubmissionForPrint({ submissionId });
       setActionMessage("Wydruk został wysłany.");
       await load();
     } catch (e) {

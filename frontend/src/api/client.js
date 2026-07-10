@@ -53,7 +53,6 @@ export async function apiRequest(path, options = {}) {
   const {
     method = "GET",
     body,
-    token = null,
     contentType = "application/json",
     credentials = "include",
   } = options;

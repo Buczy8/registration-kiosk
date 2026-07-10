@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { deleteAdminUser, getAdminUsers, lockAdminUser, unlockAdminUser } from "../../api/admin.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
 function formatDateTime(value) {
@@ -19,7 +18,6 @@ function userCanBeUnlocked(user) {
 }
 
 export default function AdminUsersPage() {
-  const { token } = useAuth();
   const [limit] = useState(20);
   const [offset, setOffset] = useState(0);
 
@@ -40,7 +38,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAdminUsers({ token, limit, offset });
+      const result = await getAdminUsers({ limit, offset });
       setData(result);
     } catch (e) {
       setError(e.message || "Nie udało się pobrać użytkowników.");
@@ -58,7 +56,7 @@ export default function AdminUsersPage() {
     setActionMessage(null);
     setActingUserId(userId);
     try {
-      const result = await lockAdminUser({ token, userId, days: lockDays });
+      const result = await lockAdminUser({ userId, days: lockDays });
       setActionMessage(result?.message || "Zablokowano konto.");
       await load();
     } catch (e) {
@@ -72,7 +70,7 @@ export default function AdminUsersPage() {
     setActionMessage(null);
     setActingUserId(userId);
     try {
-      const result = await unlockAdminUser({ token, userId });
+      const result = await unlockAdminUser({ userId });
       setActionMessage(result?.message || "Odblokowano konto.");
       await load();
     } catch (e) {
@@ -86,7 +84,7 @@ export default function AdminUsersPage() {
     setActionMessage(null);
     setActingUserId(userId);
     try {
-      const result = await deleteAdminUser({ token, userId });
+      const result = await deleteAdminUser({ userId });
       setActionMessage(result?.message || "Usunięto konto.");
       await load();
     } catch (e) {
