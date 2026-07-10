@@ -23,10 +23,9 @@ export async function fetchSubmissionPdfBlob(submissionId) {
   return response.blob();
 }
 
-export async function createAccountSubmission(payload, token) {
+export async function createAccountSubmission(payload) {
   const response = await apiRequest("/kiosk/submissions", {
     method: "POST",
-    token,
     body: payload,
   });
   return response.json();

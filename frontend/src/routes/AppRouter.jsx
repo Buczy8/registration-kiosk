@@ -19,7 +19,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 
 export default function AppRouter() {
   const navigate = useNavigate();
-  const { isAuthenticated, logout, isInitializing, user, token, refreshProfile } = useAuth();
+  const { isAuthenticated, logout, isInitializing, user, refreshProfile } = useAuth();
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [form, setForm] = useState(null);
@@ -132,7 +132,7 @@ export default function AppRouter() {
       throw new Error("Uzupełnij imię, nazwisko i typ opiekuna dla każdego podopiecznego.");
     }
 
-    return createRelatedPerson(token, {
+    return createRelatedPerson({
       first_name: firstName,
       last_name: lastName,
       birth_date: null,
@@ -164,7 +164,6 @@ export default function AppRouter() {
             : await createRelatedPersonFromSubmissionPayload(payload);
           results.push(
             await createSubmissionForRelatedPerson(
-              token,
               relatedPerson.id,
               submissionPayload,
             ),
@@ -173,7 +172,7 @@ export default function AppRouter() {
       } else {
         setSelectedRole(payloads[0]?.participant_role || null);
         setSelectedVehicle(payloads[0]?.vehicle_type || null);
-        results = [await createAccountSubmission(payloads[0], token)];
+        results = [await createAccountSubmission(payloads[0])];
       }
       if (refreshProfile) {
         await refreshProfile();
@@ -328,7 +327,6 @@ export default function AppRouter() {
                     mode="account"
                     role={selectedRole || ""}
                     vehicleType={selectedVehicle || ""}
-                    token={token}
                     onSubmit={handleAccountSubmit}
                     submitting={submitting}
                     submitError={submitError}

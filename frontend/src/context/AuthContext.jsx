@@ -5,31 +5,29 @@ import { setUnauthorizedHandler } from '../api/client.js';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => sessionStorage.getItem('kiosk_token') || null);
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     const initSession = async () => {
-      if (token) {
-        try {
-          const profile = await getProfile(token);
-          setUser(profile);
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error("Błąd przywracania sesji:", error);
-          logout();
-        }
+      try {
+        const profile = await getProfile();
+        setUser(profile);
+        setIsAuthenticated(true);
+      } catch (error) {
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsInitializing(false);
       }
-      setIsInitializing(false);
     };
 
     initSession();
-  }, [token]);
+  }, []);
 
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       setUnauthorizedHandler(null);
       return;
     }
@@ -37,16 +35,11 @@ export const AuthProvider = ({ children }) => {
       logout();
     });
     return () => setUnauthorizedHandler(null);
-  }, [token]);
+  }, [isAuthenticated]);
 
   const login = async (payload) => {
-    const response = await apiLogin(payload);
-    const accessToken = response.access_token;
-
-    sessionStorage.setItem('kiosk_token', accessToken);
-    setToken(accessToken);
-
-    const profile = await getProfile(accessToken);
+    await apiLogin(payload);
+    const profile = await getProfile();
     setUser(profile);
     setIsAuthenticated(true);
     return profile;
@@ -63,28 +56,23 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Błąd wylogowania z serwera:", error);
     } finally {
-      sessionStorage.removeItem('kiosk_token');
-      setToken(null);
       setUser(null);
       setIsAuthenticated(false);
     }
   };
 
   const refreshProfile = async () => {
-    if (token) {
-      try {
-        const profile = await getProfile(token);
-        setUser(profile);
-        return profile;
-      } catch (error) {
-        console.error("Błąd odświeżania profilu:", error);
-      }
+    try {
+      const profile = await getProfile();
+      setUser(profile);
+      return profile;
+    } catch (error) {
+      console.error("Błąd odświeżania profilu:", error);
     }
   };
 
   return (
     <AuthContext.Provider value={{
-      token,
       user,
       isAuthenticated,
       isInitializing,

@@ -72,9 +72,14 @@ class UserPublic(BaseModel):
     email: str
 
 
-class AuthResponse(BaseModel):
+class AuthServiceResult(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    expires_in: int
+    user: UserPublic
+
+
+class AuthResponse(BaseModel):
     expires_in: int
     user: UserPublic
 

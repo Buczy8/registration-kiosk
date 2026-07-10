@@ -24,7 +24,6 @@ import VehicleDataSection from "./form/VehicleDataSection.jsx";
 export default function GuestRegistrationForm({
   form,
   mode = "guest",
-  token,
   role,
   vehicleType,
   onSubmit,
@@ -65,11 +64,11 @@ export default function GuestRegistrationForm({
     setLoadingPrefill(true);
     setPrefillError(null);
     try {
-      const relatedPersons = await listRelatedPersons(token);
+      const relatedPersons = await listRelatedPersons();
       const effectiveRole =
         role || (relatedPersons.length > 0 ? ParticipantRole.LEGAL_GUARDIAN : ParticipantRole.DRIVER);
       const effectiveVehicleType = vehicleType || "car";
-      const prefill = await getFormPrefill(token, effectiveRole, effectiveVehicleType);
+      const prefill = await getFormPrefill(effectiveRole, effectiveVehicleType);
       const mapped = mapPrefillToFormData(prefill);
       let minors = [];
       let imagePublicationConsent = prefill?.image_publication_consent || false;
@@ -110,7 +109,7 @@ export default function GuestRegistrationForm({
     } finally {
       setLoadingPrefill(false);
     }
-  }, [isAccountMode, methods, role, token, vehicleType]);
+  }, [isAccountMode, methods, role, vehicleType]);
 
   useEffect(() => {
     loadPrefill();

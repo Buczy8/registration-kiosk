@@ -7,6 +7,7 @@ from app.core.rate_limit import SlidingWindowRateLimiter, build_rate_limit_key
 from app.db.session import get_db
 from app.schemas.auth import (
     AuthResponse,
+    AuthServiceResult,
     LoginRequest,
     MessageResponse,
     RegisterRequest,
@@ -43,16 +44,16 @@ async def register_endpoint(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> AuthResponse:
-    auth_response = await register(db=db, data=data, settings=settings)
+    res = await register(db=db, data=data, settings=settings)
     response.set_cookie(
         key=settings.auth_cookie_name,
-        value=auth_response.access_token,
+        value=res.access_token,
         httponly=True,
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
-        max_age=auth_response.expires_in,
+        max_age=res.expires_in,
     )
-    return auth_response
+    return AuthResponse(expires_in=res.expires_in, user=res.user)
 
 
 @router.post(
@@ -71,16 +72,16 @@ async def login_endpoint(
     client_ip = request.client.host if request.client else "unknown"
     rate_limit_key = build_rate_limit_key("login", data.email, client_ip)
     _get_login_rate_limiter(settings).check(rate_limit_key)
-    auth_response = await login(db=db, data=data, settings=settings)
+    res = await login(db=db, data=data, settings=settings)
     response.set_cookie(
         key=settings.auth_cookie_name,
-        value=auth_response.access_token,
+        value=res.access_token,
         httponly=True,
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
-        max_age=auth_response.expires_in,
+        max_age=res.expires_in,
     )
-    return auth_response
+    return AuthResponse(expires_in=res.expires_in, user=res.user)
 
 
 @router.post(

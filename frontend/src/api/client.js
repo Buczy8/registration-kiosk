@@ -42,13 +42,10 @@ async function parseApiError(response) {
   return error;
 }
 
-function buildHeaders({ token, contentType }) {
+function buildHeaders({ contentType }) {
   const headers = {
     "X-Kiosk-Token": KIOSK_TOKEN,
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
   if (contentType) {
     headers["Content-Type"] = contentType;
   }
@@ -75,7 +72,7 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     credentials,
-    headers: buildHeaders({ token, contentType }),
+    headers: buildHeaders({ contentType }),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 

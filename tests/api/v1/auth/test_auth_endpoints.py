@@ -122,9 +122,11 @@ def test_register_ok_returns_201_and_jwt(client: TestClient):
 
     assert response.status_code == 201
     payload = response.json()
-    assert payload["access_token"]
+    assert "access_token" not in payload
+    cookie = response.cookies.get("kiosk_access_token")
+    assert cookie
     assert payload["user"]["user_id"]
-    assert decode_access_token(payload["access_token"], _settings())
+    assert decode_access_token(cookie, _settings())
 
 
 def test_register_duplicate_returns_409(client: TestClient):
@@ -154,7 +156,10 @@ def test_login_ok_returns_200_and_jwt(client: TestClient):
 
     assert response.status_code == 200
     payload = response.json()
-    assert decode_access_token(payload["access_token"], _settings()) == user.id
+    assert "access_token" not in payload
+    cookie = response.cookies.get("kiosk_access_token")
+    assert cookie
+    assert decode_access_token(cookie, _settings()) == user.id
 
 
 def test_login_wrong_password_returns_401(client: TestClient):

@@ -46,15 +46,14 @@ export async function logout() {
   });
 }
 
-export async function getProfile(token) {
+export async function getProfile() {
   const response = await apiRequest("/me/profile", {
-    token,
     contentType: null,
   });
   return response.json();
 }
 
-export async function getFormPrefill(token, role, vehicleType) {
+export async function getFormPrefill(role, vehicleType) {
   const params = new URLSearchParams();
   if (role) params.append("role", role);
   if (vehicleType) params.append("vehicle_type", vehicleType);
@@ -62,7 +61,6 @@ export async function getFormPrefill(token, role, vehicleType) {
   const queryString = params.toString() ? `?${params.toString()}` : "";
 
   const response = await apiRequest(`/me/form-prefill${queryString}`, {
-    token,
     contentType: null,
   });
   return response.json();

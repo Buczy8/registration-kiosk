@@ -5,9 +5,8 @@ import { apiRequest } from "./client.js";
  * @param {string} token - JWT auth token
  * @returns {Promise<Array>} List of related persons with optional last_form_preview
  */
-export async function listRelatedPersons(token) {
+export async function listRelatedPersons() {
   const response = await apiRequest("/account/related-persons", {
-    token,
     contentType: null,
   });
   return response.json();
@@ -22,10 +21,9 @@ export async function listRelatedPersons(token) {
  * @param {string|null} data.birth_date - Birth date (ISO 8601, optional)
  * @returns {Promise<Object>} Created related person
  */
-export async function createRelatedPerson(token, data) {
+export async function createRelatedPerson(data) {
   const response = await apiRequest("/account/related-persons", {
     method: "POST",
-    token,
     body: data,
   });
   return response.json();
@@ -33,13 +31,11 @@ export async function createRelatedPerson(token, data) {
 
 /**
  * Get a specific related person by ID
- * @param {string} token - JWT auth token
  * @param {string} relatedPersonId - UUID of the related person
  * @returns {Promise<Object>} Related person data
  */
-export async function getRelatedPerson(token, relatedPersonId) {
+export async function getRelatedPerson(relatedPersonId) {
   const response = await apiRequest(`/account/related-persons/${relatedPersonId}`, {
-    token,
     contentType: null,
   });
   return response.json();
@@ -47,15 +43,13 @@ export async function getRelatedPerson(token, relatedPersonId) {
 
 /**
  * Get the last form preview for a related person
- * @param {string} token - JWT auth token
  * @param {string} relatedPersonId - UUID of the related person
  * @returns {Promise<Object|null>} FormPreview snapshot or null if no submissions
  */
-export async function getFormPreview(token, relatedPersonId) {
+export async function getFormPreview(relatedPersonId) {
   const response = await apiRequest(
     `/account/related-persons/${relatedPersonId}/form-preview`,
     {
-      token,
       contentType: null,
     }
   );
@@ -70,19 +64,19 @@ export async function getFormPreview(token, relatedPersonId) {
  * @param {Object} payload - Submission data (same as account submission)
  * @returns {Promise<Object>} Created submission response
  */
-export async function createSubmissionForRelatedPerson(token, relatedPersonId, payload) {
+export async function createSubmissionForRelatedPerson(relatedPersonId, payload) {
   const url = new URL(`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/account/submissions/for-related-person`, window.location.origin);
   url.searchParams.append("related_person_id", relatedPersonId);
 
   const headers = {
     "X-Kiosk-Token": import.meta.env.VITE_KIOSK_TOKEN || "",
-    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 
   const response = await fetch(url.toString(), {
     method: "POST",
     headers,
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 

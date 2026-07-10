@@ -11,7 +11,7 @@ from app.core.security import (
     verify_password,
 )
 from app.schemas.auth import (
-    AuthResponse,
+    AuthServiceResult,
     LoginRequest,
     RegisterRequest,
     UserPublic,
@@ -27,8 +27,8 @@ from app.services.users import (
 AUTH_FAILURE_MESSAGE = "Invalid email or password"
 
 
-def _auth_response(user_id, email: str, settings: Settings) -> AuthResponse:
-    return AuthResponse(
+def _auth_response(user_id, email: str, settings: Settings) -> AuthServiceResult:
+    return AuthServiceResult(
         access_token=create_access_token(user_id, settings),
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
@@ -40,7 +40,7 @@ async def register(
     db: AsyncSession,
     data: RegisterRequest,
     settings: Settings,
-) -> AuthResponse:
+) -> AuthServiceResult:
     existing_user = await get_user_by_email(db, data.email)
     if existing_user is not None:
         raise HTTPException(
@@ -56,7 +56,7 @@ async def login(
     db: AsyncSession,
     data: LoginRequest,
     settings: Settings,
-) -> AuthResponse:
+) -> AuthServiceResult:
     user = await get_user_by_email(db, data.email)
     if user is None:
         raise HTTPException(
