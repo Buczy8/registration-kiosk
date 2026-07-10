@@ -33,13 +33,13 @@ def get_printer_health(settings: Settings) -> bool:
         return False
 
 
-async def send_print_job(*, pdf_bytes: bytes, settings: Settings) -> None:
+async def send_print_job(*, pdf_bytes: bytes, settings: Settings, force: bool = False) -> None:
     """
     Sends the PDF bytes to the network printer using the RAW 9100 protocol.
-    If printing is disabled, raises a RuntimeError.
+    If printing is disabled and force is False, raises a RuntimeError.
     Applies simulation delay and failure probability if configured in settings.
     """
-    if not settings.print_enabled:
+    if not settings.print_enabled and not force:
         raise RuntimeError("Printing is disabled in configuration")
 
     # Apply simulation delay if configured

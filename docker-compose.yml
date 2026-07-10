@@ -59,6 +59,7 @@ services:
       FORM_TEMPLATES_DIR: /app/templates/forms
       PRINTER_HOST: printer-simulator
       PRINTER_PORT: 9100
+      PRINT_ENABLED: ${PRINT_ENABLED:-true}
     expose:
       - "8000"
     volumes:

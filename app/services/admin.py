@@ -230,6 +230,7 @@ async def queue_and_execute_submission_print(
         submission_id: UUID,
         *,
         settings: Settings,
+        force: bool = False,
 ) -> tuple[bytes, str, UUID, PrintJobStatus]:
     from app.services.pdf import generate_submission_pdf
     from app.services.printer import send_print_job
@@ -246,7 +247,7 @@ async def queue_and_execute_submission_print(
     print_job.attempts = (current_attempts or 0) + 1
 
     try:
-        await send_print_job(pdf_bytes=pdf_bytes, settings=settings)
+        await send_print_job(pdf_bytes=pdf_bytes, settings=settings, force=force)
     except Exception as e:
         print_job.status = PrintJobStatus.FAILED
         print_job.finished_at = datetime.now(UTC)
@@ -377,6 +378,7 @@ async def process_and_complete_print_job(
         job_id: UUID,
         *,
         settings: Settings,
+        force: bool = False,
 ) -> tuple[bytes, str, UUID, PrintJobStatus]:
     from app.services.pdf import generate_submission_pdf
     from app.services.printer import send_print_job
@@ -393,7 +395,7 @@ async def process_and_complete_print_job(
     job.attempts = (current_attempts or 0) + 1
 
     try:
-        await send_print_job(pdf_bytes=pdf_bytes, settings=settings)
+        await send_print_job(pdf_bytes=pdf_bytes, settings=settings, force=force)
     except Exception as e:
         job.status = PrintJobStatus.FAILED
         job.finished_at = datetime.now(UTC)

@@ -43,7 +43,7 @@ async def execute_print_job(
 ):
     try:
         _, _, job_id_result, job_status = await admin_services.process_and_complete_print_job(
-            db, job_id, settings=settings
+            db, job_id, settings=settings, force=True
         )
         return AdminPrintActionResponse(
             message="Print job completed",

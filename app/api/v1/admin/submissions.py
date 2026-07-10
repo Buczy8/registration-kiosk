@@ -82,7 +82,7 @@ async def queue_submission_for_print(
         db: AsyncSession = Depends(get_db),
 ):
     _, _, job_id, job_status = await admin_services.queue_and_execute_submission_print(
-        db, submission_id, settings=settings
+        db, submission_id, settings=settings, force=True
     )
     return AdminPrintActionResponse(
         message="Print job completed",
