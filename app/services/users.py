@@ -67,7 +67,8 @@ async def record_failed_login(db: AsyncSession, user: User, settings: Settings) 
 
     if user.failed_login_count >= settings.login_max_attempts:
         user.locked_until = datetime.now(UTC) + timedelta(minutes=settings.login_lockout_minutes)
-        await db.commit()
+
+    await db.commit()
 
 
 async def reset_failed_login(db: AsyncSession, user: User) -> None:

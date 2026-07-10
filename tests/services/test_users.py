@@ -134,6 +134,17 @@ def test_record_failed_login_locks_after_threshold_from_settings():
     assert db.committed is True
 
 
+def test_record_failed_login_commits_on_first_failed_attempt():
+    user = _user(failed_login_count=0, locked_until=None)
+    db = _FakeUsersDb([user])
+
+    asyncio.run(record_failed_login(db, user, _settings()))
+
+    assert user.failed_login_count == 1
+    assert user.locked_until is None
+    assert db.committed is True
+
+
 def test_is_account_locked_false_after_locked_until_expired():
     user = _user(locked_until=datetime.now(UTC) - timedelta(minutes=1))
 
