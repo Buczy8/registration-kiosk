@@ -103,13 +103,13 @@ export default function AdminHome() {
               </p>
             </div>
             <div className="actions" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-              <span className="admin-status-pill">
+              <span className={`admin-status-pill ${systemStatus?.api_ok ? "admin-status-pill--ok" : "admin-status-pill--error"}`}>
                 API: {systemStatus?.api_ok ? "OK" : "BŁĄD"}
               </span>
-              <span className="admin-status-pill">
+              <span className={`admin-status-pill ${systemStatus?.db_ok ? "admin-status-pill--ok" : "admin-status-pill--error"}`}>
                 Baza: {systemStatus?.db_ok ? "OK" : "BŁĄD"}
               </span>
-              <span className="admin-status-pill">
+              <span className={`admin-status-pill ${systemStatus?.printer_ok ? "admin-status-pill--ok" : "admin-status-pill--error"}`}>
                 Drukarka: {systemStatus?.printer_ok ? "OK" : "BŁĄD"}
               </span>
             </div>

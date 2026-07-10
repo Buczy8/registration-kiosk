@@ -107,7 +107,7 @@ export default function AdminUsersPage() {
         </div>
       )}
       {actionMessage && (
-        <div className="status-card" role="status">
+        <div className="alert-success" role="status">
           {actionMessage}
         </div>
       )}

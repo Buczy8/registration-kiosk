@@ -13,6 +13,14 @@ function submissionPdfFilename(data, submissionId) {
   return `wydruk_zgloszenia_${data?.start_number || submissionId}.pdf`;
 }
 
+function humanizeStatus(value) {
+  if (value === "submitted") return "Zgłoszone";
+  if (value === "print_queued") return "W kolejce do druku";
+  if (value === "print_done") return "Wydrukowane";
+  if (value === "print_failed") return "Błąd druku";
+  return value;
+}
+
 export default function AdminSubmissionDetailsPage() {
   const { submissionId } = useParams();
 
@@ -112,7 +120,7 @@ export default function AdminSubmissionDetailsPage() {
         </div>
       )}
       {actionMessage && (
-        <div className="status-card" role="status">
+        <div className="alert-success" role="status">
           {actionMessage}
         </div>
       )}
@@ -130,7 +138,19 @@ export default function AdminSubmissionDetailsPage() {
             <div className="field-row">
               <div className="field">
                 <span>Status</span>
-                <div className="hint">{data.status}</div>
+                <div style={{ marginTop: "4px" }}>
+                  <span className={`status-pill ${
+                    data.status === "print_done"
+                      ? "status-pill--success"
+                      : data.status === "print_failed"
+                        ? "status-pill--danger"
+                        : data.status === "print_queued"
+                          ? "status-pill--warning"
+                          : "status-pill--info"
+                  }`}>
+                    {humanizeStatus(data.status)}
+                  </span>
+                </div>
               </div>
             </div>
 

@@ -71,7 +71,24 @@ export default function SubmissionResult({
           <li className="submission-result-item" key={submission.id}>
             <p className="result-number">{submission.start_number}</p>
             <p>Data sekwencji: {submission.sequence_date}</p>
-            <p>Status: {submission.status}</p>
+            <p>
+              Status:{" "}
+              <span className={`status-pill ${
+                submission.status === "print_done"
+                  ? "status-pill--success"
+                  : submission.status === "print_failed"
+                    ? "status-pill--danger"
+                    : submission.status === "print_queued"
+                      ? "status-pill--warning"
+                      : "status-pill--info"
+              }`}>
+                {submission.status === "submitted" ? "Zgłoszone" :
+                 submission.status === "print_queued" ? "W kolejce do druku" :
+                 submission.status === "print_done" ? "Wydrukowane" :
+                 submission.status === "print_failed" ? "Błąd druku" :
+                 submission.status}
+              </span>
+            </p>
             {isMultiple && (
               <button
                 className={

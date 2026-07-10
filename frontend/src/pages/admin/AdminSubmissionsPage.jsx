@@ -165,7 +165,7 @@ export default function AdminSubmissionsPage() {
         </div>
       )}
       {actionMessage && (
-        <div className="status-card" role="status">
+        <div className="alert-success" role="status">
           {actionMessage}
         </div>
       )}
@@ -287,11 +287,33 @@ export default function AdminSubmissionsPage() {
                     <td>{s.display_name || "—"}</td>
                     <td>{s.start_number}</td>
                     <td>{formatDate(s.sequence_date)}</td>
-                    <td>{humanizeStatus(s.status)}</td>
+                    <td>
+                      <span className={`status-pill ${
+                        s.status === "print_done"
+                          ? "status-pill--success"
+                          : s.status === "print_failed"
+                            ? "status-pill--danger"
+                            : s.status === "print_queued"
+                              ? "status-pill--warning"
+                              : "status-pill--info"
+                      }`}>
+                        {humanizeStatus(s.status)}
+                      </span>
+                    </td>
                     <td>
                       {s.last_print_status ? (
                         <div className="admin-last-print">
-                          <span>{humanizePrintJobStatus(s.last_print_status)}</span>
+                          <span className={`status-pill ${
+                            s.last_print_status === "done"
+                              ? "status-pill--success"
+                              : s.last_print_status === "failed"
+                                ? "status-pill--danger"
+                                : s.last_print_status === "queued" || s.last_print_status === "printing"
+                                  ? "status-pill--warning"
+                                  : "status-pill--info"
+                          }`}>
+                            {humanizePrintJobStatus(s.last_print_status)}
+                          </span>
                           <span className="hint">{formatDateTime(s.last_print_at)}</span>
                           {s.last_print_status === "queued" && s.last_print_job_id ? (
                             <button
