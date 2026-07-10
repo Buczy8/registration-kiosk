@@ -193,8 +193,9 @@ async def _create_submission_core(
 
     try:
         await db.flush()
-        signature_path, signature_hash, signed_at = save_submission_signature(
-            settings, submission.id, image_bytes
+        import asyncio
+        signature_path, signature_hash, signed_at = await asyncio.to_thread(
+            save_submission_signature, settings, submission.id, image_bytes
         )
         submission.signature_path = signature_path
         submission.signature_hash = signature_hash

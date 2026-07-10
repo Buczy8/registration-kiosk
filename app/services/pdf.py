@@ -97,7 +97,10 @@ async def generate_submission_pdf(db: AsyncSession, submission_id: UUID) -> tupl
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
     settings = get_settings()
-    pdf_bytes = fill_guest_submission_template(submission, settings=settings)
+    import asyncio
+    pdf_bytes = await asyncio.to_thread(
+        fill_guest_submission_template, submission, settings=settings
+    )
     submission.pdf_path = f"generated://submissions/{submission.id}.pdf"
 
     db.add(submission)

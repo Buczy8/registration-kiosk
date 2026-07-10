@@ -113,6 +113,7 @@ async def get_admin_dashboard_stats(db: AsyncSession, sequence_date: date) -> di
 
 async def get_admin_system_status(db: AsyncSession) -> dict:
     from app.services.printer import get_printer_health
+    import asyncio
 
     settings = get_settings()
     checked_at = datetime.now(UTC)
@@ -122,11 +123,13 @@ async def get_admin_system_status(db: AsyncSession) -> dict:
     except Exception:
         db_ok = False
 
+    printer_ok = await asyncio.to_thread(get_printer_health, settings)
+
     return {
         "checked_at": checked_at,
         "api_ok": True,
         "db_ok": db_ok,
-        "printer_ok": get_printer_health(settings),
+        "printer_ok": printer_ok,
     }
 
 
