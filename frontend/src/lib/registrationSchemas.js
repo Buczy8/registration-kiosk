@@ -17,6 +17,7 @@ const minorDraftSchema = z.object({
   vehicle_brand: z.string().optional(),
   vehicle_model: z.string().optional(),
   vehicle_registration_number: z.string().optional(),
+  image_publication: z.boolean().optional(),
 });
 
 function addMinorFieldIssues(minors, ctx) {
@@ -147,13 +148,7 @@ export function buildFormSchema({ schemaJson, requireRoleSelection = true }) {
         } else {
           addMinorFieldIssues(minors, ctx);
         }
-        if (!data.consents?.image_publication) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Zaznacz zgodę na publikację wizerunku podopiecznego.",
-            path: ["consents", "image_publication"],
-          });
-        }
+
       }
 
       if (!data.declarationsReviewed) {

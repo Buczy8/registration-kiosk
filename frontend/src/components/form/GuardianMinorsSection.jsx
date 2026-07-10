@@ -145,19 +145,21 @@ export default function GuardianMinorsSection({ properties, allowMultiple = true
           </div>
 
           <MinorVehicleSection index={activeIndex} properties={properties} />
+
+          <div style={{ marginTop: "15px" }}>
+            <Controller
+              control={control}
+              name={`minors.${activeIndex}.image_publication`}
+              render={({ field }) => (
+                <label className="checkbox-field">
+                  <input type="checkbox" checked={Boolean(field.value)} onChange={field.onChange} />
+                  <span>{IMAGE_PUBLICATION_CONSENT_TEXT}</span>
+                </label>
+              )}
+            />
+          </div>
         </div>
       )}
-
-      <Controller
-        control={control}
-        name="consents.image_publication"
-        render={({ field }) => (
-          <label className="checkbox-field">
-            <input type="checkbox" checked={Boolean(field.value)} onChange={field.onChange} />
-            <span>{IMAGE_PUBLICATION_CONSENT_TEXT}</span>
-          </label>
-        )}
-      />
     </fieldset>
   );
 }

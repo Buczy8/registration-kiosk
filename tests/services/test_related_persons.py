@@ -83,6 +83,24 @@ async def test_create_related_person_without_birth_date(async_session: AsyncSess
 
 
 @pytest.mark.asyncio
+async def test_create_related_person_with_false_image_publication_consent(
+    async_session: AsyncSession,
+):
+    """Create a related person with image_publication_consent set to False."""
+    owner_id = uuid4()
+    data = RelatedPersonCreate(
+        **related_person_create_data(
+            image_publication_consent=False,
+        )
+    )
+
+    person = await create_related_person(async_session, owner_id, data)
+    await async_session.commit()
+
+    assert person.image_publication_consent is False
+
+
+@pytest.mark.asyncio
 async def test_create_related_person_without_optional_vehicle_details(
     async_session: AsyncSession,
 ):

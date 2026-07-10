@@ -56,12 +56,7 @@ class RelatedPersonCreate(BaseModel):
             return None
         return normalized
 
-    @field_validator("image_publication_consent")
-    @classmethod
-    def image_publication_consent_required(cls, value: bool) -> bool:
-        if value is not True:
-            raise ValueError("Image publication consent must be accepted")
-        return value
+
 
 
 class RelatedPersonResponse(BaseModel):
