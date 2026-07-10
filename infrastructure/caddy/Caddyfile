@@ -2,10 +2,15 @@ localhost {
     tls internal
     encode zstd gzip
     log
+    # Opcjonalnie ogranicz klienta do adresów kiosku:
+    # @blocked not remote_ip 192.168.1.10/32 192.168.1.11/32
+    # respond @blocked "Forbidden" 403
 
     root * /usr/share/caddy
 
     @api path /api/*
+    # Nie ufamy nagłówkowi od klienta - zawsze nadpisujemy wartością serwerową.
+    request_header @api X-Kiosk-Token {$KIOSK_TOKEN}
     reverse_proxy @api api:8000
 
     @api_docs path /docs* /redoc* /openapi.json

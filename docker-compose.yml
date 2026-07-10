@@ -4,8 +4,9 @@ services:
       context: .
       dockerfile: infrastructure/caddy/Dockerfile
       args:
-        VITE_KIOSK_TOKEN: ${KIOSK_TOKEN:-change-me-kiosk-token-min-16-chars}
         VITE_KIOSK_IDLE_LOGOUT_SECONDS: ${KIOSK_IDLE_LOGOUT_SECONDS:-30}
+    environment:
+      KIOSK_TOKEN: ${KIOSK_TOKEN:-change-me-kiosk-token-min-16-chars}
     container_name: kiosk-reverse-proxy
     restart: unless-stopped
     ports:

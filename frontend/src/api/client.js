@@ -1,5 +1,4 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
-const KIOSK_TOKEN = import.meta.env.VITE_KIOSK_TOKEN || "";
 const IS_HTTPS_PAGE =
   typeof window !== "undefined" ? window.location.protocol === "https:" : true;
 
@@ -43,9 +42,7 @@ async function parseApiError(response) {
 }
 
 function buildHeaders({ contentType }) {
-  const headers = {
-    "X-Kiosk-Token": KIOSK_TOKEN,
-  };
+  const headers = {};
   if (contentType) {
     headers["Content-Type"] = contentType;
   }

@@ -69,7 +69,6 @@ export async function createSubmissionForRelatedPerson(relatedPersonId, payload)
   url.searchParams.append("related_person_id", relatedPersonId);
 
   const headers = {
-    "X-Kiosk-Token": import.meta.env.VITE_KIOSK_TOKEN || "",
     "Content-Type": "application/json",
   };
 

@@ -223,7 +223,7 @@ export default function AppRouter() {
     return (
       <div className="status-card alert" role="alert">
         <p>Nie udało się pobrać formularza: {loadError}</p>
-        <p>Sprawdź, czy backend działa i czy VITE_KIOSK_TOKEN jest poprawny.</p>
+        <p>Sprawdź, czy backend działa i czy proxy poprawnie wstrzykuje X-Kiosk-Token.</p>
       </div>
     );
   }
