@@ -108,6 +108,10 @@ export default function RegisterPage({ onBack, onSuccess }) {
             <button
               type="button"
               className="secondary-button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onBack();
+              }}
               onClick={onBack}
               disabled={loading}
             >

@@ -328,7 +328,15 @@ export default function AppRouter() {
             <GuestOnlyRoute>
               <div className="app-container">
                 <div style={{ marginBottom: "15px" }}>
-                  <button className="secondary-button" type="button" onClick={() => navigate("/")}>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      navigate("/");
+                    }}
+                    onClick={() => navigate("/")}
+                  >
                     &larr; Wróć
                   </button>
                 </div>
