@@ -31,6 +31,7 @@ export default function AppRouter() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [startInfoMessage, setStartInfoMessage] = useState(null);
+  const [loadedUserId, setLoadedUserId] = useState(null);
   const defaultUserIdleLogoutSeconds = 30;
   const adminIdleLogoutSeconds = 5 * 60;
   const defaultAuthenticatedRoute = user?.is_superuser ? "/admin" : "/account/verify";
@@ -58,14 +59,19 @@ export default function AppRouter() {
     },
   });
 
-  if (user) {
-    if (selectedRole === null && user.last_participant_role) {
-      setSelectedRole(user.last_participant_role);
+  useEffect(() => {
+    if (user) {
+      if (user.user_id !== loadedUserId) {
+        setSelectedRole(user.last_participant_role || null);
+        setSelectedVehicle(user.last_vehicle_type || null);
+        setLoadedUserId(user.user_id);
+      }
+    } else {
+      setSelectedRole(null);
+      setSelectedVehicle(null);
+      setLoadedUserId(null);
     }
-    if (selectedVehicle === null && user.last_vehicle_type) {
-      setSelectedVehicle(user.last_vehicle_type);
-    }
-  }
+  }, [user, loadedUserId]);
 
   useEffect(() => {
     if (!startInfoMessage) {
@@ -214,7 +220,6 @@ export default function AppRouter() {
   function handleAccountNewForm() {
     setSubmissions(null);
     setSubmitError(null);
-    resetAccountSelection();
     navigate("/account/verify");
   }
 
