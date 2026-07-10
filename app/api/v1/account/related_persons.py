@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -134,6 +134,7 @@ async def get_form_preview_endpoint(
 async def create_submission_for_related_person_endpoint(
     data: AccountSubmissionCreate,
     current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
     related_person_id: UUID = Query(
         ..., description="UUID of the related person (dependent)"
     ),
@@ -169,6 +170,7 @@ async def create_submission_for_related_person_endpoint(
         data=data,
         settings=settings,
         current_user=current_user,
+        background_tasks=background_tasks,
     )
 
     return AccountSubmissionResponse.model_validate(submission)

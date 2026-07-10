@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -37,16 +37,19 @@ async def create_submission(
     _: KioskAuth,
     user: OptionalBearerUser,
     body: SubmissionCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> GuestSubmissionResponse | AccountSubmissionResponse:
     if user is not None:
         submission = await create_account_submission(
-            db=db, user=user, data=body, settings=settings
+            db=db, user=user, data=body, settings=settings, background_tasks=background_tasks
         )
         return AccountSubmissionResponse.model_validate(submission)
 
-    submission = await create_guest_submission(db=db, data=body, settings=settings)
+    submission = await create_guest_submission(
+        db=db, data=body, settings=settings, background_tasks=background_tasks
+    )
     return GuestSubmissionResponse.model_validate(submission)
 
 

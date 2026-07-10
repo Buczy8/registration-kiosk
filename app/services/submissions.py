@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Awaitable, Callable
 from uuid import UUID
+
+from fastapi import BackgroundTasks
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select, text
@@ -24,6 +26,20 @@ from app.services.related_persons import (
     update_related_person_from_submission_payload,
     validate_related_person_ownership,
 )
+
+
+async def execute_background_print(submission_id: UUID, settings: Settings) -> None:
+    from app.db.session import AsyncSessionLocal
+    from app.services.admin import queue_and_execute_submission_print
+    import logging
+
+    async with AsyncSessionLocal() as db:
+        try:
+            await queue_and_execute_submission_print(db, submission_id, settings=settings)
+        except Exception as e:
+            logging.getLogger("app.submissions").exception(
+                f"Auto-printing in background failed for submission {submission_id}: {e}"
+            )
 
 
 def get_sequence_date(settings: Settings) -> date:
@@ -53,6 +69,7 @@ async def create_guest_submission(
     db: AsyncSession,
     data: SubmissionCreate,
     settings: Settings,
+    background_tasks: BackgroundTasks | None = None,
 ) -> Submission:
     return await _create_submission_core(
         db=db,
@@ -60,6 +77,7 @@ async def create_guest_submission(
         settings=settings,
         mode=SubmissionMode.GUEST,
         user_id=None,
+        background_tasks=background_tasks,
     )
 
 
@@ -68,6 +86,7 @@ async def create_account_submission(
     user: User,
     data: SubmissionCreate,
     settings: Settings,
+    background_tasks: BackgroundTasks | None = None,
 ) -> Submission:
     async def _update_profile() -> None:
         await update_profile_from_submission(
@@ -85,6 +104,7 @@ async def create_account_submission(
         mode=SubmissionMode.ACCOUNT,
         user_id=user.id,
         post_flush_hook=_update_profile,
+        background_tasks=background_tasks,
     )
 
 
@@ -95,6 +115,7 @@ async def create_account_submission_for_related_person(
     data: SubmissionCreate,
     settings: Settings,
     current_user: User | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> Submission:
     """
     Create a submission for a related person (dependent).
@@ -156,6 +177,7 @@ async def create_account_submission_for_related_person(
         user_id=current_user_id,
         related_person_id=related_person_id,
         post_flush_hook=_update_related_person_and_guardian_profile,
+        background_tasks=background_tasks,
     )
 
     return submission
@@ -170,6 +192,7 @@ async def _create_submission_core(
     user_id: UUID | None,
     related_person_id: UUID | None = None,
     post_flush_hook: Callable[[], Awaitable[None]] | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> Submission:
     form = await get_active_form(db)
     validate_required_fields(form.schema_json, data.payload_json)
@@ -211,14 +234,19 @@ async def _create_submission_core(
     await db.refresh(submission)
 
     if settings.print_enabled and "Fake" not in type(db).__name__:
-        from app.services.admin import queue_and_execute_submission_print
-        import logging
-        try:
-            await queue_and_execute_submission_print(db, submission.id, settings=settings)
-            await db.refresh(submission)
-        except Exception as e:
-            logging.getLogger("app.submissions").exception(
-                f"Auto-printing failed for submission {submission.id}: {e}"
+        if background_tasks is not None:
+            background_tasks.add_task(
+                execute_background_print, submission.id, settings
             )
+        else:
+            from app.services.admin import queue_and_execute_submission_print
+            import logging
+            try:
+                await queue_and_execute_submission_print(db, submission.id, settings=settings)
+                await db.refresh(submission)
+            except Exception as e:
+                logging.getLogger("app.submissions").exception(
+                    f"Auto-printing failed for submission {submission.id}: {e}"
+                )
 
     return submission
