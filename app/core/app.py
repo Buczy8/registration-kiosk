@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
@@ -29,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_middleware(CoreSecurityMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     app.include_router(health_router)
