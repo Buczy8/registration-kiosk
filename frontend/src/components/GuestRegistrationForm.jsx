@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { FormProvider } from "react-hook-form";
+import { FormProvider, Controller } from "react-hook-form";
 
 import { listRelatedPersons } from "../api/account.js";
 import { getFormPrefill } from "../api/auth.js";
-import { FORM_SUBTITLE } from "../content/participantDeclarations.js";
+import { FORM_SUBTITLE, IMAGE_PUBLICATION_CONSENT_TEXT } from "../content/participantDeclarations.js";
 import { useRegistrationForm } from "../hooks/useRegistrationForm.js";
 import {
   PERSONAL_DATA_FIELDS,
@@ -31,6 +31,8 @@ export default function GuestRegistrationForm({
   onBack,
   submitting,
   submitError,
+  onRoleChange,
+  onVehicleTypeChange,
 }) {
   const isAccountMode = mode === "account";
   const useGuardianMinorPayload =
@@ -70,7 +72,7 @@ export default function GuestRegistrationForm({
       const prefill = await getFormPrefill(token, effectiveRole, effectiveVehicleType);
       const mapped = mapPrefillToFormData(prefill);
       let minors = [];
-      let imagePublicationConsent = false;
+      let imagePublicationConsent = prefill?.image_publication_consent || false;
 
       if (effectiveRole === ParticipantRole.LEGAL_GUARDIAN) {
         minors = relatedPersons.map((person) => ({
@@ -84,10 +86,8 @@ export default function GuestRegistrationForm({
           vehicle_model: person.vehicle_model || "",
           vehicle_registration_number:
             person.vehicle_registration_number || "",
+          image_publication: person.image_publication_consent || false,
         }));
-        imagePublicationConsent = relatedPersons.some(
-          (person) => person.image_publication_consent,
-        );
         if (minors.length === 0) {
           minors = [createEmptyMinor()];
         }
@@ -115,6 +115,21 @@ export default function GuestRegistrationForm({
   useEffect(() => {
     loadPrefill();
   }, [loadPrefill]);
+
+  const watchedRole = methods.watch("participantRole");
+  const watchedVehicleType = methods.watch("vehicleType");
+
+  useEffect(() => {
+    if (watchedRole && onRoleChange && watchedRole !== role) {
+      onRoleChange(watchedRole);
+    }
+  }, [watchedRole, role, onRoleChange]);
+
+  useEffect(() => {
+    if (watchedVehicleType && onVehicleTypeChange && watchedVehicleType !== vehicleType) {
+      onVehicleTypeChange(watchedVehicleType);
+    }
+  }, [watchedVehicleType, vehicleType, onVehicleTypeChange]);
 
   function handleValidSubmit(data) {
     const submissions = buildSubmissions(data);
@@ -185,6 +200,22 @@ export default function GuestRegistrationForm({
             properties={properties}
             allowMultiple
           />
+        )}
+
+        {!isGuardian && (
+          <fieldset className="form-card">
+            <legend>Zgoda na publikację wizerunku</legend>
+            <Controller
+              control={methods.control}
+              name="consents.image_publication"
+              render={({ field }) => (
+                <label className="checkbox-field">
+                  <input type="checkbox" checked={Boolean(field.value)} onChange={field.onChange} />
+                  <span>{IMAGE_PUBLICATION_CONSENT_TEXT}</span>
+                </label>
+              )}
+            />
+          </fieldset>
         )}
 
         <SignatureSection

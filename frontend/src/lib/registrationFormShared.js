@@ -86,6 +86,7 @@ export function createEmptyMinor() {
     vehicle_brand: "",
     vehicle_model: "",
     vehicle_registration_number: "",
+    image_publication: false,
   };
 }
 
@@ -276,7 +277,7 @@ export function buildSubmissionPayload({
     vehicle_type: minor?.vehicle_type || vehicleType || VehicleType.CAR,
     payload_json: payloadJson,
     consents_json: {
-      image_publication: consents.image_publication,
+      image_publication: Boolean(consents?.image_publication),
     },
     declarations_accepted: true,
     signature_image_base64: signatureImageBase64,
@@ -307,7 +308,7 @@ export function buildGuestSubmissions(data, schema) {
         minor,
         participantRole: data.participantRole,
         vehicleType: data.vehicleType,
-        consents: data.consents,
+        consents: { image_publication: Boolean(minor.image_publication) },
         signatureImageBase64: data.signatureImageBase64,
       }),
     );

@@ -70,6 +70,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshProfile = async () => {
+    if (token) {
+      try {
+        const profile = await getProfile(token);
+        setUser(profile);
+        return profile;
+      } catch (error) {
+        console.error("Błąd odświeżania profilu:", error);
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       token,
@@ -78,7 +90,8 @@ export const AuthProvider = ({ children }) => {
       isInitializing,
       login,
       register,
-      logout
+      logout,
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>

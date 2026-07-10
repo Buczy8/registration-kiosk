@@ -19,7 +19,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 
 export default function AppRouter() {
   const navigate = useNavigate();
-  const { isAuthenticated, logout, isInitializing, user, token } = useAuth();
+  const { isAuthenticated, logout, isInitializing, user, token, refreshProfile } = useAuth();
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [form, setForm] = useState(null);
@@ -56,6 +56,15 @@ export default function AppRouter() {
       setStartInfoMessage("Sesja wygasła ze względów bezpieczeństwa.");
     },
   });
+
+  if (user) {
+    if (selectedRole === null && user.last_participant_role) {
+      setSelectedRole(user.last_participant_role);
+    }
+    if (selectedVehicle === null && user.last_vehicle_type) {
+      setSelectedVehicle(user.last_vehicle_type);
+    }
+  }
 
   useEffect(() => {
     if (!startInfoMessage) {
@@ -165,6 +174,9 @@ export default function AppRouter() {
         setSelectedRole(payloads[0]?.participant_role || null);
         setSelectedVehicle(payloads[0]?.vehicle_type || null);
         results = [await createAccountSubmission(payloads[0], token)];
+      }
+      if (refreshProfile) {
+        await refreshProfile();
       }
       setSubmissionIsAccount(true);
       setSubmissions(results);
@@ -320,6 +332,8 @@ export default function AppRouter() {
                     onSubmit={handleAccountSubmit}
                     submitting={submitting}
                     submitError={submitError}
+                    onRoleChange={setSelectedRole}
+                    onVehicleTypeChange={setSelectedVehicle}
                   />
                 </div>
             </ProtectedRoute>

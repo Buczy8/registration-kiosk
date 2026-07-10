@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ParticipantRole, VehicleType
 from app.models.user import User, UserProfile
+from app.models.submission import Submission
 from app.schemas.profile import FormPrefillResponse, ProfileResponse, VehicleData
 
 
@@ -72,6 +73,22 @@ async def get_form_prefill(
     profile = await get_or_create_profile(db, user.id)
     vehicle = build_vehicle_from_json(profile.vehicles_json, vehicle_type)
 
+    stmt = (
+        select(Submission)
+        .where(
+            Submission.user_id == user.id,
+            Submission.participant_role == role,
+            Submission.filled_for_related_person_id.is_(None),
+        )
+        .order_by(desc(Submission.created_at))
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    last_sub = result.scalar_one_or_none()
+    image_publication_consent = False
+    if last_sub is not None and isinstance(last_sub, Submission) and isinstance(last_sub.consents_json, dict):
+        image_publication_consent = bool(last_sub.consents_json.get("image_publication", False))
+
     return FormPrefillResponse(
         first_name=user.first_name,
         last_name=user.last_name,
@@ -88,6 +105,7 @@ async def get_form_prefill(
         participant_role=role,
         vehicle_type=vehicle_type,
         vehicle=vehicle,
+        image_publication_consent=image_publication_consent,
     )
 
 

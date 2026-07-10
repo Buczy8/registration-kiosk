@@ -77,4 +77,5 @@ class FormPrefillResponse(BaseModel):
     participant_role: ParticipantRole
     vehicle_type: VehicleType
     vehicle: VehicleData | None = None
+    image_publication_consent: bool = False
 
