@@ -83,6 +83,7 @@ def _register_payload(email: str = "jan.kowalski@example.com") -> dict:
     return {
         "email": email,
         "password": "StrongPass1",
+        "password_confirm": "StrongPass1",
     }
 
 

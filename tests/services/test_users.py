@@ -89,6 +89,7 @@ def test_create_user_saves_user_and_profile_in_same_transaction():
     data = RegisterRequest(
         email="Jan.Kowalski@Example.com",
         password="StrongPass1",
+        password_confirm="StrongPass1",
         first_name="Jan",
         last_name="Kowalski",
         phone="+48 123 123 123",

@@ -101,6 +101,7 @@ def _register_request(email: str = "jan.kowalski@example.com") -> RegisterReques
     return RegisterRequest(
         email=email,
         password="StrongPass1",
+        password_confirm="StrongPass1",
         first_name="Jan",
         last_name="Kowalski",
         phone="+48 123 123 123",

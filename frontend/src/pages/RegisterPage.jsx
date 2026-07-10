@@ -6,6 +6,7 @@ export default function RegisterPage({ onBack, onSuccess }) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,11 +26,15 @@ export default function RegisterPage({ onBack, onSuccess }) {
       setError("Hasło musi zawierać co najmniej jedną cyfrę.");
       return;
     }
+    if (password !== passwordConfirm) {
+      setError("Podane hasła nie są identyczne.");
+      return;
+    }
 
     setLoading(true);
 
     try {
-      await register({ email, password });
+      await register({ email, password, password_confirm: passwordConfirm });
 
       if (onSuccess) {
         onSuccess();
@@ -81,6 +86,20 @@ export default function RegisterPage({ onBack, onSuccess }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+              minLength={8}
+              style={{ padding: "14px", fontSize: "1.1rem" }}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="passwordConfirm">Powtórz hasło</label>
+            <input
+              id="passwordConfirm"
+              type="password"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
               required
               disabled={loading}
               minLength={8}

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 _PASSWORD_MIN_LEN = 8
@@ -35,6 +35,7 @@ def _validate_email(value: str) -> str:
 class RegisterRequest(BaseModel):
     email: str
     password: str = Field(min_length=_PASSWORD_MIN_LEN)
+    password_confirm: str = Field(min_length=_PASSWORD_MIN_LEN)
     first_name: str | None = None
     last_name: str | None = None
     phone: str | None = None
@@ -48,6 +49,12 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_password_strength(cls, value: str) -> str:
         return _validate_password_strength(value)
+
+    @model_validator(mode="after")
+    def validate_passwords_match(self) -> RegisterRequest:
+        if self.password != self.password_confirm:
+            raise ValueError("Passwords do not match")
+        return self
 
 
 class LoginRequest(BaseModel):
