@@ -75,9 +75,16 @@ export function getDefaultSignaturePlace() {
   return `Biłgoraj, ${today}`;
 }
 
+export function generateSafeUUID() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "f" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
 export function createEmptyMinor() {
   return {
-    id: crypto.randomUUID(),
+    id: generateSafeUUID(),
     related_person_id: null,
     guardian_relation: "",
     minor_first_name: "",

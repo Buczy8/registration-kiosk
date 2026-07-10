@@ -152,8 +152,11 @@ async def get_optional_current_user(
 ) -> User | None:
     if token is None:
         return None
-    user_id = get_current_user_id_from_token(token=token, settings=settings)
-    return await get_current_user(db=db, user_id=user_id)
+    try:
+        user_id = get_current_user_id_from_token(token=token, settings=settings)
+        return await get_current_user(db=db, user_id=user_id)
+    except HTTPException:
+        return None
 
 
 OptionalCurrentUser = Annotated[User | None, Depends(get_optional_current_user)]
@@ -166,8 +169,11 @@ async def get_optional_bearer_user(
 ) -> User | None:
     if token is None:
         return None
-    user_id = get_current_user_id_from_token(token=token, settings=settings)
-    return await get_current_user(db=db, user_id=user_id)
+    try:
+        user_id = get_current_user_id_from_token(token=token, settings=settings)
+        return await get_current_user(db=db, user_id=user_id)
+    except HTTPException:
+        return None
 
 
 OptionalBearerUser = Annotated[User | None, Depends(get_optional_bearer_user)]

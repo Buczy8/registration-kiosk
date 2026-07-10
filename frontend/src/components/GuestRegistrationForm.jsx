@@ -9,6 +9,7 @@ import {
   PERSONAL_DATA_FIELDS,
   ParticipantRole,
   createEmptyMinor,
+  generateSafeUUID,
   inferIdentityDocumentType,
   mapPrefillToFormData,
 } from "../lib/registrationFormShared.js";
@@ -75,7 +76,7 @@ export default function GuestRegistrationForm({
 
       if (effectiveRole === ParticipantRole.LEGAL_GUARDIAN) {
         minors = relatedPersons.map((person) => ({
-          id: crypto.randomUUID(),
+          id: generateSafeUUID(),
           related_person_id: person.id,
           guardian_relation: person.guardian_relation || "",
           minor_first_name: person.first_name || "",

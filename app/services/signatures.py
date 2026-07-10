@@ -95,13 +95,18 @@ def load_submission_signature_bytes(settings: Settings, signature_path: str | No
         return None
 
     path = Path(signature_path)
-    if not path.is_absolute():
-        path = settings.storage_root / path
-    path = path.resolve()
-
-    if not path.exists():
+    if path.is_absolute():
         return None
-    return path.read_bytes()
+
+    storage_root = settings.storage_root.resolve()
+    resolved_path = (storage_root / path).resolve()
+    
+    if not resolved_path.is_relative_to(storage_root):
+        raise ValueError("Access denied: path traversal attempt")
+
+    if not resolved_path.exists():
+        return None
+    return resolved_path.read_bytes()
 
 
 def parse_and_validate_signature(signature_image_base64: str) -> bytes:

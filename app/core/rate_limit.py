@@ -19,6 +19,17 @@ class SlidingWindowRateLimiter:
         now = monotonic()
         cutoff = now - self.window_seconds
         with self._lock:
+            # Periodically prune empty/expired deques to prevent memory leaks (DoS)
+            if len(self._hits) > 1000:
+                to_remove = []
+                for k, v in self._hits.items():
+                    while v and v[0] <= cutoff:
+                        v.popleft()
+                    if not v:
+                        to_remove.append(k)
+                for k in to_remove:
+                    self._hits.pop(k, None)
+
             bucket = self._hits[key]
             while bucket and bucket[0] <= cutoff:
                 bucket.popleft()

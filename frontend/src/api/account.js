@@ -65,50 +65,12 @@ export async function getFormPreview(relatedPersonId) {
  * @returns {Promise<Object>} Created submission response
  */
 export async function createSubmissionForRelatedPerson(relatedPersonId, payload) {
-  const url = new URL(`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/account/submissions/for-related-person`, window.location.origin);
-  url.searchParams.append("related_person_id", relatedPersonId);
-
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  const response = await fetch(url.toString(), {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    let message = `Błąd przy wysyłaniu formularza (HTTP ${response.status})`;
-    try {
-      const data = await response.json();
-      if (Array.isArray(data?.error?.details)) {
-        message = data.error.details
-          .map((item) => {
-            const path = Array.isArray(item.loc) ? item.loc.join(".") : item.loc;
-            return `${path}: ${item.msg}`;
-          })
-          .join("; ");
-      } else if (data?.error?.message) {
-        message = data.error.message;
-      } else if (Array.isArray(data?.detail)) {
-        message = data.detail
-          .map((item) => {
-            const path = Array.isArray(item.loc) ? item.loc.join(".") : item.loc;
-            return `${path}: ${item.msg}`;
-          })
-          .join("; ");
-      } else if (data?.detail) {
-        message = String(data.detail);
-      }
-    } catch {
-      // Ignorujemy błędy parsowania odpowiedzi
+  const response = await apiRequest(
+    `/account/submissions/for-related-person?related_person_id=${relatedPersonId}`,
+    {
+      method: "POST",
+      body: payload,
     }
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
-  }
-
+  );
   return response.json();
 }
