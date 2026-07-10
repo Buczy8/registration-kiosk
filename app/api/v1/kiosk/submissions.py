@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.core.deps import KioskAuth, OptionalBearerUser
+from app.core.deps import KioskAuth, OptionalCurrentUser
 from app.db.session import get_db
 from app.schemas.submission import (
     AccountSubmissionResponse,
@@ -26,16 +26,14 @@ router = APIRouter(prefix="/submissions")
         "Tworzy zgłoszenie w trybie guest lub account.\n\n"
         "Autoryzacja dwutorowa:\n"
         "- Kiosk token (nagłówek X-Kiosk-Token) jest wymagany zawsze.\n"
-        "- Jeśli dodatkowo przesłany zostanie nagłówek Authorization: Bearer <JWT>, zgłoszenie "
-        "tworzone jest w trybie account (mode=account, user_id ustawiony, profil "
-        "aktualizowany po zapisie za siebie).\n"
-        "- Bez nagłówka Bearer JWT zgłoszenie tworzone jest jako guest (mode=guest), "
-        "nawet jeśli w przeglądarce jest cookie sesji konta."
+        "- Jeśli dodatkowo zalogowany jest użytkownik (przez nagłówek Bearer JWT lub ciasteczko kiosk_access_token), "
+        "zgłoszenie tworzone jest w trybie account (mode=account, user_id ustawiony, profil "
+        "aktualizowany po zapisie za siebie)."
     ),
 )
 async def create_submission(
     _: KioskAuth,
-    user: OptionalBearerUser,
+    user: OptionalCurrentUser,
     body: SubmissionCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),

@@ -214,7 +214,7 @@ def test_guest_submission_without_jwt_still_guest(client_with_storage: TestClien
     assert payload["start_number"] == 42
 
 
-def test_guest_submission_with_auth_cookie_only_stays_guest_and_does_not_update_profile(
+def test_account_submission_with_auth_cookie_succeeds_and_updates_profile(
     client_with_storage: TestClient,
 ):
     user = _user()
@@ -250,8 +250,9 @@ def test_guest_submission_with_auth_cookie_only_stays_guest_and_does_not_update_
 
     assert response.status_code == 201
     payload = response.json()
-    assert payload["mode"] == "guest"
-    assert user.first_name == "Jan"
-    assert user.last_name == "Kowalski"
-    assert profile.pesel == "12345678901"
-    assert profile.vehicles_json["car"]["brand_model"] == "BMW M3"
+    assert payload["mode"] == "account"
+    assert user.first_name == "Inny"
+    assert user.last_name == "Gosc"
+    assert profile.vehicles_json["car"]["brand_model"] == "Audi A4"
+    assert profile.vehicles_json["car"]["registration_number"] == "KR 11111"
+
