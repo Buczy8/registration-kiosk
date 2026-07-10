@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -58,12 +58,16 @@ def is_account_locked(user: User) -> bool:
 
 
 async def record_failed_login(db: AsyncSession, user: User, settings: Settings) -> None:
-    user.failed_login_count += 1
+    await db.execute(
+        update(User)
+        .where(User.id == user.id)
+        .values(failed_login_count=User.failed_login_count + 1)
+    )
+    await db.refresh(user)
+
     if user.failed_login_count >= settings.login_max_attempts:
-        user.locked_until = datetime.now(UTC) + timedelta(
-            minutes=settings.login_lockout_minutes
-        )
-    await db.commit()
+        user.locked_until = datetime.now(UTC) + timedelta(minutes=settings.login_lockout_minutes)
+        await db.commit()
 
 
 async def reset_failed_login(db: AsyncSession, user: User) -> None:
