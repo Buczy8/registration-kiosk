@@ -700,3 +700,67 @@ select {
   gap: 4px;
   min-width: 140px;
 }
+
+/* --- Preloader & Animacje --- */
+.app-loader-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(circle at center, #f9fafb, #f3f4f6);
+  color: #1f2937;
+  font-family: inherit;
+}
+
+.app-loader-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #2563eb;
+  border-radius: 50%;
+  animation: app-spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes app-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Wejściowa animacja ekranów (fade-in + slide-up) */
+.result-screen,
+.start-screen,
+.login-screen,
+.register-screen,
+.app-container,
+.admin-home-container,
+.admin-users-container,
+.admin-submissions-container {
+  animation: app-fade-in-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes app-fade-in-slide {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Delikatne przejście dla przycisków */
+.primary-button, .secondary-button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.primary-button:hover, .secondary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.primary-button:active, .secondary-button:active {
+  transform: translateY(0);
+}

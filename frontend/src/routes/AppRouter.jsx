@@ -209,7 +209,12 @@ export default function AppRouter() {
   }
 
   if (isInitializing) {
-    return <p className="status-card">Odtwarzanie sesji...</p>;
+    return (
+      <div className="app-loader-screen">
+        <div className="app-loader-spinner"></div>
+        <p>Odtwarzanie sesji...</p>
+      </div>
+    );
   }
   if (loading) {
     return <p className="status-card">Ładowanie formularza...</p>;
