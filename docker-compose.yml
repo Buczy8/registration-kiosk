@@ -1,20 +1,22 @@
 services:
   reverse-proxy:
-    image: caddy:2.8-alpine
+    build:
+      context: .
+      dockerfile: infrastructure/caddy/Dockerfile
+      args:
+        VITE_KIOSK_TOKEN: ${KIOSK_TOKEN:-change-me-kiosk-token-min-16-chars}
+        VITE_KIOSK_IDLE_LOGOUT_SECONDS: ${KIOSK_IDLE_LOGOUT_SECONDS:-30}
     container_name: kiosk-reverse-proxy
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       api:
         condition: service_healthy
-      node:
-        condition: service_started
 
   db:
     image: postgres:15-alpine
@@ -79,24 +81,6 @@ services:
       retries: 10
       start_period: 40s
 
-  node:
-    image: node:22-alpine
-    container_name: kiosk-node
-    working_dir: /workspace/frontend
-    restart: unless-stopped
-    volumes:
-      - ./:/workspace
-    expose:
-      - "5173"
-    environment:
-      VITE_KIOSK_TOKEN: ${KIOSK_TOKEN:-change-me-kiosk-token-min-16-chars}
-      VITE_API_BASE_URL: /api/v1
-      VITE_API_PROXY_TARGET: http://api:8000
-      VITE_KIOSK_IDLE_LOGOUT_SECONDS: ${KIOSK_IDLE_LOGOUT_SECONDS:-30}
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    depends_on:
-      api:
-        condition: service_healthy
 
   printer-simulator:
     image: python:3.12-alpine

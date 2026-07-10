@@ -40,6 +40,14 @@ class _FakeAuthDb:
             match = next((u for u in self.users if u.email.lower() == expected), None)
             return _FakeResult(match)
 
+        if "UPDATE users" in sql:
+            user_id = bound.get("id_1")
+            if user_id:
+                user = next((u for u in self.users if u.id == user_id), None)
+                if user:
+                    user.failed_login_count += 1
+            return _FakeResult(None)
+
         return _FakeResult(None)
 
     def add(self, obj):

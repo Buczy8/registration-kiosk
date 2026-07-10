@@ -6,7 +6,10 @@ localhost {
     @api_docs path /docs* /redoc* /openapi.json
     reverse_proxy @api api:8000
     reverse_proxy @api_docs api:8000
-    reverse_proxy node:5173
+    # Serve static frontend files directly
+    root * /usr/share/caddy
+    try_files {path} {path}/ /index.html
+    file_server
 }
 
 :80 {
