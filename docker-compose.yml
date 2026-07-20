@@ -60,8 +60,8 @@ services:
       START_NUMBER_TIMEZONE: ${START_NUMBER_TIMEZONE:-Europe/Warsaw}
       STORAGE_ROOT: /app/storage
       FORM_TEMPLATES_DIR: /app/templates/forms
-      PRINTER_HOST: printer-simulator
-      PRINTER_PORT: 9100
+      PRINTER_HOST: ${PRINTER_HOST:-printer-simulator}
+      PRINTER_PORT: ${PRINTER_PORT:-9100}
       PRINT_ENABLED: ${PRINT_ENABLED:-true}
     expose:
       - "8000"
