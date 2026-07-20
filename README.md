@@ -14,6 +14,7 @@ KioskAPI to zlokalizowany system rejestracji uczestników, automatycznego genero
 6. [Rozwój i testowanie](#6-rozwój-i-testowanie)
 7. [Zasady bezpieczeństwa i RODO](#7-zasady-bezpieczeństwa-i-rodo)
 8. [Zmiany formularza, PDF i regulaminu](#8-zmiany-formularza-pdf-i-regulaminu)
+9. [Utrzymanie, backup, aktualizacje i awarie](#9-utrzymanie-backup-aktualizacje-i-awarie)
 
 ---
 
@@ -319,7 +320,7 @@ Formularz rejestracyjny składa się z **kilku warstw**. Przy każdej zmianie tr
 | **Pola formularza na tablecie** | `scripts/seed_active_form.py` → `schema_json` (+ częściowo `frontend/src/lib/registrationFormShared.js`) | Jakie pola są wymagane, etykiety, walidacja PESEL itd. Kiosk pobiera schemat z API (`GET /api/v1/kiosk/forms/active`). |
 | **Szablon PDF (layout, checkboxy, podpis)** | `templates/forms/*.pdf` + `schema_json.pdf_mapping` w seedzie | Wygląd wydruku, pozycja podpisu, nazwy pól AcroForm w PDF. |
 | **Mapowanie danych → PDF** | `app/services/pdf_mapping.py` + sekcja `pdf_mapping` w `schema_json` | Które dane z formularza trafiają do którego pola/checkboxa w PDF. |
-| **Wersja formularza** | pole `version` w tabeli `forms` (seed) | Każde zgłoszenie zapisuje `form_version` z momentu wysłania — **stare PDF-y się nie zmieniają**. |
+| **Wersja formularza** | pole `version` w tabeli `forms` (seed) | Każde zgłoszenie zapisuje `form_version` z momentu wysłania. Uwaga: samo pole wersji nie przechowuje kopii `schema_json` ani szablonu PDF. |
 
 ```text
 Tablet (React)          Backend (seed / DB)           Wydruk (PDF)
@@ -334,7 +335,9 @@ SignaturePad (canvas)   schema_json.pdf_mapping pdf_mapping.checkboxes
 
 - **Podnieś `version`** w `scripts/seed_active_form.py` (np. `1.0` → `1.1`) przy każdej zmianie prawnej lub layoutu PDF — ułatwia audyt i rozróżnienie zgłoszeń.
 - Przy większej przebudowie PDF warto nowy plik, np. `guest-registration-v2.pdf`, i zaktualizować `pdf_template_path`.
-- **Nie edytuj** historycznych zgłoszeń — mają zamrożone `form_id` / `form_version`. Nowy układ obowiązuje tylko od kolejnych rejestracji.
+- **Nie usuwaj ani nie nadpisuj starego szablonu PDF**, jeśli musi istnieć możliwość odtworzenia historycznego dokumentu.
+- `Submission.form_version` zapisuje numer wersji, ale generator PDF pobiera konfigurację z powiązanego rekordu `forms`. Jeżeli seed nadpisze ten sam rekord formularza, ponowne wygenerowanie starego PDF może użyć nowego mapowania lub szablonu.
+- Dla zmian prawnych, nowego układu PDF lub zmian wymagających pełnej odtwarzalności utwórz **nowy rekord formularza z nowym `code`** i pozostaw stary rekord oraz jego szablon w repozytorium jako nieaktywny.
 
 ### Jak postępować — według typu zmiany
 
@@ -345,7 +348,7 @@ SignaturePad (canvas)   schema_json.pdf_mapping pdf_mapping.checkboxes
 | Krok | Działanie |
 |------|-----------|
 | 1 | Edytuj `frontend/src/content/participantDeclarations.js` (`PARTICIPANT_DECLARATIONS`, ewentualnie `IMAGE_PUBLICATION_CONSENT_TEXT`). |
-| 2 | (Zalecane) Podnieś `version` w seedzie — np. `1.0` → `1.1`. |
+| 2 | Podnieś `version`. Jeśli treść ma znaczenie prawne i musi być odtwarzalna historycznie, utwórz nowy rekord formularza (`code`) zamiast nadpisywać poprzedni. |
 | 3 | Zbuduj ponownie reverse proxy (frontend jest w obrazie Caddy): `docker compose up -d --build reverse-proxy` |
 | 4 | Zaktualizuj rekord formularza w bazie: restart API (`docker compose restart api`) uruchomi seed, **albo** ręcznie `docker compose exec api uv run python scripts/seed_active_form.py` |
 
@@ -365,7 +368,7 @@ SignaturePad (canvas)   schema_json.pdf_mapping pdf_mapping.checkboxes
 | | • `pdf_mapping.text_fields` — mapowanie `{full_name}`, `{phone}`, … na nazwy pól PDF |
 | | • `pdf_mapping.checkboxes` — mapowanie ról/pojazdów na checkboxy |
 | | • `pdf_mapping.consents` — np. `image_publication` → nazwa checkboxa |
-| 4 | Podnieś `version`. |
+| 4 | Podnieś `version`. Jeżeli historyczne PDF-y mają być możliwe do ponownego wygenerowania, użyj nowego `code` formularza i zachowaj poprzedni rekord oraz plik PDF. |
 | 5 | Wdróż: skopiuj `templates/` na serwer, `docker compose restart api` (seed + migracja ścieżki), test PDF (poniżej). |
 
 Wspierane placeholdery tekstowe (m.in.): `full_name`, `identity_document`, `start_number`, `vehicle_brand_model`, `minor_full_name`, `signature_place` — pełna lista w `app/services/pdf_mapping.py` (`context`).
@@ -431,11 +434,203 @@ Na produkcji: po deployu wyślij **zgłoszenie testowe**, pobierz PDF (`GET /api
 | Podpis poza polem | Złe współrzędne `pdf_mapping.signature.rect` (układ PDF: origin często lewy górny róg, jednostki punktów). |
 | Nowe pole nie widać na tablecie | Brak w `schema_json.properties` / `required` lub brak w stałej `PERSONAL_DATA_FIELDS` (pola poza listą nie renderują się automatycznie). |
 | Stary regulamin na tablecie | Nie przebudowano obrazu `reverse-proxy` — frontend jest wbudowany w Caddy, nie montowany z hosta. |
-| Zgłoszenia sprzed zmiany „inne” niż nowe | Oczekiwane — `form_version` jest zamrożony per zgłoszenie. |
+| Stare zgłoszenie regeneruje się na nowym layoucie | Nadpisano rekord `forms`, z którego generator pobiera aktualne `schema_json` i `pdf_template_path`. Dla wersji prawnych/layoutowych używaj osobnych rekordów formularza i zachowuj stare szablony. |
 
 ### Kiedy tworzyć nowy rekord formularza zamiast nadpisywać seed
 
-Domyślny seed **aktualizuje** istniejący formularz o kodzie `guest-registration`. To wystarczy w większości przypadków.
+Domyślny seed **aktualizuje** istniejący formularz o kodzie `guest-registration`. Jest to wygodne dla zmian technicznych, ale nie zapewnia pełnego snapshotu konfiguracji historycznej.
 
-Rozważ **nowy `code`** (np. `guest-registration-2026`) i dezaktywację starego tylko gdy chcesz świadomie utrzymać dwa równoległe szablony — wymaga to wtedy zmiany `ACTIVE_FORM_CODE` w seedzie lub ręcznej edycji w bazie. Na co dzień wystarczy podbicie `version` i ewentualnie nowa nazwa pliku PDF.
+Użyj nowego `code` (np. `guest-registration-2026-v2`) zawsze, gdy zmienia się:
+
+- treść prawna oświadczenia lub regulaminu,
+- struktura zgód,
+- layout albo mapowanie PDF,
+- zestaw danych podpisywanych przez uczestnika,
+- sposób umieszczenia podpisu.
+
+Wtedy:
+
+1. ustaw nowy `ACTIVE_FORM_CODE`,
+2. zmień `code`, `version` i `pdf_template_path` w `ACTIVE_FORM_DATA`,
+3. zachowaj stary rekord formularza i stary plik PDF,
+4. uruchom seed — poprzedni formularz zostanie dezaktywowany, a nowy stanie się aktywny,
+5. wykonaj zgłoszenie testowe i sprawdź nowy oraz historyczny PDF.
+
+---
+
+## 9. Utrzymanie, backup, aktualizacje i awarie
+
+### 9.1 Backup i odtwarzanie
+
+Backup musi obejmować **bazę PostgreSQL**, katalog **`storage/`** oraz **`templates/`**. Sam backup bazy nie zawiera plików podpisów ani szablonów PDF.
+
+#### Backup bazy
+
+Poniższy wariant zapisuje dump w kontenerze, a potem kopiuje go na hosta. Zastąp `kiosk` wartościami z `.env`.
+
+```bash
+docker compose exec db pg_dump -U kiosk -d kiosk -Fc -f /tmp/kiosk.dump
+docker cp kiosk-postgres:/tmp/kiosk.dump ./backups/kiosk.dump
+```
+
+Następnie wykonaj kopię:
+
+- `storage/` — podpisy i pozostałe pliki aplikacji,
+- `templates/` — wszystkie historyczne szablony PDF,
+- `.env` — przechowuj zaszyfrowany i z ograniczonym dostępem; nie umieszczaj w Git,
+- informacji o wersji kodu, np. `git rev-parse HEAD`.
+
+#### Odtwarzanie bazy
+
+> Odtwarzanie nadpisuje dane. Najpierw wykonaj aktualny backup i zatrzymaj ruch z tabletów.
+
+```bash
+docker cp ./backups/kiosk.dump kiosk-postgres:/tmp/kiosk.dump
+docker compose exec db pg_restore -U kiosk -d kiosk --clean --if-exists /tmp/kiosk.dump
+```
+
+Po restore:
+
+1. przywróć zgodne katalogi `storage/` i `templates/`,
+2. uruchom `docker compose up -d`,
+3. sprawdź `/api/v1/health`,
+4. zaloguj się do panelu admina,
+5. pobierz historyczny PDF i wykonaj testowe zgłoszenie.
+
+#### Polityka backupów
+
+- Ustal częstotliwość adekwatną do liczby zgłoszeń (np. codziennie i przed każdym wdrożeniem).
+- Przechowuj co najmniej jedną kopię poza serwerem aplikacji.
+- Szyfruj kopie zawierające dane osobowe i podpisy.
+- Regularnie testuj **odtworzenie** — niezweryfikowany backup nie daje pewności odzyskania danych.
+- Udokumentuj właściciela backupu, retencję oraz datę ostatniego testu restore.
+
+### 9.2 Aktualizacja systemu
+
+Zalecana kolejność:
+
+1. Zapisz aktualny commit/tag: `git rev-parse HEAD`.
+2. Wykonaj backup bazy, `storage/` i `templates/`.
+3. Przejrzyj nowe migracje Alembic i zmiany `.env.example`.
+4. Pobierz zatwierdzoną wersję kodu.
+5. Zbuduj i uruchom:
+   ```bash
+   docker compose up -d --build
+   ```
+6. Sprawdź:
+   ```bash
+   docker compose ps
+   docker compose logs api
+   docker compose logs reverse-proxy
+   ```
+7. Zweryfikuj healthcheck, logowanie, formularz, PDF i testowy druk.
+8. Zapisz wdrożony commit/tag w dokumentacji operacyjnej.
+
+Nie wdrażaj bezpośrednio niezweryfikowanego brancha roboczego. Produkcja powinna wskazywać konkretny commit lub tag.
+
+### 9.3 Rollback po nieudanym wdrożeniu
+
+Rollback kodu:
+
+1. zatrzymaj przyjmowanie nowych zgłoszeń,
+2. zapisz logi i aktualny stan bazy,
+3. wróć do poprzedniego zatwierdzonego commita/tagu,
+4. przebuduj obrazy: `docker compose up -d --build`,
+5. wykonaj testy z sekcji weryfikacyjnej.
+
+Rollback bazy wykonuj tylko wtedy, gdy wymaga tego migracja:
+
+- preferuj migrację naprawczą do przodu,
+- `alembic downgrade` uruchamiaj dopiero po przejrzeniu konkretnej migracji,
+- przy nieodwracalnej lub ryzykownej migracji przywróć backup bazy oraz odpowiadające mu `storage/` i `templates/`,
+- nie łącz starego kodu z nowszym, niezgodnym schematem bazy.
+
+### 9.4 Monitoring i diagnostyka
+
+Podstawowe polecenia:
+
+```bash
+docker compose ps
+docker compose logs api
+docker compose logs reverse-proxy
+docker compose logs db
+docker compose logs printer-simulator
+```
+
+Do śledzenia bieżących logów dodaj `-f`, np. `docker compose logs api -f`.
+
+| Sygnał | Znaczenie / działanie |
+|--------|------------------------|
+| `/api/v1/health`: `database=error` | Sprawdź kontener DB, hasło, `DATABASE_URL` i migracje. |
+| `request_id` w odpowiedzi błędu | Wyszukaj ten identyfikator w logach API; nie trzeba udostępniać danych osobowych z formularza. |
+| `submitted` | Zgłoszenie zapisane, bez zakończonego druku. Przy `PRINT_ENABLED=false` jest to stan oczekiwany. |
+| `print_queued` / `printing` | Zadanie oczekuje lub jest wysyłane do drukarki. Długotrwały stan po restarcie może wymagać ponowienia przez admina. |
+| `print_done` | Strumień został wysłany do drukarki; nie jest to gwarancja fizycznego wydruku. |
+| `print_failed` | Sprawdź `last_error`, połączenie TCP i ponów druk z panelu. |
+| „Drukarka: BŁĄD” | Brak połączenia TCP z `PRINTER_HOST:PRINTER_PORT`; flaga `PRINT_ENABLED` nie wpływa na ten status. |
+
+Nie loguj treści podpisów base64, haseł, JWT, `KIOSK_TOKEN` ani pełnych danych osobowych.
+
+### 9.5 Ograniczenia architektury
+
+- Druk automatyczny działa w **FastAPI `BackgroundTasks`**, bez Redis/Celery i bez osobnego workera.
+- Restart lub awaria procesu API może przerwać niezakończone zadanie. Stan może pozostać `queued`/`printing`; admin powinien sprawdzić kolejkę i ponowić druk.
+- Nie ma automatycznego odzyskiwania wszystkich przerwanych zadań po restarcie ani gwarancji exactly-once — ponowienie może spowodować drugi fizyczny wydruk.
+- Status drukarki sprawdza połączenie **TCP 9100**. Nie wykrywa braku papieru, tonera, zacięcia ani błędu urządzenia, jeśli drukarka nie raportuje tego przez ten kanał.
+- `print_done` oznacza poprawne wysłanie danych przez socket, a nie potwierdzenie odebrania kartki przez użytkownika.
+- System ma jeden aktywny formularz (`uq_forms_one_active`).
+- Seed formularza uruchamia się przy każdym starcie API i może nadpisać rekord o tym samym `code`.
+- Nie ma wbudowanego harmonogramu backupów ani self-service odzyskiwania hasła.
+- Frontend produkcyjny jest obecnie w JS/JSX; obecność TypeScript w zależnościach nie oznacza pełnego typowania aplikacji.
+
+### 9.6 Zarządzanie kontami administratorów
+
+- Pierwszego admina utwórz zgodnie z sekcją produkcyjną, a potem zweryfikuj dostęp do `/admin`.
+- Każdy administrator powinien mieć własne konto — nie używaj współdzielonego loginu.
+- Odbieranie uprawnień:
+  ```bash
+  docker compose exec db psql -U kiosk -d kiosk -c \
+    "UPDATE users SET is_superuser = false WHERE email = 'admin@example.com';"
+  ```
+- Po odejściu administratora odbierz uprawnienia lub dezaktywuj konto i zmień współdzielone sekrety, jeśli miał do nich dostęp.
+- Nie ma kompletnego procesu self-service resetu hasła; procedura odzyskania dostępu musi być wykonywana przez uprawnionego operatora i udokumentowana.
+- Ogranicz dostęp do panelu admina, hosta Docker, bazy, backupów oraz `.env` do niezbędnych osób.
+
+### 9.7 Retencja danych i RODO
+
+Projekt przechowuje dane osobowe, dokumenty tożsamości, podpisy oraz historię zgłoszeń. README nie narzuca okresu retencji — musi go zatwierdzić administrator danych / osoba odpowiedzialna prawnie.
+
+Polityka organizacji powinna określać:
+
+- podstawę prawną i okres przechowywania każdego rodzaju danych,
+- kto może przeglądać, eksportować i usuwać dane,
+- okres przechowywania backupów i sposób ich bezpiecznego niszczenia,
+- procedurę realizacji żądania dostępu, sprostowania, ograniczenia lub usunięcia,
+- wyjątki, gdy dokument musi być zachowany z powodów prawnych,
+- rejestr operacji administracyjnych i incydentów.
+
+Nie usuwaj ręcznie pojedynczego pliku podpisu bez sprawdzenia powiązanego zgłoszenia i obowiązków prawnych. Usunięcie/anonymizacja powinny objąć spójnie bazę, `storage/`, wygenerowane dokumenty i — po upływie retencji — backupy.
+
+### 9.8 Macierz środowisk
+
+| Obszar | Development | Production |
+|--------|-------------|------------|
+| `APP_ENV` / `DEBUG` | `development` / opcjonalnie `true` | `production` / `false` |
+| Sekrety | Lokalne, nadal poza Git | Losowe, silne, zarządzane jako sekret |
+| Drukarka | `printer-simulator` | Fizyczny `PRINTER_HOST:9100` |
+| PostgreSQL | Port 5432 może być wystawiony lokalnie | Tylko sieć Docker lub bind do `127.0.0.1` |
+| HTTPS | Caddy `tls internal` / localhost | Caddy + zaufany certyfikat na tabletach |
+| Swagger | Dostępny poza `production` | Wyłączony przez FastAPI |
+| Frontend | Vite/dev lub rebuild Caddy | Statyczny build w obrazie Caddy |
+| Backup | Dane testowe | Obowiązkowy, szyfrowany i okresowo odtwarzany |
+
+### 9.9 Skrócona checklista awaryjna
+
+1. Nie restartuj wszystkiego bez zapisania logów i aktualnego stanu.
+2. Sprawdź `docker compose ps` oraz `/api/v1/health`.
+3. Zapisz `request_id`, czas błędu, identyfikator zgłoszenia i status zadania druku.
+4. Sprawdź logi właściwej usługi.
+5. Jeśli dane są zagrożone — zatrzymaj przyjmowanie zgłoszeń i wykonaj backup.
+6. Po naprawie wykonaj test formularza, PDF i druku.
+7. Udokumentuj przyczynę, podjęte działania i ewentualne dane wymagające ponownego przetworzenia.
 
