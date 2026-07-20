@@ -165,7 +165,8 @@ Aplikacja komunikuje się bezpośrednio z drukarką sieciową przy użyciu proto
          PRINTER_HOST: ${PRINTER_HOST:-192.168.1.100}
          PRINTER_PORT: ${PRINTER_PORT:-9100}
    ```
-3. Upewnij się, że w pliku `.env` zmienna `PRINT_ENABLED` ma wartość `true`.
+3. Ustaw `PRINTER_HOST` / `PRINTER_PORT` w `.env` lub `docker-compose.yml`.
+4. `PRINT_ENABLED=true` — użytkownik po rejestracji dostaje auto-druk; `false` — druk tylko z panelu admina (status połączenia z drukarką jest niezależny).
 
 ### Urządzenie Kiosk (Tablet)
 * **Połączenie:** Tablet kliencki musi być podłączony do tej samej sieci lokalnej (Wi-Fi) co serwer. Dostęp do aplikacji uzyskujemy wpisując w przeglądarce lokalny adres IP serwera (np. `https://192.168.1.50`).

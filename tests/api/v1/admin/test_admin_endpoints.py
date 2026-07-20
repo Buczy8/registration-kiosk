@@ -324,7 +324,8 @@ def test_get_system_status_returns_api_and_db_flags(client: TestClient, monkeypa
             "checked_at": datetime.now(UTC),
             "api_ok": True,
             "db_ok": True,
-            "printer_ok": True,
+            "print_enabled": True,
+            "printer_status": "ok",
         }
 
     monkeypatch.setattr("app.services.admin.get_admin_system_status", _fake_status)
@@ -335,7 +336,8 @@ def test_get_system_status_returns_api_and_db_flags(client: TestClient, monkeypa
     data = response.json()
     assert data["api_ok"] is True
     assert data["db_ok"] is True
-    assert data["printer_ok"] is True
+    assert data["print_enabled"] is True
+    assert data["printer_status"] == "ok"
 
 
 def test_lock_user_account(client: TestClient):

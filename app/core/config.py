@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     printer_host: str = "localhost"
     printer_port: int = 9100
     print_enabled: bool = True
+    # Samodzielny druk użytkownika po wysłaniu formularza (auto-druk w tle).
+    # false = tylko admin drukuje z panelu; true = zgłoszenie od razu trafia na drukarkę.
+    # Nie wpływa na status połączenia z drukarką ani na druk przez admina.
     # Symulacja drukowania (brak fizycznej drukarki na dev/lokalnie).
     # Domyślnie: od razu sukces (żeby nie wydłużać testów).
     print_simulation_delay_seconds: float = Field(default=0, ge=0)

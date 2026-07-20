@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from app.core.config import Settings
-from app.services.printer import get_printer_health, send_print_job
+from app.services.printer import get_printer_connection_status, get_printer_health, send_print_job
 
 @pytest.fixture
 async def temp_printer_server():
@@ -58,13 +58,15 @@ async def test_printer_healthcheck_failed():
     assert get_printer_health(settings) is False
 
 @pytest.mark.asyncio
-async def test_printer_healthcheck_disabled():
+async def test_printer_healthcheck_disabled_still_checks_connection(temp_printer_server):
+    host, port, _ = temp_printer_server
     settings = Settings(
         print_enabled=False,
-        printer_host='127.0.0.1',
-        printer_port=9999
+        printer_host=host,
+        printer_port=port,
     )
-    assert get_printer_health(settings) is False
+    assert get_printer_connection_status(settings) == "ok"
+    assert get_printer_health(settings) is True
 
 @pytest.mark.asyncio
 async def test_printer_print_success(temp_printer_server):
@@ -80,6 +82,21 @@ async def test_printer_print_success(temp_printer_server):
     await asyncio.sleep(0.1)
     assert len(received_data) == 1
     assert received_data[0] == test_pdf
+
+@pytest.mark.asyncio
+async def test_printer_print_respects_user_print_flag(temp_printer_server):
+    host, port, received_data = temp_printer_server
+    settings = Settings(
+        print_enabled=False,
+        printer_host=host,
+        printer_port=port,
+    )
+    with pytest.raises(RuntimeError, match="User printing is disabled"):
+        await send_print_job(pdf_bytes=b"data", settings=settings)
+
+    await send_print_job(pdf_bytes=b"data", settings=settings, force=True)
+    await asyncio.sleep(0.1)
+    assert len(received_data) == 1
 
 @pytest.mark.asyncio
 async def test_printer_print_connection_error():

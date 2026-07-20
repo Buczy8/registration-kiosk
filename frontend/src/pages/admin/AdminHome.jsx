@@ -109,8 +109,21 @@ export default function AdminHome() {
               <span className={`admin-status-pill ${systemStatus?.db_ok ? "admin-status-pill--ok" : "admin-status-pill--error"}`}>
                 Baza: {systemStatus?.db_ok ? "OK" : "BŁĄD"}
               </span>
-              <span className={`admin-status-pill ${systemStatus?.printer_ok ? "admin-status-pill--ok" : "admin-status-pill--error"}`}>
-                Drukarka: {systemStatus?.printer_ok ? "OK" : "BŁĄD"}
+              <span
+                className={`admin-status-pill ${
+                  systemStatus?.printer_status === "ok"
+                    ? "admin-status-pill--ok"
+                    : "admin-status-pill--error"
+                }`}
+              >
+                Drukarka: {systemStatus?.printer_status === "ok" ? "OK" : "BŁĄD"}
+              </span>
+              <span
+                className={`admin-status-pill ${
+                  systemStatus?.print_enabled ? "admin-status-pill--ok" : "admin-status-pill--neutral"
+                }`}
+              >
+                Druk użytkownika: {systemStatus?.print_enabled ? "włączony" : "wyłączony"}
               </span>
             </div>
           </div>

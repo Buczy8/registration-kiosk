@@ -736,6 +736,12 @@ select {
   border-color: #fca5a5 !important;
 }
 
+.admin-status-pill--neutral {
+  background-color: #f3f4f6 !important;
+  color: #4b5563 !important;
+  border-color: #d1d5db !important;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

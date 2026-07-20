@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -138,4 +138,5 @@ class AdminSystemStatus(BaseModel):
     checked_at: datetime
     api_ok: bool
     db_ok: bool
-    printer_ok: bool
+    print_enabled: bool
+    printer_status: Literal["ok", "error"]
