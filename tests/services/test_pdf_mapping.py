@@ -112,3 +112,21 @@ def test_get_guest_submission_pdf_mapping_maps_guardian_relation():
         )
     )
     assert "checkbox_20ajne" not in empty_mapping.checked_fields
+
+
+def test_get_guest_submission_pdf_mapping_handles_none_values():
+    mapping = get_guest_submission_pdf_mapping(
+        _submission(
+            payload_json={
+                "first_name": "Jan",
+                "last_name": None,
+                "pesel": "90010112345",
+                "vehicle_brand": None,
+                "vehicle_model": "M3",
+            }
+        )
+    )
+    # last_name is None, so full_name template "{full_name}" (first_name + last_name) should format as "Jan" without "None"
+    assert mapping.text_values["text_10hcx"] == "Jan"
+    # vehicle_brand is None, so vehicle_brand_model template should format as "M3" without "None"
+    assert mapping.text_values["text_18dulx"] == "M3"

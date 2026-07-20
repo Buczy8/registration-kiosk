@@ -64,7 +64,8 @@ def get_guest_submission_pdf_mapping(submission: Submission) -> PdfFieldMapping:
     if not context.get("signature_place"):
         context["signature_place"] = submission.sequence_date.isoformat()
         
-    safe_context = SafePayload(context)
+    cleaned_context = {k: (v if v is not None else "") for k, v in context.items()}
+    safe_context = SafePayload(cleaned_context)
 
     text_values = {
         pdf_field: template.format_map(safe_context).strip()
