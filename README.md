@@ -13,6 +13,7 @@ KioskAPI to zlokalizowany system rejestracji uczestników, automatycznego genero
 5. [Konfiguracja urządzeń zewnętrznych](#5-konfiguracja-urządzeń-zewnętrznych)
 6. [Rozwój i testowanie](#6-rozwój-i-testowanie)
 7. [Zasady bezpieczeństwa i RODO](#7-zasady-bezpieczeństwa-i-rodo)
+8. [Zmiany formularza, PDF i regulaminu](#8-zmiany-formularza-pdf-i-regulaminu)
 
 ---
 
@@ -303,3 +304,138 @@ uv run alembic upgrade head
 - **Wersjonowanie formularza:** każde zgłoszenie wiązane z `form_version` w bazie.
 
 Dalsze kontrakty API i backlog: katalog `documentation/` (m.in. `API_Contract_MVP.md`, `account-mode-tasks.md`).
+
+---
+
+## 8. Zmiany formularza, PDF i regulaminu
+
+Formularz rejestracyjny składa się z **kilku warstw**. Przy każdej zmianie trzeba wiedzieć, której warstwy dotyczy — inaczej kiosk, PDF lub druk będą niespójne.
+
+### Warstwy — co za co odpowiada
+
+| Warstwa | Gdzie w repo | Co kontroluje |
+|---------|--------------|---------------|
+| **Treść regulaminu / oświadczeń (UI)** | `frontend/src/content/participantDeclarations.js` | Tekst przewijany na tablecie przed wysłaniem (`DeclarationsPanel`). |
+| **Pola formularza na tablecie** | `scripts/seed_active_form.py` → `schema_json` (+ częściowo `frontend/src/lib/registrationFormShared.js`) | Jakie pola są wymagane, etykiety, walidacja PESEL itd. Kiosk pobiera schemat z API (`GET /api/v1/kiosk/forms/active`). |
+| **Szablon PDF (layout, checkboxy, podpis)** | `templates/forms/*.pdf` + `schema_json.pdf_mapping` w seedzie | Wygląd wydruku, pozycja podpisu, nazwy pól AcroForm w PDF. |
+| **Mapowanie danych → PDF** | `app/services/pdf_mapping.py` + sekcja `pdf_mapping` w `schema_json` | Które dane z formularza trafiają do którego pola/checkboxa w PDF. |
+| **Wersja formularza** | pole `version` w tabeli `forms` (seed) | Każde zgłoszenie zapisuje `form_version` z momentu wysłania — **stare PDF-y się nie zmieniają**. |
+
+```text
+Tablet (React)          Backend (seed / DB)           Wydruk (PDF)
+─────────────────       ───────────────────           ──────────────
+participantDeclarations schema_json.required    pdf_template_path
+registrationSchemas.js  schema_json.properties  pdf_mapping.text_fields
+SignaturePad (canvas)   schema_json.pdf_mapping pdf_mapping.checkboxes
+                        version                   pdf_mapping.signature
+```
+
+### Zasada wersjonowania
+
+- **Podnieś `version`** w `scripts/seed_active_form.py` (np. `1.0` → `1.1`) przy każdej zmianie prawnej lub layoutu PDF — ułatwia audyt i rozróżnienie zgłoszeń.
+- Przy większej przebudowie PDF warto nowy plik, np. `guest-registration-v2.pdf`, i zaktualizować `pdf_template_path`.
+- **Nie edytuj** historycznych zgłoszeń — mają zamrożone `form_id` / `form_version`. Nowy układ obowiązuje tylko od kolejnych rejestracji.
+
+### Jak postępować — według typu zmiany
+
+#### A. Tylko treść regulaminu (np. nowy punkt oświadczenia)
+
+**Dotyczy:** dodanie/zmiana akapitu w sekcji „Oświadczenia”, bez zmiany pól ani PDF.
+
+| Krok | Działanie |
+|------|-----------|
+| 1 | Edytuj `frontend/src/content/participantDeclarations.js` (`PARTICIPANT_DECLARATIONS`, ewentualnie `IMAGE_PUBLICATION_CONSENT_TEXT`). |
+| 2 | (Zalecane) Podnieś `version` w seedzie — np. `1.0` → `1.1`. |
+| 3 | Zbuduj ponownie reverse proxy (frontend jest w obrazie Caddy): `docker compose up -d --build reverse-proxy` |
+| 4 | Zaktualizuj rekord formularza w bazie: restart API (`docker compose restart api`) uruchomi seed, **albo** ręcznie `docker compose exec api uv run python scripts/seed_active_form.py` |
+
+> Jeśli **ten sam tekst** musi być na **fizycznym PDF**, trzeba też wyedytować szablon PDF (punkt B) — samo UI go nie zmieni.
+
+#### B. Zmiana layoutu PDF (inna pozycja podpisu, przesunięte pola, nowe checkboxy na wydruku)
+
+**Dotyczy:** nowy/edytowany plik PDF od grafika/prawnika.
+
+| Krok | Działanie |
+|------|-----------|
+| 1 | Przygotuj nowy szablon z polami formularza AcroForm (Adobe Acrobat, LibreOffice PDF, itp.). Zanotuj **wewnętrzne nazwy pól** (np. `text_10hcx`, `checkbox_7agj`) — w PyMuPDF: `page.widgets()` / podgląd w edytorze PDF. |
+| 2 | Zapisz plik w `templates/forms/` (np. `guest-registration-v2.pdf`). |
+| 3 | W `scripts/seed_active_form.py` zaktualizuj: |
+| | • `pdf_template_path` — ścieżka do nowego pliku |
+| | • `schema_json.pdf_mapping.signature` — `page` (0 = pierwsza strona) i `rect` `[x0, y0, x1, y1]` obszaru podpisu |
+| | • `pdf_mapping.text_fields` — mapowanie `{full_name}`, `{phone}`, … na nazwy pól PDF |
+| | • `pdf_mapping.checkboxes` — mapowanie ról/pojazdów na checkboxy |
+| | • `pdf_mapping.consents` — np. `image_publication` → nazwa checkboxa |
+| 4 | Podnieś `version`. |
+| 5 | Wdróż: skopiuj `templates/` na serwer, `docker compose restart api` (seed + migracja ścieżki), test PDF (poniżej). |
+
+Wspierane placeholdery tekstowe (m.in.): `full_name`, `identity_document`, `start_number`, `vehicle_brand_model`, `minor_full_name`, `signature_place` — pełna lista w `app/services/pdf_mapping.py` (`context`).
+
+Brakujące pole w payloadzie **nie psuje** generowania — w PDF wstawia się pusty string (`SafePayload`).
+
+#### C. Więcej / mniej checkboxów lub pól na tablecie (nie tylko na PDF)
+
+**Dotyczy:** nowe pole „Nr licencji”, dodatkowa zgoda, usunięcie pola.
+
+| Obszar | Pliki |
+|--------|-------|
+| Schemat API / walidacja BE | `scripts/seed_active_form.py` — `properties`, `required` |
+| Lista pól osobowych | `frontend/src/lib/registrationFormShared.js` — `PERSONAL_DATA_FIELDS`, `VEHICLE_DATA_FIELDS`, `GUARDIAN_FIELDS` |
+| Walidacja FE | `frontend/src/lib/registrationSchemas.js` |
+| Nowa zgoda (checkbox) | `participantDeclarations.js`, `GuestRegistrationForm.jsx`, `registrationFormShared.js` (`consents_json`), `pdf_mapping.consents` w seedzie |
+| Checkbox na PDF | `pdf_mapping.checkboxes` lub `consents` + nowy widget w szablonie PDF |
+
+Po zmianach: **rebuild frontendu** (jeśli UI) + **seed** (jeśli schemat) + test E2E (wypełnij formularz → podgląd PDF).
+
+#### D. Zmiana ról, typów pojazdów lub typów opiekuna
+
+Wartości enumów są na backendzie (`ParticipantRole`, `VehicleType`). Na frontendzie: `registrationFormShared.js` (`PARTICIPANT_ROLES`, `VEHICLE_TYPES`, `GUARDIAN_RELATIONS`).
+
+W `pdf_mapping.checkboxes` klucze muszą odpowiadać wartościom enum (np. `"driver"` → nazwa checkboxa w PDF). Zmiana wymaga spójności **FE + seed + PDF**.
+
+### Wdrożenie zmian na produkcji (checklist)
+
+1. Zmiany w kodzie / szablonach na serwerze (git pull lub kopiowanie plików).
+2. Nowy PDF → upewnij się, że wolumen `./templates` na hoście zawiera plik.
+3. **Backend / schemat:** `docker compose restart api` (entrypoint odpala seed — nadpisuje aktywny formularz o kodzie `guest-registration`).
+4. **Frontend:** `docker compose up -d --build reverse-proxy` (statyczne pliki + ewentualny `KIOSK_IDLE_LOGOUT_SECONDS`).
+5. Na tablecie: twarde odświeżenie cache (Ctrl+F5) lub tryb prywatny.
+6. Test: jedno zgłoszenie testowe → podgląd PDF → opcjonalnie druk próbny z panelu admina.
+
+### Weryfikacja po zmianie
+
+```bash
+# Testy mapowania PDF (lokalnie)
+uv run pytest tests/services/test_pdf_mapping.py tests/services/test_pdf.py -q
+
+# Ręczny seed (gdy API już działa)
+docker compose exec api uv run python scripts/seed_active_form.py
+
+# Sprawdzenie aktywnej wersji — w UI kiosku w nagłówku formularza:
+# „Wersja formularza: X.Y” (pole form.version z API)
+```
+
+Na produkcji: po deployu wyślij **zgłoszenie testowe**, pobierz PDF (`GET /api/v1/kiosk/submissions/{id}/pdf` lub podgląd na ekranie wyniku) i sprawdź:
+
+- czy wszystkie pola tekstowe są na właściwych miejscach,
+- czy zaznaczone są właściwe checkboxy (rola, pojazd, zgody),
+- czy podpis jest w nowym prostokącie,
+- czy numer startowy i data się zgadzają.
+
+### Częste błędy
+
+| Problem | Przyczyna |
+|---------|-----------|
+| PDF 500 / „template not found” | Brak pliku pod `pdf_template_path` w `templates/forms/` na serwerze. |
+| Puste pole na PDF mimo wypełnienia na tablecie | Zła nazwa w `pdf_mapping.text_fields` (literówka w nazwie widgetu PDF). |
+| Checkbox nie zaznaczony | Brak wpisu w `pdf_mapping.checkboxes` / `consents` lub inna wartość enum niż w mapowaniu. |
+| Podpis poza polem | Złe współrzędne `pdf_mapping.signature.rect` (układ PDF: origin często lewy górny róg, jednostki punktów). |
+| Nowe pole nie widać na tablecie | Brak w `schema_json.properties` / `required` lub brak w stałej `PERSONAL_DATA_FIELDS` (pola poza listą nie renderują się automatycznie). |
+| Stary regulamin na tablecie | Nie przebudowano obrazu `reverse-proxy` — frontend jest wbudowany w Caddy, nie montowany z hosta. |
+| Zgłoszenia sprzed zmiany „inne” niż nowe | Oczekiwane — `form_version` jest zamrożony per zgłoszenie. |
+
+### Kiedy tworzyć nowy rekord formularza zamiast nadpisywać seed
+
+Domyślny seed **aktualizuje** istniejący formularz o kodzie `guest-registration`. To wystarczy w większości przypadków.
+
+Rozważ **nowy `code`** (np. `guest-registration-2026`) i dezaktywację starego tylko gdy chcesz świadomie utrzymać dwa równoległe szablony — wymaga to wtedy zmiany `ACTIVE_FORM_CODE` w seedzie lub ręcznej edycji w bazie. Na co dzień wystarczy podbicie `version` i ewentualnie nowa nazwa pliku PDF.
+
