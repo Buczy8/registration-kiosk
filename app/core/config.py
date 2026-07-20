@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     printer_host: str = "localhost"
     printer_port: int = 9100
     print_enabled: bool = True
+    printer_use_pjl: bool = True
     # Samodzielny druk użytkownika po wysłaniu formularza (auto-druk w tle).
     # false = tylko admin drukuje z panelu; true = zgłoszenie od razu trafia na drukarkę.
     # Nie wpływa na status połączenia z drukarką ani na druk przez admina.

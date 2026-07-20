@@ -74,7 +74,8 @@ async def test_printer_print_success(temp_printer_server):
     settings = Settings(
         print_enabled=True,
         printer_host=host,
-        printer_port=port
+        printer_port=port,
+        printer_use_pjl=False
     )
     test_pdf = b"%PDF-1.4 ... test pdf data"
     await send_print_job(pdf_bytes=test_pdf, settings=settings)
@@ -84,12 +85,31 @@ async def test_printer_print_success(temp_printer_server):
     assert received_data[0] == test_pdf
 
 @pytest.mark.asyncio
+async def test_printer_print_success_with_pjl(temp_printer_server):
+    host, port, received_data = temp_printer_server
+    settings = Settings(
+        print_enabled=True,
+        printer_host=host,
+        printer_port=port,
+        printer_use_pjl=True
+    )
+    test_pdf = b"%PDF-1.4"
+    await send_print_job(pdf_bytes=test_pdf, settings=settings)
+    
+    await asyncio.sleep(0.1)
+    assert len(received_data) == 1
+    assert b"@PJL SET PAPER=A4" in received_data[0]
+    assert b"@PJL SET MEDIATYPE=PLAIN" in received_data[0]
+    assert test_pdf in received_data[0]
+
+@pytest.mark.asyncio
 async def test_printer_print_respects_user_print_flag(temp_printer_server):
     host, port, received_data = temp_printer_server
     settings = Settings(
         print_enabled=False,
         printer_host=host,
         printer_port=port,
+        printer_use_pjl=False
     )
     with pytest.raises(RuntimeError, match="User printing is disabled"):
         await send_print_job(pdf_bytes=b"data", settings=settings)
@@ -97,6 +117,7 @@ async def test_printer_print_respects_user_print_flag(temp_printer_server):
     await send_print_job(pdf_bytes=b"data", settings=settings, force=True)
     await asyncio.sleep(0.1)
     assert len(received_data) == 1
+    assert received_data[0] == b"data"
 
 @pytest.mark.asyncio
 async def test_printer_print_connection_error():

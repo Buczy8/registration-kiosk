@@ -60,9 +60,10 @@ services:
       START_NUMBER_TIMEZONE: ${START_NUMBER_TIMEZONE:-Europe/Warsaw}
       STORAGE_ROOT: /app/storage
       FORM_TEMPLATES_DIR: /app/templates/forms
-      PRINTER_HOST: ${PRINTER_HOST:-printer-simulator}
+      PRINTER_HOST: ${PRINTER_HOST:-localhost}
       PRINTER_PORT: ${PRINTER_PORT:-9100}
       PRINT_ENABLED: ${PRINT_ENABLED:-true}
+      PRINTER_USE_PJL: ${PRINTER_USE_PJL:-true}
     expose:
       - "8000"
     volumes:
@@ -81,21 +82,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 40s
-
-
-  printer-simulator:
-    image: python:3.12-alpine
-    container_name: kiosk-printer-simulator
-    restart: unless-stopped
-    volumes:
-      - ./infrastructure/printer_simulator:/app
-      - ./storage:/storage
-    environment:
-      PORT: 9100
-      OUTPUT_DIR: /storage/printed_files
-    ports:
-      - "9100:9100"
-    command: python /app/printer_server.py
 
 
 volumes:

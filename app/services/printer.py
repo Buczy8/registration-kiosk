@@ -90,7 +90,18 @@ async def send_print_job(*, pdf_bytes: bytes, settings: Settings, force: bool = 
         )
 
     try:
-        writer.write(pdf_bytes)
+        payload = pdf_bytes
+        if settings.printer_use_pjl:
+            pjl_header = (
+                b"\x1b%-12345X@PJL\r\n"
+                b"@PJL SET PAPER=A4\r\n"
+                b"@PJL SET MEDIATYPE=PLAIN\r\n"
+                b"@PJL ENTER LANGUAGE=PDF\r\n"
+            )
+            pjl_footer = b"\x1b%-12345X\r\n"
+            payload = pjl_header + pdf_bytes + pjl_footer
+
+        writer.write(payload)
         await asyncio.wait_for(writer.drain(), timeout=5.0)
         logger.info("Print job sent successfully")
     except Exception as e:
