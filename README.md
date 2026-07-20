@@ -1,222 +1,305 @@
 # KioskAPI — Kompleksowa Dokumentacja Systemu
 
-KioskAPI to zlokalizowany system rejestracji uczestników, automatycznego generowania cyfrowych oświadczeń (PDF) z odręcznymi podpisami oraz ich bezobsługowego drukowania. System został zaprojektowany z myślą o instalacji na lokalnym serwerze (on-premise) obsługującym stanowiska samoobsługowe (tablety w trybie kiosku) na torach kartingowych, obiektach sportowych i szkoleniowych (np. Autodrom Biłgoraj).
+KioskAPI to zlokalizowany system rejestracji uczestników, automatycznego generowania cyfrowych oświadczeń (PDF) z odręcznymi podpisami oraz drukowania na drukarce LAN. System jest przeznaczony do instalacji on-premise (serwer w sieci lokalnej + tablety w trybie kiosku), np. na torach kartingowych i obiektach sportowych.
 
 ---
 
-## Spis Treści
-1. [Architektura Systemu](#1-architektura-systemu)
-2. [Struktura Projektu](#2-struktura-projektu)
-3. [Przepływy Informacji (Flows)](#3-przepływy-informacji-flows)
-4. [Dokumentacja Uruchomieniowa (Deployment)](#4-dokumentacja-uruchomieniowa-deployment)
-5. [Konfiguracja Urządzeń Zewnętrznych](#5-konfiguracja-urządzeń-zewnętrznych)
-6. [Rozwój i Testowanie (Development)](#6-rozwój-i-testowanie-development)
-7. [Zasady Bezpieczeństwa i RODO](#7-zasady-bezpieczeństwa-i-rodo)
+## Spis treści
+
+1. [Architektura systemu](#1-architektura-systemu)
+2. [Struktura projektu](#2-struktura-projektu)
+3. [Przepływy informacji](#3-przepływy-informacji)
+4. [Uruchomienie produkcyjne](#4-uruchomienie-produkcyjne)
+5. [Konfiguracja urządzeń zewnętrznych](#5-konfiguracja-urządzeń-zewnętrznych)
+6. [Rozwój i testowanie](#6-rozwój-i-testowanie)
+7. [Zasady bezpieczeństwa i RODO](#7-zasady-bezpieczeństwa-i-rodo)
 
 ---
 
-## 1. Architektura Systemu
+## 1. Architektura systemu
 
-System działa w pełni lokalnie (offline) w obrębie sieci LAN, eliminując zależność od połączenia z internetem. Do komunikacji i izolacji wykorzystuje zestaw kontenerów Docker Compose.
+System działa lokalnie w sieci LAN. Orkiestracja: **Docker Compose**.
 
 ```mermaid
 graph TD
-    subgraph Kiosk (Tablet)
-        SPA[React / Vite Application]
+    subgraph Kiosk["Tablet (przeglądarka)"]
+        SPA["React / Vite (statyczne pliki z Caddy)"]
     end
 
-    subgraph Serwer Lokalny (Docker Compose)
-        Proxy[Caddy Reverse Proxy: port 80/443]
-        API[FastAPI Backend: port 8000]
-        DB[(PostgreSQL 15)]
-        Redis[(Redis)]
-        Worker[Celery / Background Workers]
-        Sim[Printer Simulator: port 9100]
+    subgraph Docker["Serwer — Docker Compose"]
+        Proxy["Caddy reverse proxy :80 / :443"]
+        API["FastAPI :8000"]
+        DB[("PostgreSQL 15")]
+        Sim["Printer simulator :9100 (tylko dev/test)"]
     end
 
-    subgraph Urządzenia Sieciowe
-        RealPrinter[Fizyczna Drukarka LAN: port 9100]
+    subgraph LAN["Sieć lokalna"]
+        Printer["Drukarka RAW TCP :9100"]
     end
 
-    SPA -- "HTTPS (Lokalne IP)" --> Proxy
-    Proxy -- "Wstrzykuje X-Kiosk-Token & Serwuje Front" --> API
-    API -- "Odczyt/Zapis (Asyncpg)" --> DB
-    API -- "Kolejkowanie Zadań" --> Redis
-    Worker -- "Obsługa Zadań Druku" --> Redis
-    Worker -- "RAW Socket TCP (Wydruk)" --> RealPrinter
-    Worker -- "Opcjonalna Symulacja" --> Sim
+    SPA -->|"HTTPS"| Proxy
+    Proxy -->|"X-Kiosk-Token + /api/*"| API
+    Proxy -->|"pliki statyczne"| SPA
+    API --> DB
+    API -->|"auto-druk w tle (BackgroundTasks)"| Printer
+    API -.->|"compose dev"| Sim
 ```
 
-### Opis komponentów systemu:
-* **Caddy (Reverse Proxy):** Działa jako brama wejściowa. Obsługuje ruch HTTPS (generując wewnętrzny certyfikat SSL za pomocą `tls internal`), serwuje skompilowane pliki statyczne frontendu React oraz przekazuje zapytania API do backendu. Dodatkowo wstrzykuje nagłówek `X-Kiosk-Token` do zapytań API (szczegóły w pliku [Caddyfile](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/infrastructure/caddy/Caddyfile)).
-* **FastAPI Backend:** Asynchroniczna aplikacja Python obsługująca punkty końcowe REST API. Odpowiada za walidację danych, zarządzanie użytkownikami, uwierzytelnianie (JWT) oraz generowanie dokumentów PDF.
-* **PostgreSQL:** Lokalna baza danych przechowująca informacje o użytkownikach, podopiecznych, szablonach formularzy i historii zgłoszeń.
-* **Redis & Celery:** Kolejka zadań asynchronicznych dedykowana do obsługi zadań drukowania. Zapobiega blokowaniu interfejsu klienta podczas fizycznego przetwarzania dokumentu przez drukarkę.
-* **Printer Simulator:** Skrypt Python nasłuchujący na porcie 9100, który przechwytuje strumień wydruku RAW i zapisuje go w formacie PDF w celach testowych (szczegóły w pliku [printer_server.py](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/infrastructure/printer_simulator/printer_server.py)).
+### Komponenty
+
+| Usługa | Rola |
+|--------|------|
+| **reverse-proxy (Caddy)** | HTTPS (`tls internal`), serwowanie zbudowanego frontendu, proxy `/api/*` do API, **wstrzykiwanie nagłówka `X-Kiosk-Token`** (token nie trafia do bundla JS). |
+| **api (FastAPI)** | REST API, JWT w HttpOnly cookie, generowanie PDF (PyMuPDF), zapis podpisów, kolejka druku w **FastAPI `BackgroundTasks`** (in-process, nie osobny worker). |
+| **db (PostgreSQL)** | Użytkownicy, formularze, zgłoszenia, zadania druku (`print_jobs`). |
+| **printer-simulator** | Opcjonalny symulator portu 9100 — zapisuje strumień RAW do `storage/printed_files`. W produkcji zwykle **wyłączony**; API kieruje się na fizyczną drukarkę. |
+
+> **Uwaga:** W `app/core/config.py` są pola `redis_url` / `celery_*` — to **rezerwa na przyszłość**, obecnie **nie są używane** w runtime ani w `docker-compose.yml`.
 
 ---
 
-## 2. Struktura Projektu
-
-Układ katalogów i kluczowych plików w repozytorium:
+## 2. Struktura projektu
 
 ```text
 KioskAPI/
-├── alembic/                       # Migracje bazy danych (Alembic)
-├── app/                           # Kod źródłowy backendu FastAPI
-│   ├── api/v1/                    # Punkty końcowe API (kiosk, auth, me, admin)
-│   ├── core/                      # Konfiguracja, zabezpieczenia, middleware
-│   ├── db/                        # Inicjalizacja sesji bazy danych
-│   ├── models/                    # Modele bazodanowe SQLAlchemy
-│   ├── schemas/                   # Schematy walidacyjne Pydantic
-│   └── services/                  # Logika biznesowa (PDF, drukarka, podpisy)
-├── documentation/                 # Wewnętrzne dokumenty analityczne i backlog
-├── frontend/                      # Aplikacja kliencka React + Vite
-│   ├── src/
-│   │   ├── api/                   # Klient HTTP i integracja z API
-│   │   ├── components/            # Komponenty UI (SignaturePad, PdfPreview, itp.)
-│   │   ├── context/               # Kontekst uwierzytelniania (AuthContext)
-│   │   ├── routes/                # Definicje tras (AppRouter)
-│   │   └── styles.css             # Stylowanie interfejsu (Vanilla CSS)
-├── infrastructure/                # Konfiguracja Docker, Caddy i symulatora druku
-├── scripts/                       # Skrypty pomocnicze (baza danych, entrypoint)
-├── tests/                         # Testy automatyczne (pytest)
-├── Dockerfile                     # Definicja kontenera backendu
-├── docker-compose.yml             # Orkiestracja usług Docker
-├── pyproject.toml                 # Definicja zależności Pythona (uv)
-└── .env.example                   # Szablon zmiennych środowiskowych
+├── alembic/                 # Migracje bazy danych
+├── app/
+│   ├── api/v1/              # Routery HTTP (kiosk, auth, me, admin)
+│   ├── core/                # Config, security, middleware, błędy
+│   ├── models/              # SQLAlchemy
+│   ├── schemas/             # Pydantic
+│   └── services/            # PDF, drukarka, zgłoszenia, podpisy
+├── documentation/           # Kontrakty API, backlog epików
+├── frontend/                # React + Vite (JS/JSX)
+├── infrastructure/
+│   ├── caddy/               # Caddyfile + Dockerfile (build FE + proxy)
+│   └── printer_simulator/   # Symulator drukarki TCP 9100
+├── scripts/                 # docker-entrypoint.sh, seed formularza
+├── storage/                 # Podpisy, wygenerowane pliki (wolumen)
+├── templates/forms/         # Szablony PDF formularzy
+├── tests/                   # pytest
+├── Dockerfile               # Obraz API
+├── docker-compose.yml
+└── .env.example
 ```
 
 ---
 
-## 3. Przepływy Informacji (Flows)
+## 3. Przepływy informacji
 
-### A. Przepływ Rejestracji Gościa (Guest Flow)
-1. Klient na ekranie startowym klika **"Wypełnij jako Gość"**.
-2. Wybiera rolę (`kierowca`, `pasażer` lub `opiekun prawny`) oraz typ pojazdu.
-3. Wypełnia formularz osobowy, dane pojazdu oraz zaznacza wymagane zgody prawne.
-4. Składa odręczny podpis na ekranie dotykowym (generowany jako obraz PNG w formacie Base64).
-5. Frontend wysyła żądanie `POST /api/v1/submissions` (lub odpowiednio `POST /api/v1/submissions/guest`).
-6. Backend:
-   * Dekoduje podpis Base64 i zapisuje go w wolumenie dyskowym jako plik `.png`.
-   * Nadaje unikalny, atomowy **numer startowy** dla danego dnia (resetowany o północy).
-   * Generuje PDF oświadczenia na bazie szablonu, wstrzykując dane tekstowe oraz obraz podpisu.
-   * Zapisuje zgłoszenie w bazie danych.
-   * Tworzy zadanie wydruku `PrintJob` i wysyła je do kolejki.
-7. Klient widzi ekran sukcesu, a drukarka LAN automatycznie drukuje podpisane oświadczenie.
+Wszystkie endpointy API są pod prefiksem **`/api/v1`**. Nagłówek **`X-Kiosk-Token`** jest wymagany na endpointach kiosku (w produkcji dokleja go Caddy).
 
-### B. Przepływ Użytkownika Zarejestrowanego (Account Flow)
-1. Klient zakłada konto (`POST /api/v1/auth/register`) lub loguje się (`POST /api/v1/auth/login`).
-2. Przy kolejnej wizycie na torze, po zalogowaniu, backend pobiera dane z jego ostatniego zatwierdzonego formularza (`GET /api/v1/me/form-prefill`).
-3. Klient wybiera rolę i pojazd na dany dzień. System automatycznie uzupełnia jego dane osobowe i dane wybranego pojazdu (np. marka, model, nr rejestracyjny).
-4. Klient weryfikuje poprawność, składa podpis i klika "Wyślij i Drukuj".
-5. Backend generuje PDF, wysyła zadanie na drukarkę oraz **aktualizuje profil klienta** (zapisując ostatnio używane pojazdy oraz rolę, co przyspieszy logowanie przy kolejnej wizycie).
+### A. Gość (Guest)
 
-### C. Przepływ Opiekuna Prawnego (Guardian Flow)
-1. Zalogowany opiekun wybiera rolę `legal_guardian`.
-2. System wyświetla listę powiązanych z nim podopiecznych (np. dzieci) pobraną z `GET /api/v1/account/related-persons`.
-3. Opiekun może wybrać istniejącego podopiecznego lub dodać nowego (`POST /api/v1/account/related-persons`).
-4. Przy każdym podopiecznym wyświetlany jest szybki podgląd jego ostatnio wypełnionego formularza.
-5. Zaznaczenie podopiecznego generuje dedykowane oświadczenie, które opiekun podpisuje swoim imieniem i nazwiskiem w sekcji reprezentanta prawnego.
-6. **Zasada 1 podopieczny = 1 certyfikat:** System generuje i drukuje osobny dokument dla każdego wybranego podopiecznego z unikalnym numerem startowym.
+1. Ekran startowy → formularz gościa.
+2. Wybór roli i pojazdu, dane osobowe, zgody, podpis na `SignaturePad` (PNG → base64).
+3. `POST /api/v1/kiosk/submissions` (bez JWT) — tryb `guest`.
+4. Backend: walidacja, zapis podpisu, numer startowy, commit zgłoszenia.
+5. Jeśli **`PRINT_ENABLED=true`** — auto-druk w tle (`BackgroundTasks`); jeśli `false` — status `submitted`, druk tylko z panelu admina.
+6. Ekran wyniku: podgląd PDF (`GET /api/v1/kiosk/submissions/{id}/pdf`), status druku (kolejka / OK / błąd).
 
----
+### B. Konto (Account)
 
-## 4. Dokumentacja Uruchomieniowa (Deployment)
+1. Rejestracja `POST /api/v1/auth/register` lub logowanie `POST /api/v1/auth/login` (JWT w cookie).
+2. Prefill: `GET /api/v1/me/form-prefill?role=...&vehicle_type=...`.
+3. Weryfikacja danych, podpis, `POST /api/v1/kiosk/submissions` (z cookie JWT) — tryb `account`.
+4. Profil użytkownika aktualizowany po zapisie; auto-druk jak wyżej, zależnie od `PRINT_ENABLED`.
 
-### Wymagania Wstępne
-* **Docker Desktop** lub **Docker Engine** zainstalowany na lokalnym serwerze.
-* Odblokowane porty systemowe **80** (HTTP) i **443** (HTTPS) na serwerze (np. w Zaporze Windows Defender).
+### C. Opiekun prawny (Guardian)
 
-### Krok po kroku: Uruchomienie Produkcyjne
+1. Rola `legal_guardian`, lista podopiecznych `GET /api/v1/account/related-persons`.
+2. Osobne zgłoszenie per podopieczny (`POST .../related-persons/{id}/submissions`) — każdy dostaje własny numer startowy i ewentualny wydruk.
 
-1. **Skopiuj szablon konfiguracji:**
-   ```bash
-   cp .env.example .env
-   ```
+### Druk — kto i kiedy
 
-2. **Skonfiguruj plik [.env](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/.env):**
-   Edytuj plik za pomocą edytora tekstowego i uzupełnij kluczowe zmienne:
-   * Ustaw `APP_ENV=production` oraz `DEBUG=false`.
-   * Wpisz silne, losowe klucze dla `KIOSK_TOKEN` (min. 16 znaków) oraz `JWT_SECRET_KEY` (min. 32 znaki).
-   * Zmień domyślne hasła bazy danych `POSTGRES_PASSWORD`.
-   * Ustaw strefę czasową `START_NUMBER_TIMEZONE=Europe/Warsaw` (odpowiada za poprawny reset numeru startowego o północy).
+| Mechanizm | `PRINT_ENABLED=true` | `PRINT_ENABLED=false` |
+|-----------|----------------------|------------------------|
+| Auto-druk po submitcie użytkownika | Tak (w tle) | Nie |
+| Druk z panelu admina | Tak (`force=true`) | Tak |
+| Status „Drukarka” w panelu admina | TCP do `PRINTER_HOST:PORT` (niezależny od flagi) | j.w. |
 
-3. **Uruchom kontenery w tle:**
-   ```bash
-   docker compose up -d --build
-   ```
-
-4. **Co dzieje się podczas startu kontenera backendowego (`api`):**
-   Uruchamiany jest skrypt [docker-entrypoint.sh](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/scripts/docker-entrypoint.sh), który automatycznie:
-   * Wykonuje migracje bazy danych (Alembic) do najnowszej wersji.
-   * Uruchamia skrypt [seed_active_form.py](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/scripts/seed_active_form.py), sprawdzając czy w bazie jest zaimportowany domyślny, aktywny szablon oświadczenia z pliku [guest-registration-v1.pdf](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/templates/forms/guest-registration-v1.pdf).
-   * Startuje serwer produkcyjny Uvicorn.
+Użytkownik **nie klika „Drukuj”** — przy włączonej fladze druk jest automatyczny po wysłaniu formularza.
 
 ---
 
-## 5. Konfiguracja Urządzeń Zewnętrznych
+## 4. Uruchomienie produkcyjne
 
-### Fizyczna Drukarka LAN
-Aplikacja komunikuje się bezpośrednio z drukarką sieciową przy użyciu protokołu RAW TCP na porcie 9100.
-1. Przypisz drukarce statyczny adres IP w sieci lokalnej (np. `192.168.1.100`).
-2. Otwórz plik [docker-compose.yml](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/docker-compose.yml#L63-L64) i zmień parametry podłączenia drukarki w sekcji `api`:
+### Wymagania
+
+- Docker Engine lub Docker Desktop na serwerze LAN.
+- Porty **80** i **443** dostępne dla tabletów (firewall).
+- Statyczny IP serwera i (zalecane) drukarki w sieci lokalnej.
+
+### Krok 1 — plik `.env`
+
+```bash
+cp .env.example .env
+```
+
+Uzupełnij **obowiązkowo** (aplikacja przy `APP_ENV=production` odrzuci start ze słabymi sekretami):
+
+| Zmienna | Produkcja |
+|---------|-----------|
+| `APP_ENV` | `production` |
+| `DEBUG` | `false` |
+| `KIOSK_TOKEN` | Losowy, min. 16 znaków, **inny niż placeholder** |
+| `JWT_SECRET_KEY` | Losowy, min. 32 znaki, **inny niż placeholder** |
+| `POSTGRES_PASSWORD` | Silne hasło (nie `kiosk`) |
+| `AUTH_COOKIE_SECURE` | `true` (wymuszane też przez walidator produkcyjny) |
+| `TRUSTED_HOSTS` | Konkretne hosty/IP serwera, **nie** `["*"]` |
+| `START_NUMBER_TIMEZONE` | np. `Europe/Warsaw` |
+| `PRINT_ENABLED` | `true` = użytkownik dostaje auto-druk; `false` = druk tylko admin |
+| `PRINTER_HOST` / `PRINTER_PORT` | IP fizycznej drukarki, port **9100** (RAW) |
+| `KIOSK_IDLE_LOGOUT_SECONDS` | Czas bezczynności (wbudowywany w obraz Caddy przy buildzie) |
+
+Generowanie sekretów (przykład):
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### Krok 2 — dostosuj `docker-compose.yml` pod produkcję
+
+Domyślny plik jest nastawiony na **dev** (symulator drukarki, `DEBUG=true`, wystawiona baza). Przed produkcją:
+
+1. **Drukarka** — w sekcji `api` ustaw realny host zamiast `printer-simulator`:
    ```yaml
-         PRINTER_HOST: ${PRINTER_HOST:-192.168.1.100}
-         PRINTER_PORT: ${PRINTER_PORT:-9100}
+   PRINTER_HOST: ${PRINTER_HOST:-192.168.1.100}
+   PRINTER_PORT: ${PRINTER_PORT:-9100}
    ```
-3. Ustaw `PRINTER_HOST` / `PRINTER_PORT` w `.env` lub `docker-compose.yml`.
-4. `PRINT_ENABLED=true` — użytkownik po rejestracji dostaje auto-druk; `false` — druk tylko z panelu admina (status połączenia z drukarką jest niezależny).
+2. **Usuń lub zakomentuj usługę `printer-simulator`** i jej port `9100:9100` na hoście — nie powinien być publiczny w prod.
+3. **PostgreSQL** — rozważ **usunięcie** mapowania `"5432:5432"` (baza tylko w sieci Docker), albo bind tylko do `127.0.0.1`.
+4. **Sekrety** — nie polegaj na domyślnych wartościach w compose (`change-me-...`); wszystko z `.env`.
+5. **Swagger** — FastAPI wyłącza `/docs` gdy `APP_ENV=production`, ale Caddy nadal może proxy’ować ścieżki dokumentacji; w razie potrzeby zablokuj `@api_docs` w `infrastructure/caddy/Caddyfile`.
 
-### Urządzenie Kiosk (Tablet)
-* **Połączenie:** Tablet kliencki musi być podłączony do tej samej sieci lokalnej (Wi-Fi) co serwer. Dostęp do aplikacji uzyskujemy wpisując w przeglądarce lokalny adres IP serwera (np. `https://192.168.1.50`).
-* **Obsługa SSL (HTTPS) w sieci lokalnej:**
-  Caddy domyślnie generuje wewnętrzny certyfikat SSL (`tls internal`). Przeglądarka tabletu może zgłosić błąd zabezpieczeń (Unknown CA). Aby to obejść:
-  * Pobierz certyfikat główny CA z serwera Caddy (lokalizacja: wolumen `caddy_data` / `/data/caddy/pki/authorities/local/root.crt`) i zainstaluj go na tablecie w sekcji Zaufanych Głównych Urzędów Certyfikacji.
-  * *Opcjonalnie (Niezalecane):* Możesz zmienić konfigurację w [Caddyfile](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/infrastructure/caddy/Caddyfile) na port `:80` bez TLS, jednak wówczas musisz ustawić `AUTH_COOKIE_SECURE=false` w `.env`.
+### Krok 3 — szablony i wolumeny
+
+- Plik **`templates/forms/guest-registration-v1.pdf`** musi istnieć (seed formularza wskazuje tę ścieżkę). Brak szablonu → błąd **500** przy generowaniu PDF (zgłoszenie w bazie już jest).
+- Wolumeny `./storage` i `./templates` muszą być trwałe i objęte backupem (podpisy, ewentualne pliki druku testowych).
+
+### Krok 4 — build i start
+
+```bash
+docker compose up -d --build
+```
+
+Przy starcie kontenera `api` (`scripts/docker-entrypoint.sh`):
+
+1. `alembic upgrade head`
+2. `scripts/seed_active_form.py` — aktywny formularz w bazie
+3. `uvicorn main:app` (bez `--reload`)
+
+### Krok 5 — weryfikacja
+
+| Test | Oczekiwany wynik |
+|------|------------------|
+| `https://<IP-serwera>/` | Ekran startowy kiosku |
+| `https://<IP-serwera>/api/v1/health` | JSON ze `status: ok`, `database: ok` |
+| Panel admina po zalogowaniu | **Drukarka: OK/BŁĄD** = połączenie TCP; **Druk użytkownika** = wartość `PRINT_ENABLED` |
+| Nowe zgłoszenie przy `PRINT_ENABLED=false` | Status `submitted`, bez auto-druku |
+| Druk z admina | Działa niezależnie od `PRINT_ENABLED` |
+
+### Krok 6 — pierwsze konto administratora
+
+Rejestracja przez kiosk tworzy zwykłego użytkownika (`is_superuser=false`). Nadanie uprawnień admina — ręcznie w bazie:
+
+```bash
+docker compose exec db psql -U kiosk -d kiosk -c \
+  "UPDATE users SET is_superuser = true WHERE email = 'admin@example.com';"
+```
+
+### Checklist bezpieczeństwa (produkcja)
+
+- [ ] Zmienione `KIOSK_TOKEN` i `JWT_SECRET_KEY` (nie placeholdery z compose).
+- [ ] `APP_ENV=production`, `DEBUG=false`.
+- [ ] Silne hasło PostgreSQL; port 5432 nie wystawiony na LAN bez potrzeby.
+- [ ] `TRUSTED_HOSTS` ograniczone do realnych hostów.
+- [ ] `AUTH_COOKIE_SECURE=true` (HTTPS przez Caddy).
+- [ ] Certyfikat Caddy (`tls internal`) zainstalowany na tabletach lub świadoma decyzja o HTTP (niezalecane).
+- [ ] Symulator drukarki i port 9100 na hoście wyłączone w prod.
+- [ ] Szablon PDF obecny w `templates/forms/`.
+- [ ] Backup wolumenu `postgres_data` i `storage`.
+
+### Typowe problemy
+
+| Objaw | Przyczyna | Działanie |
+|-------|-----------|-----------|
+| **401** na API z tabletu | Brak / zły `X-Kiosk-Token` | Token w `.env` musi być zgodny z tym, co Caddy wstrzykuje (`KIOSK_TOKEN` w compose dla `reverse-proxy`). |
+| **Drukarka: BŁĄD** w adminie | Brak TCP do `PRINTER_HOST:9100` | Sprawdź IP, firewall, kabel/sieć; to **nie** jest skutek `PRINT_ENABLED=false`. |
+| Status **Błąd druku** na zgłoszeniu | Drukarka niedostępna przy `PRINT_ENABLED=true` | Napraw połączenie lub ustaw `PRINT_ENABLED=false` i drukuj z admina. |
+| **500** przy PDF | Brak pliku szablonu | Dodaj `guest-registration-v1.pdf` lub popraw `pdf_template_path` w seedzie. |
+| Aplikacja nie startuje | Słabe sekrety przy `APP_ENV=production` | Użyj losowych tokenów — walidator w `Settings.validate_production_safety`. |
 
 ---
 
-## 6. Rozwój i Testowanie (Development)
+## 5. Konfiguracja urządzeń zewnętrznych
 
-Jeśli chcesz rozwijać aplikację lokalnie na maszynie deweloperskiej bez kontenerów Docker:
+### Drukarka LAN (RAW TCP, port 9100)
 
-### Uruchomienie lokalne (backend)
-1. Zainstaluj zależności Pythona za pomocą narzędzia `uv`:
-   ```bash
-   uv sync
-   ```
-2. Upewnij się, że masz lokalnie działającą bazę PostgreSQL oraz serwer Redis.
-3. Wykonaj migracje bazodanowe:
-   ```bash
-   uv run alembic upgrade head
-   ```
-4. Uruchom serwer FastAPI w trybie deweloperskim:
-   ```bash
-   uv run uvicorn main:app --reload --port 8000
-   ```
+1. Statyczny IP drukarki (np. `192.168.1.100`).
+2. W `.env`: `PRINTER_HOST`, `PRINTER_PORT=9100`.
+3. `PRINT_ENABLED` — patrz sekcja [Druk — kto i kiedy](#druk--kto-i-kiedy).
 
-### Uruchomienie testów automatycznych
-Testy pokrywają pełną walidację formularzy, logowanie, podpisy, mechanizm przydzielania numerów startowych i zadania druku.
+Healthcheck w panelu admina to **test połączenia TCP**, nie diagnostyka „brak papieru” (wymagałoby protokołu producenta).
+
+### Tablet (kiosk)
+
+- Ta sama sieć Wi‑Fi/LAN co serwer.
+- Adres: `https://<IP-serwera>` (Caddy).
+- Certyfikat wewnętrzny Caddy: zainstaluj root CA z wolumenu `caddy_data` (`/data/caddy/pki/authorities/local/root.crt`) na tablecie, albo (niezalecane) HTTP + `AUTH_COOKIE_SECURE=false`.
+
+---
+
+## 6. Rozwój i testowanie
+
+### Zalecany sposób — Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+- Aplikacja: `https://localhost` (Caddy) lub API wewnętrznie na porcie 8000 (tylko w sieci compose).
+- Symulator drukarki: port **9100**, pliki w `storage/printed_files/`.
+- **Redis nie jest wymagany.**
+
+Logi API: `docker compose logs api -f`
+
+### Backend lokalnie (bez Dockera)
+
+1. `uv sync`
+2. Działająca **PostgreSQL** (Redis **nie** jest potrzebny).
+3. `.env` z `DATABASE_URL=postgresql+psycopg_async://...@localhost:5432/kiosk`
+4. `uv run alembic upgrade head`
+5. `uv run python scripts/seed_active_form.py`
+6. `uv run uvicorn main:app --reload --port 8000`
+
+Frontend w dev często przez osobny kontener Vite — patrz `.cursor/rules/docker-dev-environment.mdc` w repozytorium.
+
+### Testy
+
 ```bash
 uv run pytest
 ```
 
-### Tworzenie nowych migracji bazodanowych
-Gdy dokonasz zmian w modelach SQLAlchemy w katalogu [app/models/](file:///C:/Users/Paweł%20Buczek/PycharmProjects/KioskAPI/app/models):
+Testy obejmują m.in. auth, zgłoszenia, podpisy, PDF, drukarkę (mock / lokalny TCP server).
+
+### Nowa migracja
+
 ```bash
-uv run alembic revision --autogenerate -m "Opis zmian w bazie"
+uv run alembic revision --autogenerate -m "opis zmiany"
 uv run alembic upgrade head
 ```
 
 ---
 
-## 7. Zasady Bezpieczeństwa i RODO
+## 7. Zasady bezpieczeństwa i RODO
 
-System przetwarza dane osobowe (RODO) i działa w środowisku publicznym (samoobsługowy kiosk), dlatego wdrożono w nim restrykcyjne mechanizmy obronne:
+- **Idle logout:** po zalogowaniu sesja wygasa po bezczynności (domyślnie 30 s dla użytkownika, 5 min dla admina w UI; parametr `KIOSK_IDLE_LOGOUT_SECONDS` jest przekazywany przy buildzie obrazu Caddy).
+- **Token kiosku:** tylko po stronie reverse proxy — nie umieszczaj `KIOSK_TOKEN` w frontendzie.
+- **JWT:** HttpOnly cookie, `SameSite=strict`, Argon2id dla haseł.
+- **Lockout:** 5 nieudanych logowań → blokada 15 min; rate limit na endpoint logowania.
+- **RODO:** wymagane oświadczenia przed wysłaniem formularza; opcjonalna zgoda na publikację wizerunku.
+- **Wersjonowanie formularza:** każde zgłoszenie wiązane z `form_version` w bazie.
 
-* **Automatyczne wylogowanie (Session Idle Timeout):** Gdy użytkownik zaloguje się na swoje konto, a następnie odejdzie od tabletu bez ręcznego wylogowania, aplikacja po **30 sekundach bezczynności** (ruch myszką, dotyk ekranu) automatycznie czyści sesję, wylogowuje klienta i wraca do ekranu startowego. Wartość tę można dostosować za pomocą parametru `KIOSK_IDLE_LOGOUT_SECONDS`.
-* **Izolacja Tokena Kiosku:** Aplikacja kliencka (frontend uruchomiony w przeglądarce tabletu) nie posiada w kodzie ani pamięci tokena dostępowego do API kiosku (`KIOSK_TOKEN`). Token ten jest bezpiecznie przechowywany na serwerze i automatycznie doklejany do nagłówków zapytań HTTP przez lokalny serwer Caddy Reverse Proxy.
-* **Blokada konta (Lockout Policy):** Po 5 nieudanych próbach logowania, konto zostaje zablokowane na 15 minut, co uniemożliwia siłowe łamanie haseł (Brute-Force).
-* **Zgody prawne (RODO):** Przepływ rejestracji wymusza zaakceptowanie klauzuli informacyjnej RODO oraz regulaminu obiektu jako warunek konieczny do przesłania formularza. Zgoda na przetwarzanie i publikację wizerunku (np. zdjęcia z jazd) jest opcjonalna.
-* **Wersjonowanie oświadczeń:** Każde zgłoszenie klienta jest powiązane z konkretną, zamrożoną wersją formularza zapisaną w bazie danych. Ewentualna zmiana treści oświadczenia w przyszłości nie wpłynie na poprawność i autentyczność historycznie podpisanych PDF-ów.
+Dalsze kontrakty API i backlog: katalog `documentation/` (m.in. `API_Contract_MVP.md`, `account-mode-tasks.md`).
