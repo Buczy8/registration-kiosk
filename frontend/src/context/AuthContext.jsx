@@ -47,7 +47,9 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (payload) => {
     await apiRegister(payload);
-    await login({ email: payload.email, password: payload.password });
+    const profile = await getProfile();
+    setUser(profile);
+    setIsAuthenticated(true);
   };
 
   const logout = async () => {
