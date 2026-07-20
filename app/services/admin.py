@@ -250,6 +250,7 @@ async def queue_and_execute_submission_print(
     print_job.started_at = now
     current_attempts = print_job.__dict__.get("attempts")
     print_job.attempts = (current_attempts or 0) + 1
+    await db.commit()
 
     try:
         await send_print_job(pdf_bytes=pdf_bytes, settings=settings, force=force)

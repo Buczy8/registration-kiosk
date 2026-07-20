@@ -249,7 +249,7 @@ def test_queue_submission_for_print_updates_status(client: TestClient, monkeypat
     payload = response.json()
     assert payload["message"] == "Print job completed"
     assert payload["status"] == PrintJobStatus.DONE.value
-    assert db.commits == 1
+    assert db.commits == 2
     assert len(db.added) == 1
     assert sub.status == SubmissionStatus.PRINT_DONE
     assert db.added[0].status == PrintJobStatus.DONE
