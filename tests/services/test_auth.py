@@ -148,13 +148,13 @@ def test_register_returns_jwt_and_user_id():
     assert decode_access_token(response.access_token, settings) == db.users[0].id
 
 
-def test_register_duplicate_email_raises_409():
+def test_register_duplicate_email_raises_400():
     db = _FakeAuthDb(users=[_user(email="jan.kowalski@example.com")])
 
     with pytest.raises(HTTPException) as exc_info:
         asyncio.run(register(db, _register_request(email="JAN.KOWALSKI@example.com"), _settings()))
 
-    assert exc_info.value.status_code == 409
+    assert exc_info.value.status_code == 400
 
 
 def test_login_with_valid_password_returns_jwt():
@@ -171,14 +171,14 @@ def test_login_with_valid_password_returns_jwt():
     assert user.locked_until is None
 
 
-def test_login_with_locked_account_raises_423():
+def test_login_with_locked_account_raises_401():
     user = _user(locked_until=datetime.now(UTC) + timedelta(minutes=5))
     db = _FakeAuthDb(users=[user])
 
     with pytest.raises(HTTPException) as exc_info:
         asyncio.run(login(db, LoginRequest(email=user.email, password="StrongPass1"), _settings()))
 
-    assert exc_info.value.status_code == 423
+    assert exc_info.value.status_code == 401
 
 
 def test_login_with_five_bad_passwords_locks_account():

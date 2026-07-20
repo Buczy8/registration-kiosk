@@ -5,11 +5,9 @@ function withAuthFriendlyErrors(error) {
   switch (authError.status) {
     case 401:
     case 422:
-      return new Error("Nieprawidłowy adres e-mail lub hasło.");
-    case 409:
-      return new Error("Konto z podanym adresem e-mail już istnieje.");
-    case 423:
-      return new Error("Twoje konto zostało tymczasowo zablokowane. Spróbuj ponownie później.");
+      return new Error("Nieprawidłowy e-mail, hasło lub konto jest zablokowane.");
+    case 400:
+      return new Error("Rejestracja nie powiodła się. Sprawdź poprawność wprowadzonych danych.");
     default:
       return error;
   }

@@ -129,7 +129,7 @@ def test_register_ok_returns_201_and_jwt(client: TestClient):
     assert decode_access_token(cookie, _settings())
 
 
-def test_register_duplicate_returns_409(client: TestClient):
+def test_register_duplicate_returns_400(client: TestClient):
     db = _FakeAuthDb(users=[_user(email="jan.kowalski@example.com")])
     app.dependency_overrides[get_db] = lambda: db
 
@@ -139,8 +139,8 @@ def test_register_duplicate_returns_409(client: TestClient):
         json=_register_payload(email="JAN.KOWALSKI@example.com"),
     )
 
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "conflict"
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "bad_request"
 
 
 def test_login_ok_returns_200_and_jwt(client: TestClient):
@@ -176,7 +176,7 @@ def test_login_wrong_password_returns_401(client: TestClient):
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-def test_login_locked_returns_423(client: TestClient):
+def test_login_locked_returns_401(client: TestClient):
     db = _FakeAuthDb(users=[_user(locked=True)])
     app.dependency_overrides[get_db] = lambda: db
 
@@ -186,8 +186,8 @@ def test_login_locked_returns_423(client: TestClient):
         json=_login_payload(),
     )
 
-    assert response.status_code == 423
-    assert response.json()["error"]["code"] == "locked"
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
 
 
 

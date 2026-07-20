@@ -24,7 +24,8 @@ from app.services.users import (
     reset_failed_login,
 )
 
-AUTH_FAILURE_MESSAGE = "Invalid email or password"
+AUTH_FAILURE_MESSAGE = "Nieprawidłowy e-mail, hasło lub konto jest zablokowane."
+REGISTRATION_FAILURE_MESSAGE = "Rejestracja nie powiodła się. Sprawdź poprawność wprowadzonych danych."
 
 
 def _auth_response(user_id, email: str, settings: Settings) -> AuthServiceResult:
@@ -44,8 +45,8 @@ async def register(
     existing_user = await get_user_by_email(db, data.email)
     if existing_user is not None:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User with this email already exists",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=REGISTRATION_FAILURE_MESSAGE,
         )
 
     user = await create_user(db, data)
@@ -66,8 +67,8 @@ async def login(
 
     if is_account_locked(user):
         raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            detail="Account is locked",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=AUTH_FAILURE_MESSAGE,
         )
 
     if not verify_password(data.password, user.password_hash):
