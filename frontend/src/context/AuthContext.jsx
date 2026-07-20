@@ -58,6 +58,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Błąd wylogowania z serwera:", error);
     } finally {
+      // Clear cookie locally on the client (in case HttpOnly is false)
+      document.cookie = "kiosk_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
       setUser(null);
       setIsAuthenticated(false);
     }

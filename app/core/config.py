@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     auth_cookie_name: str = "kiosk_access_token"
     auth_cookie_samesite: Literal["lax", "strict", "none"] = "strict"
     auth_cookie_secure: bool = False
+    auth_cookie_httponly: bool = True
     trusted_hosts: list[str] = Field(default_factory=lambda: ["*"])
 
     # --- Numer startowy ---

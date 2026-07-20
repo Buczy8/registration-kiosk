@@ -48,7 +48,7 @@ async def register_endpoint(
     response.set_cookie(
         key=settings.auth_cookie_name,
         value=res.access_token,
-        httponly=True,
+        httponly=settings.auth_cookie_httponly,
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
         max_age=res.expires_in,
@@ -76,7 +76,7 @@ async def login_endpoint(
     response.set_cookie(
         key=settings.auth_cookie_name,
         value=res.access_token,
-        httponly=True,
+        httponly=settings.auth_cookie_httponly,
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
         max_age=res.expires_in,
@@ -96,7 +96,7 @@ async def logout_endpoint(
 ) -> MessageResponse:
     response.delete_cookie(
         key=settings.auth_cookie_name,
-        httponly=True,
+        httponly=settings.auth_cookie_httponly,
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
     )
