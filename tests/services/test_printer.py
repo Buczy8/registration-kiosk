@@ -46,7 +46,7 @@ async def test_printer_healthcheck_ok(temp_printer_server):
         printer_host=host,
         printer_port=port
     )
-    assert get_printer_health(settings) is True
+    assert await get_printer_health(settings) is True
 
 @pytest.mark.asyncio
 async def test_printer_healthcheck_failed():
@@ -55,7 +55,7 @@ async def test_printer_healthcheck_failed():
         printer_host='127.0.0.1',
         printer_port=9999
     )
-    assert get_printer_health(settings) is False
+    assert await get_printer_health(settings) is False
 
 @pytest.mark.asyncio
 async def test_printer_healthcheck_disabled_still_checks_connection(temp_printer_server):
@@ -65,8 +65,8 @@ async def test_printer_healthcheck_disabled_still_checks_connection(temp_printer
         printer_host=host,
         printer_port=port,
     )
-    assert get_printer_connection_status(settings) == "ok"
-    assert get_printer_health(settings) is True
+    assert await get_printer_connection_status(settings) == "ok"
+    assert await get_printer_health(settings) is True
 
 @pytest.mark.asyncio
 async def test_printer_print_success(temp_printer_server):

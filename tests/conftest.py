@@ -127,7 +127,7 @@ def mock_printer_printing(request, monkeypatch):
     async def _mock_print(*args, **kwargs):
         pass
 
-    def _mock_health(*args, **kwargs):
+    async def _mock_health(*args, **kwargs):
         return True
 
     monkeypatch.setattr(

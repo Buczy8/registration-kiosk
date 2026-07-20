@@ -13,13 +13,18 @@ logger = logging.getLogger("app.printer")
 PrinterConnectionStatus = Literal["ok", "error"]
 
 
-def _check_printer_tcp_connection(settings: Settings) -> bool:
+async def _check_printer_tcp_connection(settings: Settings) -> bool:
     try:
-        with socket.create_connection(
-            (settings.printer_host, settings.printer_port),
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(settings.printer_host, settings.printer_port),
             timeout=1.0,
-        ):
-            return True
+        )
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        return True
     except Exception as e:
         logger.warning(
             "Printer healthcheck failed for %s:%s: %s",
@@ -30,21 +35,21 @@ def _check_printer_tcp_connection(settings: Settings) -> bool:
         return False
 
 
-def get_printer_connection_status(settings: Settings) -> PrinterConnectionStatus:
+async def get_printer_connection_status(settings: Settings) -> PrinterConnectionStatus:
     """
     Returns printer reachability for the admin dashboard (TCP to host:port).
 
     Independent of PRINT_ENABLED — that flag only controls whether users get
     auto-print after submitting a form; admin printing is always allowed.
     """
-    if _check_printer_tcp_connection(settings):
+    if await _check_printer_tcp_connection(settings):
         return "ok"
     return "error"
 
 
-def get_printer_health(settings: Settings) -> bool:
+async def get_printer_health(settings: Settings) -> bool:
     """True when the printer accepts a TCP connection on the configured port."""
-    return get_printer_connection_status(settings) == "ok"
+    return (await get_printer_connection_status(settings)) == "ok"
 
 
 async def send_print_job(*, pdf_bytes: bytes, settings: Settings, force: bool = False) -> None:

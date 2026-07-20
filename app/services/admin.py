@@ -124,7 +124,7 @@ async def get_admin_system_status(db: AsyncSession) -> dict:
 
     from app.services.printer import get_printer_connection_status
 
-    printer_status = await asyncio.to_thread(get_printer_connection_status, settings)
+    printer_status = await get_printer_connection_status(settings)
 
     return {
         "checked_at": checked_at,
