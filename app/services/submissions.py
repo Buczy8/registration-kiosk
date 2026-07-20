@@ -16,7 +16,11 @@ from app.models.enums import SubmissionMode
 from app.models.submission import Submission
 from app.models.user import User
 from app.schemas.submission import SubmissionCreate
-from app.services.form_validation import get_missing_required_fields, validate_required_fields
+from app.services.form_validation import (
+    get_missing_required_fields,
+    validate_required_fields,
+    validate_submission_data,
+)
 from app.services.forms import get_active_form
 from app.services.profiles import update_profile_from_submission
 from app.services.signatures import parse_and_validate_signature, save_submission_signature
@@ -195,7 +199,7 @@ async def _create_submission_core(
     background_tasks: BackgroundTasks | None = None,
 ) -> Submission:
     form = await get_active_form(db)
-    validate_required_fields(form.schema_json, data.payload_json)
+    validate_submission_data(form.schema_json, data.payload_json, data.participant_role)
 
     image_bytes = parse_and_validate_signature(data.signature_image_base64)
 
