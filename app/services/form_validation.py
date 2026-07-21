@@ -82,8 +82,8 @@ def validate_submission_data(
 
     # 5. Role-Specific Field validation
     if participant_role == ParticipantRole.DRIVER:
-        # Driver must submit vehicle info if the fields are defined in properties
-        for field in ("vehicle_brand", "vehicle_model", "vehicle_registration_number"):
+        # Driver must submit vehicle registration number if defined in properties
+        for field in ("vehicle_registration_number",):
             if field in properties:
                 val = payload_json.get(field)
                 if not (val and str(val).strip()):

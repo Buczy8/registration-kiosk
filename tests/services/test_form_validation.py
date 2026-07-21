@@ -105,13 +105,20 @@ def test_validate_submission_data_driver_missing_vehicle():
         "required": [],
         "properties": {
             "vehicle_brand": {"title": "Marka pojazdu"},
+            "vehicle_model": {"title": "Model pojazdu"},
+            "vehicle_registration_number": {"title": "Numer rejestracyjny"},
         }
     }
-    payload = {}
+    # If only brand/model are missing, it should pass because they are optional now
+    payload = {"vehicle_registration_number": "WE 12345"}
+    validate_submission_data(schema, payload, ParticipantRole.DRIVER)
+
+    # If vehicle_registration_number is missing, it should fail
+    payload_missing_reg = {"vehicle_brand": "BMW", "vehicle_model": "3 Series"}
     with pytest.raises(HTTPException) as exc_info:
-        validate_submission_data(schema, payload, ParticipantRole.DRIVER)
+        validate_submission_data(schema, payload_missing_reg, ParticipantRole.DRIVER)
     assert exc_info.value.status_code == 400
-    assert "Dla roli kierowcy wymagane jest podanie pola: Marka pojazdu." in exc_info.value.detail
+    assert "Dla roli kierowcy wymagane jest podanie pola: Numer rejestracyjny." in exc_info.value.detail
 
 
 def test_validate_submission_data_guardian_missing_minor():

@@ -81,14 +81,14 @@ ACTIVE_FORM_DATA = {
             },
             "checkboxes": {
                 "participant_role": {
-                    "driver": "checkbox_2yvsn",
-                    "passenger": "checkbox_7fncr",
-                    "legal_guardian": "checkbox_9xbkw"
+                    "driver": "checkbox_1zoop",
+                    "passenger": "checkbox_4pht",
+                    "legal_guardian": "checkbox_6dpjv"
                 },
                 "vehicle_type": {
-                    "car": "checkbox_1zoop",
-                    "motorcycle": "checkbox_4pht",
-                    "gokart": "checkbox_6dpjv"
+                    "car": "checkbox_2yvsn",
+                    "motorcycle": "checkbox_7fncr",
+                    "gokart": "checkbox_9xbkw"
                 },
                 "guardian_relation": {
                     "parent": "checkbox_26xkwj",
