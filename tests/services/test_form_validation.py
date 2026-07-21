@@ -109,16 +109,12 @@ def test_validate_submission_data_driver_missing_vehicle():
             "vehicle_registration_number": {"title": "Numer rejestracyjny"},
         }
     }
-    # If only brand/model are missing, it should pass because they are optional now
-    payload = {"vehicle_registration_number": "WE 12345"}
+    # If vehicle fields are missing, it should pass because they are optional
+    payload = {"vehicle_brand": "BMW", "vehicle_model": "3 Series"}
     validate_submission_data(schema, payload, ParticipantRole.DRIVER)
 
-    # If vehicle_registration_number is missing, it should fail
-    payload_missing_reg = {"vehicle_brand": "BMW", "vehicle_model": "3 Series"}
-    with pytest.raises(HTTPException) as exc_info:
-        validate_submission_data(schema, payload_missing_reg, ParticipantRole.DRIVER)
-    assert exc_info.value.status_code == 400
-    assert "Dla roli kierowcy wymagane jest podanie pola: Numer rejestracyjny." in exc_info.value.detail
+    payload_empty = {}
+    validate_submission_data(schema, payload_empty, ParticipantRole.DRIVER)
 
 
 def test_validate_submission_data_guardian_missing_minor():

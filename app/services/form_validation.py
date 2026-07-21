@@ -81,18 +81,7 @@ def validate_submission_data(
                 )
 
     # 5. Role-Specific Field validation
-    if participant_role == ParticipantRole.DRIVER:
-        # Driver must submit vehicle registration number if defined in properties
-        for field in ("vehicle_registration_number",):
-            if field in properties:
-                val = payload_json.get(field)
-                if not (val and str(val).strip()):
-                    title = properties.get(field, {}).get("title", field)
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Dla roli kierowcy wymagane jest podanie pola: {title}.",
-                    )
-    elif participant_role == ParticipantRole.LEGAL_GUARDIAN:
+    if participant_role == ParticipantRole.LEGAL_GUARDIAN:
         # Legal guardian must submit minor details if defined in properties
         for field in ("minor_first_name", "minor_last_name", "guardian_relation"):
             if field in properties:
