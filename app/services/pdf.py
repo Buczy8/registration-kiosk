@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from uuid import UUID
 
@@ -25,11 +26,18 @@ def _resolve_template_path(template_path: str) -> Path:
     return path.resolve()
 
 
+import os
+
+FONT_POLISH_PATH = r"C:\Users\Paweł Buczek\Downloads\arial\ARIAL.TTF"
+FONT_RES_NAME = "ArialUnicodePL"
+
 def _write_pdf_fields(doc: fitz.Document, mapping: PdfFieldMapping) -> None:
     for page in doc:
         for widget in page.widgets() or []:
             if widget.field_name in mapping.text_values:
-                widget.field_value = mapping.text_values[widget.field_name]
+                val = mapping.text_values[widget.field_name]
+                widget.text_font = "notos"
+                widget.field_value = val
                 widget.update()
             elif widget.field_name in mapping.managed_checkboxes:
                 if widget.field_name in mapping.checked_fields:
@@ -37,6 +45,14 @@ def _write_pdf_fields(doc: fitz.Document, mapping: PdfFieldMapping) -> None:
                 else:
                     widget.field_value = ""
                 widget.update()
+
+
+
+
+
+
+
+
 
 
 def _embed_signature_image(
@@ -92,7 +108,14 @@ def _embed_signature_image(
         return
 
     page = doc[sig_page]
+    for widget in list(page.widgets() or []):
+        if widget.field_name == mapping.signature_field_name or (
+            widget.field_name and "signature" in widget.field_name.lower()
+        ):
+            page.delete_widget(widget)
     page.insert_image(sig_rect, stream=image_bytes, keep_proportion=True, rotate=page.rotation)
+
+
 
 
 def fill_guest_submission_template(submission: Submission, *, settings: Settings | None = None) -> bytes:
@@ -140,3 +163,36 @@ async def generate_submission_pdf(db: AsyncSession, submission_id: UUID) -> tupl
     await db.commit()
     await db.refresh(submission)
     return submission, pdf_bytes
+
+
+def render_pdf_to_png(pdf_bytes: bytes, page_index: int = 0, dpi: int = 150) -> bytes:
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        if page_index < 0 or page_index >= len(doc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Strona {page_index} nie istnieje w dokumencie PDF (liczba stron: {len(doc)}).",
+            )
+        page = doc[page_index]
+        pix = page.get_pixmap(dpi=dpi)
+        png_data = pix.tobytes("png")
+
+        # Zapisz kopie roboczą do szybkiego podglądu i weryfikacji
+        debug_path = PROJECT_ROOT / "scratch" / "debug_last_png.png"
+        debug_path.write_bytes(png_data)
+
+        return png_data
+
+
+
+
+
+
+
+
+async def generate_submission_png(
+    db: AsyncSession, submission_id: UUID, page_index: int = 0, dpi: int = 150
+) -> tuple[Submission, bytes]:
+    submission, pdf_bytes = await generate_submission_pdf(db=db, submission_id=submission_id)
+    png_bytes = await asyncio.to_thread(render_pdf_to_png, pdf_bytes, page_index, dpi)
+    return submission, png_bytes
+

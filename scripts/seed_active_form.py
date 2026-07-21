@@ -64,44 +64,44 @@ ACTIVE_FORM_DATA = {
         },
         "identity_document_rule": "pesel_or_id_card",
         "pdf_mapping": {
-            "signature": "signature_23hbqb",
+            "signature": "signature_23",
             "text_fields": {
-                "text_10mrbf": "{full_name}",
-                "text_11nkwn": "{identity_document}",
-                "text_13xmxr": "{residence_address}",
-                "text_14shkz": "{birth_date}",
-                "text_15abtc": "{phone}",
-                "text_16ronm": "{email}",
-                "text_17qcbm": "{emergency_contact}",
-                "text_18zgmn": "{start_number}",
-                "text_19leyv": "{vehicle_brand_model}",
-                "text_20vxrd": "{vehicle_registration_number}",
-                "text_22jhks": "{minor_full_name}",
-                "text_21ebqt": "{signature_place}"
+                "imie_nazwisko": "{full_name}",
+                "pesel": "{identity_document}",
+                "adres": "{residence_address}",
+                "data_urodzenia": "{birth_date}",
+                "telefon": "{phone}",
+                "e-mail": "{email}",
+                "ice": "{emergency_contact}",
+                "nr_startowy": "{start_number}",
+                "marka_model": "{vehicle_brand_model}",
+                "nr_rej": "{vehicle_registration_number}",
+                "podopieczny": "{minor_full_name}",
+                "data_miejscowosc": "{signature_place}"
             },
             "checkboxes": {
                 "participant_role": {
-                    "driver": "checkbox_1zoop",
-                    "passenger": "checkbox_4pht",
-                    "legal_guardian": "checkbox_6dpjv"
+                    "driver": "kierowca",
+                    "passenger": "pasazer",
+                    "legal_guardian": "opiekun"
                 },
                 "vehicle_type": {
-                    "car": "checkbox_2yvsn",
-                    "motorcycle": "checkbox_7fncr",
-                    "gokart": "checkbox_9xbkw"
+                    "car": "samochod",
+                    "motorcycle": "motocykl",
+                    "gokart": "gokart"
                 },
                 "guardian_relation": {
-                    "parent": "checkbox_26xkwj",
-                    "guardian": "checkbox_25dhmn",
-                    "authorized_person": "checkbox_24hzar"
+                    "parent": "rodzic",
+                    "guardian": "opiekun2",
+                    "authorized_person": "osoba"
                 }
             },
             "consents": {
-                "image_publication": "checkbox_23ecm"
+                "image_publication": "zgoda"
             }
         }
     },
-    "pdf_template_path": "templates/forms/guest-registration-v2.pdf",
+    "pdf_template_path": "templates/forms/guest-registration-v3.pdf",
     "is_active": True,
 }
 

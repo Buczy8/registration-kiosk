@@ -100,6 +100,10 @@ class _FakeAdminDb:
     async def commit(self):
         self.commits += 1
 
+    async def refresh(self, obj):
+        pass
+
+
 
 def _settings() -> Settings:
     return Settings(
@@ -455,3 +459,30 @@ def test_get_print_jobs_returns_paginated_list(client: TestClient):
     assert data["items"][0]["id"] == str(job.id)
     assert data["items"][0]["status"] == PrintJobStatus.QUEUED.value
     assert data["items"][0]["submission"]["start_number"] == sub.start_number
+
+
+def test_get_submission_png_returns_png_bytes(client: TestClient, tmp_path):
+    from tests.api.v1.kiosk.test_submissions import _form, _template_pdf
+    template_path = tmp_path / "admin-test.pdf"
+    _template_pdf(template_path)
+    form = _form()
+    form.pdf_template_path = str(template_path)
+    admin = _user(is_superuser=True)
+    sub = _submission()
+    sub.form = form
+    sub.form_id = form.id
+
+    app.dependency_overrides[get_db] = lambda: _FakeAdminDb(
+        users=[admin], submissions=[sub]
+    )
+
+    response = client.get(
+        f"/api/v1/admin/submissions/{sub.id}/png",
+        headers=_auth_headers(admin.id),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
+

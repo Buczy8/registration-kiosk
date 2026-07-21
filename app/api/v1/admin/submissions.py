@@ -65,6 +65,23 @@ async def get_submission_pdf(
     )
 
 
+@router.get("/{submission_id}/png")
+async def get_submission_png(
+        submission_id: UUID,
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+        page: int = Query(0, ge=0, description="Numer strony PDF (indeksowany od 0)"),
+        dpi: int = Query(150, ge=72, le=600, description="Rozdzielczość renderingu DPI"),
+):
+    png_bytes, filename = await admin_services.get_admin_submission_png(db, submission_id, page_index=page, dpi=dpi)
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+
 @router.get("/{submission_id}", response_model=AdminSubmissionDetail)
 async def get_submission_details(
         submission_id: UUID,

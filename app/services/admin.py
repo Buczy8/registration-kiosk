@@ -211,6 +211,20 @@ async def get_admin_submission_pdf(
     return pdf_bytes, _build_print_filename(submission)
 
 
+async def get_admin_submission_png(
+        db: AsyncSession,
+        submission_id: UUID,
+        page_index: int = 0,
+        dpi: int = 150,
+) -> tuple[bytes, str]:
+    from app.services.pdf import generate_submission_png
+
+    submission, png_bytes = await generate_submission_png(db, submission_id, page_index=page_index, dpi=dpi)
+    file_id = submission.start_number if submission.start_number else submission.id
+    filename = f"podglad_zgloszenia_{file_id}_page_{page_index}.png"
+    return png_bytes, filename
+
+
 def _build_print_filename(submission: Submission) -> str:
     file_id = submission.start_number if submission.start_number else submission.id
     return f"wydruk_zgloszenia_{file_id}.pdf"

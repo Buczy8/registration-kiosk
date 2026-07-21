@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status, BackgroundTasks
+from fastapi import APIRouter, Depends, Query, Response, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -11,10 +11,11 @@ from app.schemas.submission import (
     GuestSubmissionResponse,
     SubmissionCreate,
 )
-from app.services.pdf import generate_submission_pdf
+from app.services.pdf import generate_submission_pdf, generate_submission_png
 from app.services.submissions import create_account_submission, create_guest_submission
 
 router = APIRouter(prefix="/submissions")
+
 
 
 @router.post(
@@ -70,3 +71,29 @@ async def generate_submission_pdf_endpoint(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get(
+    "/{submission_id}/png",
+    summary="Generowanie PNG ze zgłoszenia (PDF)",
+    responses={
+        200: {"content": {"image/png": {}}},
+    },
+)
+async def generate_submission_png_endpoint(
+    submission_id: UUID,
+    _: KioskAuth,
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(0, ge=0, description="Numer strony PDF (indeksowany od 0)"),
+    dpi: int = Query(150, ge=72, le=600, description="Rozdzielczość renderingu DPI"),
+) -> Response:
+    submission, png_bytes = await generate_submission_png(
+        db=db, submission_id=submission_id, page_index=page, dpi=dpi
+    )
+    filename = f"submission-{submission.start_number}-page-{page}.png"
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+

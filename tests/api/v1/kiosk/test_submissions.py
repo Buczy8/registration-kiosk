@@ -233,3 +233,45 @@ def test_generate_pdf_returns_pdf_for_account_submission(client_with_storage: Te
     assert response.headers["content-type"] == "application/pdf"
     assert 'attachment; filename="submission-90.pdf"' == response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF-")
+
+
+def test_generate_png_returns_png_for_submission(client_with_storage: TestClient, tmp_path):
+    template_path = tmp_path / "guest-registration.pdf"
+    _template_pdf(template_path)
+    form = _form()
+    form.pdf_template_path = str(template_path)
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=77,
+        sequence_date=date(2026, 7, 3),
+        payload_json={"first_name": "Jan", "last_name": "Kowalski"},
+        consents_json={"terms": True},
+        declarations_accepted=True,
+        signature_path=None,
+        signature_hash=None,
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+    app.dependency_overrides[get_db] = async_get_db_override(
+        FakeAsyncSubmissionDb(form, existing_submission=submission)
+    )
+
+    response = client_with_storage.get(
+        f"/api/v1/kiosk/submissions/{submission.id}/png",
+        headers={KIOSK_TOKEN_HEADER: TEST_KIOSK_TOKEN},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert 'inline; filename="submission-77-page-0.png"' == response.headers["content-disposition"]
+    assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
