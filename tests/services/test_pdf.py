@@ -223,3 +223,146 @@ def test_fill_guest_submission_template_embeds_signature_image(tmp_path):
     images = document[0].get_images(full=True)
     document.close()
     assert images
+
+
+def test_fill_guest_submission_template_uses_signature_field_name(tmp_path):
+    # Create a template PDF that contains a signature widget
+    template_path = tmp_path / "guest-registration.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    widget = fitz.Widget()
+    widget.field_name = "signature_dynamic"
+    widget.field_type = fitz.PDF_WIDGET_TYPE_TEXT
+    widget.rect = fitz.Rect(100, 100, 200, 150)
+    page.add_widget(widget)
+    doc.save(template_path)
+    doc.close()
+
+    # Form config maps the signature by field name
+    schema_with_sig_field = {
+        "pdf_mapping": {
+            "signature": "signature_dynamic",
+            "text_fields": {},
+            "checkboxes": {},
+            "consents": {}
+        }
+    }
+
+    form = Form(
+        id=uuid.uuid4(),
+        code="guest-registration",
+        name="Rejestracja gościa",
+        version="1.0",
+        schema_json=schema_with_sig_field,
+        pdf_template_path=str(template_path),
+        is_active=True,
+    )
+    signature_path = tmp_path / "signatures" / "submission.png"
+    signature_path.parent.mkdir(parents=True, exist_ok=True)
+    signature_bytes = sample_signature_png()
+    signature_path.write_bytes(signature_bytes)
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=12,
+        sequence_date=date(2026, 7, 3),
+        payload_json={"first_name": "Jan", "last_name": "Kowalski"},
+        consents_json={"privacy": True},
+        declarations_accepted=True,
+        signature_path="signatures/submission.png",
+        signature_hash="hash",
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+    settings = Settings(
+        kiosk_token=TEST_KIOSK_TOKEN,
+        jwt_secret_key=TEST_JWT_SECRET,
+        storage_root=tmp_path,
+    )
+
+    pdf_bytes = fill_guest_submission_template(submission, settings=settings)
+
+    # Verify that the image was indeed embedded into the document
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    images = document[0].get_images(full=True)
+    document.close()
+    assert images
+
+
+def test_fill_guest_submission_template_falls_back_to_generic_signature_widget_auto_detection(tmp_path):
+    # Create a template PDF that contains a signature widget
+    template_path = tmp_path / "guest-registration.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    widget = fitz.Widget()
+    widget.field_name = "signature_generic_auto"
+    widget.field_type = fitz.PDF_WIDGET_TYPE_TEXT
+    widget.rect = fitz.Rect(100, 100, 200, 150)
+    page.add_widget(widget)
+    doc.save(template_path)
+    doc.close()
+
+    # Form config does NOT map signature at all
+    schema_without_sig = {
+        "pdf_mapping": {
+            "text_fields": {},
+            "checkboxes": {},
+            "consents": {}
+        }
+    }
+
+    form = Form(
+        id=uuid.uuid4(),
+        code="guest-registration",
+        name="Rejestracja gościa",
+        version="1.0",
+        schema_json=schema_without_sig,
+        pdf_template_path=str(template_path),
+        is_active=True,
+    )
+    signature_path = tmp_path / "signatures" / "submission.png"
+    signature_path.parent.mkdir(parents=True, exist_ok=True)
+    signature_bytes = sample_signature_png()
+    signature_path.write_bytes(signature_bytes)
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=12,
+        sequence_date=date(2026, 7, 3),
+        payload_json={"first_name": "Jan", "last_name": "Kowalski"},
+        consents_json={"privacy": True},
+        declarations_accepted=True,
+        signature_path="signatures/submission.png",
+        signature_hash="hash",
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+    settings = Settings(
+        kiosk_token=TEST_KIOSK_TOKEN,
+        jwt_secret_key=TEST_JWT_SECRET,
+        storage_root=tmp_path,
+    )
+
+    pdf_bytes = fill_guest_submission_template(submission, settings=settings)
+
+    # Verify that the image was indeed embedded into the document
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    images = document[0].get_images(full=True)
+    document.close()
+    assert images

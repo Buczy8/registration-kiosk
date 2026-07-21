@@ -48,18 +48,51 @@ def _embed_signature_image(
     if settings is None or not submission.signature_path:
         return
 
-    if mapping.signature_page is None or mapping.signature_rect is None:
+    sig_page = None
+    sig_rect = None
+
+    # 1. Try to find the signature widget by its mapped field name
+    if mapping.signature_field_name:
+        for page_idx, page in enumerate(doc):
+            for widget in page.widgets() or []:
+                if widget.field_name == mapping.signature_field_name:
+                    sig_page = page_idx
+                    sig_rect = widget.rect
+                    break
+            if sig_rect is not None:
+                break
+
+    # 2. Fallback to coordinates defined in the mapping
+    if sig_page is None or sig_rect is None:
+        sig_page = mapping.signature_page
+        sig_rect = mapping.signature_rect
+
+    # 3. Fallback to generic auto-detection by name match
+    if sig_page is None or sig_rect is None:
+        for page_idx, page in enumerate(doc):
+            for widget in page.widgets() or []:
+                if widget.field_name and (
+                    widget.field_name.startswith("signature")
+                    or "signature" in widget.field_name.lower()
+                ):
+                    sig_page = page_idx
+                    sig_rect = widget.rect
+                    break
+            if sig_rect is not None:
+                break
+
+    if sig_page is None or sig_rect is None:
         return
 
     image_bytes = load_submission_signature_bytes(settings, submission.signature_path)
     if not image_bytes:
         return
 
-    if mapping.signature_page >= len(doc):
+    if sig_page >= len(doc):
         return
 
-    page = doc[mapping.signature_page]
-    page.insert_image(mapping.signature_rect, stream=image_bytes, keep_proportion=True)
+    page = doc[sig_page]
+    page.insert_image(sig_rect, stream=image_bytes, keep_proportion=True, rotate=page.rotation)
 
 
 def fill_guest_submission_template(submission: Submission, *, settings: Settings | None = None) -> bytes:

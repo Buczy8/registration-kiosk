@@ -13,6 +13,7 @@ class PdfFieldMapping:
     managed_checkboxes: set[str]
     signature_page: int | None
     signature_rect: fitz.Rect | None
+    signature_field_name: str | None = None
 
 
 class SafePayload(dict):
@@ -86,14 +87,22 @@ def get_guest_submission_pdf_mapping(submission: Submission) -> PdfFieldMapping:
         if consents.get(consent_key):
             checked_fields.add(pdf_checkbox)
 
-    sig_page = sig_mapping.get("page")
-    sig_rect_coords = sig_mapping.get("rect")
-    sig_rect = fitz.Rect(*sig_rect_coords) if sig_rect_coords else None
+    sig_page = None
+    sig_rect = None
+    sig_field_name = None
+
+    if isinstance(sig_mapping, str):
+        sig_field_name = sig_mapping
+    elif isinstance(sig_mapping, dict):
+        sig_page = sig_mapping.get("page")
+        sig_rect_coords = sig_mapping.get("rect")
+        sig_rect = fitz.Rect(*sig_rect_coords) if sig_rect_coords else None
 
     return PdfFieldMapping(
         text_values=text_values,
         checked_fields=checked_fields,
         managed_checkboxes=managed_checkboxes,
         signature_page=sig_page,
-        signature_rect=sig_rect
+        signature_rect=sig_rect,
+        signature_field_name=sig_field_name,
     )

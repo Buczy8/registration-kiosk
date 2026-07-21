@@ -64,47 +64,44 @@ ACTIVE_FORM_DATA = {
         },
         "identity_document_rule": "pesel_or_id_card",
         "pdf_mapping": {
-            "signature": {
-                "page": 0,
-                "rect": [590, 500, 720, 536]
-            },
+            "signature": "signature_23hbqb",
             "text_fields": {
-                "text_10hcx": "{full_name}",
-                "text_11neet": "{identity_document}",
-                "text_12cxxb": "{residence_address}",
-                "text_13knhs": "{birth_date}",
-                "text_14lcnt": "{phone}",
-                "text_15kjas": "{email}",
-                "text_16ydra": "{emergency_contact}",
-                "text_17mtbv": "{start_number}",
-                "text_18dulx": "{vehicle_brand_model}",
-                "text_19soak": "{vehicle_registration_number}",
-                "text_23pzuv": "{minor_full_name}",
-                "text_26efts": "{signature_place}"
+                "text_10mrbf": "{full_name}",
+                "text_11nkwn": "{identity_document}",
+                "text_13xmxr": "{residence_address}",
+                "text_14shkz": "{birth_date}",
+                "text_15abtc": "{phone}",
+                "text_16ronm": "{email}",
+                "text_17qcbm": "{emergency_contact}",
+                "text_18zgmn": "{start_number}",
+                "text_19leyv": "{vehicle_brand_model}",
+                "text_20vxrd": "{vehicle_registration_number}",
+                "text_22jhks": "{minor_full_name}",
+                "text_21ebqt": "{signature_place}"
             },
             "checkboxes": {
                 "participant_role": {
-                    "driver": "checkbox_1yrvm",
-                    "passenger": "checkbox_2vwba",
-                    "legal_guardian": "checkbox_4bnfu"
+                    "driver": "checkbox_2yvsn",
+                    "passenger": "checkbox_7fncr",
+                    "legal_guardian": "checkbox_9xbkw"
                 },
                 "vehicle_type": {
-                    "car": "checkbox_7agj",
-                    "motorcycle": "checkbox_8etbd",
-                    "gokart": "checkbox_9lpj"
+                    "car": "checkbox_1zoop",
+                    "motorcycle": "checkbox_4pht",
+                    "gokart": "checkbox_6dpjv"
                 },
                 "guardian_relation": {
-                    "parent": "checkbox_20ajne",
-                    "guardian": "checkbox_21fphh",
-                    "authorized_person": "checkbox_22xper"
+                    "parent": "checkbox_26xkwj",
+                    "guardian": "checkbox_25dhmn",
+                    "authorized_person": "checkbox_24hzar"
                 }
             },
             "consents": {
-                "image_publication": "checkbox_24iihx"
+                "image_publication": "checkbox_23ecm"
             }
         }
     },
-    "pdf_template_path": "templates/forms/guest-registration-v1.pdf",
+    "pdf_template_path": "templates/forms/guest-registration-v2.pdf",
     "is_active": True,
 }
 
