@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 import fitz
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.core.config import PROJECT_ROOT, Settings, get_settings
 from app.models.submission import Submission
@@ -18,6 +18,14 @@ from app.services.pdf_mapping import (
 )
 from app.services.signatures import load_submission_signature_bytes
 
+POLISH_FONT_NAME = "LibSans"
+POLISH_FONT_BUNDLED = PROJECT_ROOT / "assets" / "fonts" / "LiberationSans-Regular.ttf"
+POLISH_FONT_SYSTEM = Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")
+DEFAULT_TEXT_FONT_SIZE = 10.0
+MIN_TEXT_FONT_SIZE = 5.0
+TEXT_WIDTH_MARGIN_RATIO = 0.98
+TEXT_HEIGHT_MARGIN_RATIO = 0.85
+
 
 def _resolve_template_path(template_path: str) -> Path:
     path = Path(template_path)
@@ -26,25 +34,103 @@ def _resolve_template_path(template_path: str) -> Path:
     return path.resolve()
 
 
-import os
+def _resolve_polish_font_path() -> Path:
+    if POLISH_FONT_BUNDLED.exists():
+        return POLISH_FONT_BUNDLED
+    if POLISH_FONT_SYSTEM.exists():
+        return POLISH_FONT_SYSTEM
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=(
+            "Brak fontu obsługującego polskie znaki. "
+            f"Oczekiwany plik: {POLISH_FONT_BUNDLED}"
+        ),
+    )
 
-FONT_POLISH_PATH = r"C:\Users\Paweł Buczek\Downloads\arial\ARIAL.TTF"
-FONT_RES_NAME = "ArialUnicodePL"
+
+def _ensure_polish_font(page: fitz.Page, font_path: Path, embedded_pages: set[int]) -> None:
+    if page.number in embedded_pages:
+        return
+    page.insert_font(fontname=POLISH_FONT_NAME, fontfile=str(font_path))
+    embedded_pages.add(page.number)
+
+
+def _load_polish_font(font_path: Path) -> fitz.Font:
+    return fitz.Font(fontfile=str(font_path))
+
+
+def _preferred_fontsize(widget: fitz.Widget) -> float:
+    if widget.text_fontsize and widget.text_fontsize > 0:
+        return widget.text_fontsize
+    return DEFAULT_TEXT_FONT_SIZE
+
+
+def _max_fontsize_for_height(font: fitz.Font, rect: fitz.Rect) -> float:
+    line_height = font.ascender + abs(font.descender)
+    if line_height <= 0:
+        return DEFAULT_TEXT_FONT_SIZE
+    return (rect.height * TEXT_HEIGHT_MARGIN_RATIO) / line_height
+
+
+def _fit_fontsize(font: fitz.Font, text: str, rect: fitz.Rect, preferred: float) -> float:
+    start_size = min(preferred, _max_fontsize_for_height(font, rect))
+    fontsize = start_size
+    max_width = rect.width * TEXT_WIDTH_MARGIN_RATIO
+
+    while fontsize >= MIN_TEXT_FONT_SIZE:
+        if font.text_length(text, fontsize=fontsize) <= max_width:
+            line_height = fontsize * (font.ascender + abs(font.descender))
+            if line_height <= rect.height * TEXT_HEIGHT_MARGIN_RATIO:
+                return fontsize
+        fontsize -= 0.5
+
+    return MIN_TEXT_FONT_SIZE
+
+
+def _baseline_y(rect: fitz.Rect, font: fitz.Font, fontsize: float) -> float:
+    ascender = font.ascender * fontsize
+    descender = abs(font.descender * fontsize)
+    return rect.y0 + (rect.height + ascender + descender) / 2 - descender
+
+
+def _flatten_text_widget(page: fitz.Page, widget: fitz.Widget, value: str, font: fitz.Font) -> None:
+    rect = widget.rect
+    if value:
+        fontsize = _fit_fontsize(font, value, rect, _preferred_fontsize(widget))
+        baseline_y = _baseline_y(rect, font, fontsize)
+        page.insert_text(
+            (rect.x0, baseline_y),
+            value,
+            fontname=POLISH_FONT_NAME,
+            fontsize=fontsize,
+        )
+    page.delete_widget(widget)
+
 
 def _write_pdf_fields(doc: fitz.Document, mapping: PdfFieldMapping) -> None:
+    font_path = _resolve_polish_font_path()
+    embedded_pages: set[int] = set()
+    polish_font = _load_polish_font(font_path)
+
     for page in doc:
+        text_widgets: list[tuple[fitz.Widget, str]] = []
+
         for widget in page.widgets() or []:
             if widget.field_name in mapping.text_values:
-                val = mapping.text_values[widget.field_name]
-                widget.text_font = "notos"
-                widget.field_value = val
-                widget.update()
+                text_widgets.append((widget, mapping.text_values[widget.field_name]))
             elif widget.field_name in mapping.managed_checkboxes:
                 if widget.field_name in mapping.checked_fields:
                     widget.field_value = widget.on_state() or "Yes"
                 else:
                     widget.field_value = ""
                 widget.update()
+
+        if not text_widgets:
+            continue
+
+        _ensure_polish_font(page, font_path, embedded_pages)
+        for widget, value in text_widgets:
+            _flatten_text_widget(page, widget, value, polish_font)
 
 
 
@@ -153,7 +239,6 @@ async def generate_submission_pdf(db: AsyncSession, submission_id: UUID) -> tupl
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
     settings = get_settings()
-    import asyncio
     pdf_bytes = await asyncio.to_thread(
         fill_guest_submission_template, submission, settings=settings
     )

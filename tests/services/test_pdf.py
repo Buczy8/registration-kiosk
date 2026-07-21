@@ -67,6 +67,145 @@ def _template_pdf(path):
     doc.close()
 
 
+def _guardian_template_pdf(path):
+    doc = fitz.open()
+    page = doc.new_page()
+    for field_name, rect, field_type in [
+        ("checkbox_4bnfu", fitz.Rect(10, 10, 20, 20), fitz.PDF_WIDGET_TYPE_CHECKBOX),
+        ("text_10hcx", fitz.Rect(10, 40, 180, 60), fitz.PDF_WIDGET_TYPE_TEXT),
+        ("podopieczny", fitz.Rect(10, 100, 140, 112.5), fitz.PDF_WIDGET_TYPE_TEXT),
+    ]:
+        widget = fitz.Widget()
+        widget.field_name = field_name
+        widget.field_type = field_type
+        widget.rect = rect
+        page.add_widget(widget)
+    doc.save(path)
+    doc.close()
+
+
+def test_fill_guest_submission_template_renders_minor_name_in_short_field(tmp_path):
+    template_path = tmp_path / "guest-registration-guardian.pdf"
+    _guardian_template_pdf(template_path)
+    schema_json = {
+        "pdf_mapping": {
+            "text_fields": {
+                "text_10hcx": "{full_name}",
+                "podopieczny": "{minor_full_name}",
+            },
+            "checkboxes": {
+                "participant_role": {
+                    "legal_guardian": "checkbox_4bnfu",
+                },
+            },
+            "consents": {},
+        }
+    }
+    form = Form(
+        id=uuid.uuid4(),
+        code="guest-registration",
+        name="Rejestracja gościa",
+        version="1.0",
+        schema_json=schema_json,
+        pdf_template_path=str(template_path),
+        is_active=True,
+    )
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.LEGAL_GUARDIAN,
+        vehicle_type=VehicleType.CAR,
+        start_number=77,
+        sequence_date=date(2026, 7, 3),
+        payload_json={
+            "first_name": "Anna",
+            "last_name": "Opiekun",
+            "minor_first_name": "Kacper",
+            "minor_last_name": "Zieliński",
+        },
+        consents_json={"privacy": True},
+        declarations_accepted=True,
+        signature_path=None,
+        signature_hash=None,
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+
+    pdf_bytes = fill_guest_submission_template(submission)
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page_text = doc[0].get_text().replace("\xa0", " ")
+    assert "Kacper Zieliński" in page_text
+
+    pix = doc[0].get_pixmap(dpi=150, clip=fitz.Rect(10, 100, 140, 112.5))
+    nonwhite_pixels = sum(
+        1 for index in range(0, len(pix.samples), pix.n) if pix.samples[index] < 240
+    )
+    doc.close()
+
+    assert nonwhite_pixels > 100
+
+
+def test_fill_guest_submission_template_shrinks_font_for_long_name(tmp_path):
+    template_path = tmp_path / "guest-registration.pdf"
+    _template_pdf(template_path)
+    form = Form(
+        id=uuid.uuid4(),
+        code="guest-registration",
+        name="Rejestracja gościa",
+        version="1.0",
+        schema_json=MOCK_SCHEMA_JSON,
+        pdf_template_path=str(template_path),
+        is_active=True,
+    )
+    long_name = "Bardzo Długie Imię Drugie Imię Nazwisko Testowe"
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=77,
+        sequence_date=date(2026, 7, 3),
+        payload_json={
+            "first_name": long_name,
+            "last_name": "",
+            "pesel": "90010112345",
+        },
+        consents_json={"privacy": True},
+        declarations_accepted=True,
+        signature_path=None,
+        signature_hash=None,
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+
+    pdf_bytes = fill_guest_submission_template(submission)
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page_text = doc[0].get_text().replace("\xa0", " ")
+    assert long_name in page_text
+
+    pix = doc[0].get_pixmap(dpi=150, clip=fitz.Rect(10, 40, 180, 60))
+    nonwhite_pixels = sum(
+        1 for index in range(0, len(pix.samples), pix.n) if pix.samples[index] < 240
+    )
+    doc.close()
+
+    assert nonwhite_pixels > 100
+
+
 def test_fill_guest_submission_template_fills_interactive_pdf_fields(tmp_path):
     template_path = tmp_path / "guest-registration.pdf"
     _template_pdf(template_path)
@@ -108,18 +247,75 @@ def test_fill_guest_submission_template_fills_interactive_pdf_fields(tmp_path):
     pdf_bytes = fill_guest_submission_template(submission)
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    values = {
+    page_text = doc[0].get_text()
+    checkbox_values = {
         widget.field_name: widget.field_value
         for page in doc
         for widget in (page.widgets() or [])
+        if widget.field_type == fitz.PDF_WIDGET_TYPE_CHECKBOX
     }
     doc.close()
-    assert values["text_10hcx"] == "Jan Kowalski"
-    assert values["text_11neet"] == "90010112345"
-    assert values["text_17mtbv"] == "77"
-    assert values["checkbox_1yrvm"] == "Yes"
-    assert values["checkbox_7agj"] == "Yes"
-    assert values["checkbox_24iihx"] == "Yes"
+    normalized_text = page_text.replace("\xa0", " ")
+    assert "Jan Kowalski" in normalized_text
+    assert "90010112345" in page_text
+    assert "77" in page_text
+    assert checkbox_values["checkbox_1yrvm"] == "Yes"
+    assert checkbox_values["checkbox_7agj"] == "Yes"
+    assert checkbox_values["checkbox_24iihx"] == "Yes"
+
+
+def test_fill_guest_submission_template_renders_polish_characters_in_png(tmp_path):
+    template_path = tmp_path / "guest-registration.pdf"
+    _template_pdf(template_path)
+    form = Form(
+        id=uuid.uuid4(),
+        code="guest-registration",
+        name="Rejestracja gościa",
+        version="1.0",
+        schema_json=MOCK_SCHEMA_JSON,
+        pdf_template_path=str(template_path),
+        is_active=True,
+    )
+    submission = Submission(
+        id=uuid.uuid4(),
+        form_id=form.id,
+        form=form,
+        form_version=form.version,
+        user_id=None,
+        filled_for_related_person_id=None,
+        mode=SubmissionMode.GUEST,
+        participant_role=ParticipantRole.DRIVER,
+        vehicle_type=VehicleType.CAR,
+        start_number=77,
+        sequence_date=date(2026, 7, 3),
+        payload_json={
+            "first_name": "Paweł",
+            "last_name": "Łódź",
+            "pesel": "90010112345",
+        },
+        consents_json={"privacy": False, "image_publication": True},
+        declarations_accepted=True,
+        signature_path=None,
+        signature_hash=None,
+        signed_at=None,
+        pdf_path=None,
+        status=SubmissionStatus.SUBMITTED,
+    )
+
+    pdf_bytes = fill_guest_submission_template(submission)
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page_text = doc[0].get_text()
+    assert "Paweł" in page_text
+    assert "Łódź" in page_text
+
+    pix = doc[0].get_pixmap(dpi=150, clip=fitz.Rect(10, 40, 180, 60))
+    nonwhite_pixels = sum(
+        1 for index in range(0, len(pix.samples), pix.n) if pix.samples[index] < 240
+    )
+    doc.close()
+
+    assert nonwhite_pixels > 100
 
 
 def test_fill_guest_submission_template_does_not_check_guardian_for_driver(tmp_path):
