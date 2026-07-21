@@ -45,7 +45,7 @@ ACTIVE_FORM_DATA = {
             "email": {"type": "string", "format": "email", "title": "E-mail"},
             "emergency_contact_name": {
                 "type": "string",
-                "title": "Kontakt ICE – imię i nazwisko",
+                "title": "Kontakt ICE – imię",
             },
             "emergency_contact_phone": {
                 "type": "string",
