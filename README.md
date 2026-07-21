@@ -52,7 +52,7 @@ graph TD
 | Usługa | Rola |
 |--------|------|
 | **reverse-proxy (Caddy)** | HTTPS (`tls internal`), serwowanie zbudowanego frontendu, proxy `/api/*` do API, **wstrzykiwanie nagłówka `X-Kiosk-Token`** (token nie trafia do bundla JS). |
-| **api (FastAPI)** | REST API, JWT w HttpOnly cookie, generowanie PDF (PyMuPDF), zapis podpisów, kolejka druku w **FastAPI `BackgroundTasks`** (in-process, nie osobny worker). |
+| **api (FastAPI)** | REST API, JWT w HttpOnly cookie, generowanie PDF/PNG (PyMuPDF + Liberation Sans, polskie znaki), zapis podpisów, kolejka druku w **FastAPI `BackgroundTasks`** (in-process, nie osobny worker). |
 | **db (PostgreSQL)** | Użytkownicy, formularze, zgłoszenia, zadania druku (`print_jobs`). |
 | **printer-simulator** | Opcjonalny symulator portu 9100 — zapisuje strumień RAW do `storage/printed_files`. W produkcji zwykle **wyłączony**; API kieruje się na fizyczną drukarkę. |
 
@@ -71,6 +71,8 @@ KioskAPI/
 │   ├── models/              # SQLAlchemy
 │   ├── schemas/             # Pydantic
 │   └── services/            # PDF, drukarka, zgłoszenia, podpisy
+├── assets/
+│   └── fonts/               # Liberation Sans — polskie znaki w PDF
 ├── documentation/           # Kontrakty API, backlog epików
 ├── frontend/                # React + Vite (JS/JSX)
 ├── infrastructure/
@@ -98,7 +100,7 @@ Wszystkie endpointy API są pod prefiksem **`/api/v1`**. Nagłówek **`X-Kiosk-T
 3. `POST /api/v1/kiosk/submissions` (bez JWT) — tryb `guest`.
 4. Backend: walidacja, zapis podpisu, numer startowy, commit zgłoszenia.
 5. Jeśli **`PRINT_ENABLED=true`** — auto-druk w tle (`BackgroundTasks`); jeśli `false` — status `submitted`, druk tylko z panelu admina.
-6. Ekran wyniku: podgląd PDF (`GET /api/v1/kiosk/submissions/{id}/pdf`), status druku (kolejka / OK / błąd).
+6. Ekran wyniku: podgląd PDF (`GET /api/v1/kiosk/submissions/{id}/pdf`) lub PNG (`GET /api/v1/kiosk/submissions/{id}/png`), status druku (kolejka / OK / błąd).
 
 ### B. Konto (Account)
 
@@ -176,7 +178,8 @@ Domyślny plik jest nastawiony na **dev** (symulator drukarki, `DEBUG=true`, wys
 
 ### Krok 3 — szablony i wolumeny
 
-- Plik **`templates/forms/guest-registration-v1.pdf`** musi istnieć (seed formularza wskazuje tę ścieżkę). Brak szablonu → błąd **500** przy generowaniu PDF (zgłoszenie w bazie już jest).
+- Plik **`templates/forms/guest-registration-v3.pdf`** musi istnieć (seed formularza wskazuje tę ścieżkę). Brak szablonu → błąd **500** przy generowaniu PDF (zgłoszenie w bazie już jest).
+- Font **`assets/fonts/LiberationSans-Regular.ttf`** musi być w obrazie API (kopiowany przy `docker compose build api`). Bez niego generowanie PDF kończy się błędem 500.
 - Wolumeny `./storage` i `./templates` muszą być trwałe i objęte backupem (podpisy, ewentualne pliki druku testowych).
 
 ### Krok 4 — build i start
@@ -219,7 +222,8 @@ docker compose exec db psql -U kiosk -d kiosk -c \
 - [ ] `AUTH_COOKIE_SECURE=true` (HTTPS przez Caddy).
 - [ ] Certyfikat Caddy (`tls internal`) zainstalowany na tabletach lub świadoma decyzja o HTTP (niezalecane).
 - [ ] Symulator drukarki i port 9100 na hoście wyłączone w prod.
-- [ ] Szablon PDF obecny w `templates/forms/`.
+- [ ] Szablon PDF obecny w `templates/forms/` (`guest-registration-v3.pdf`).
+- [ ] Font `assets/fonts/LiberationSans-Regular.ttf` w repozytorium (wchodzi w obraz API przy buildzie).
 - [ ] Backup wolumenu `postgres_data` i `storage`.
 
 ### Typowe problemy
@@ -229,7 +233,7 @@ docker compose exec db psql -U kiosk -d kiosk -c \
 | **401** na API z tabletu | Brak / zły `X-Kiosk-Token` | Token w `.env` musi być zgodny z tym, co Caddy wstrzykuje (`KIOSK_TOKEN` w compose dla `reverse-proxy`). |
 | **Drukarka: BŁĄD** w adminie | Brak TCP do `PRINTER_HOST:9100` | Sprawdź IP, firewall, kabel/sieć; to **nie** jest skutek `PRINT_ENABLED=false`. |
 | Status **Błąd druku** na zgłoszeniu | Drukarka niedostępna przy `PRINT_ENABLED=true` | Napraw połączenie lub ustaw `PRINT_ENABLED=false` i drukuj z admina. |
-| **500** przy PDF | Brak pliku szablonu | Dodaj `guest-registration-v1.pdf` lub popraw `pdf_template_path` w seedzie. |
+| **500** przy PDF | Brak pliku szablonu lub fontu | Dodaj `guest-registration-v3.pdf` w `templates/forms/`, upewnij się że `assets/fonts/LiberationSans-Regular.ttf` jest w repo i przebuduj API (`docker compose up -d --build api`). |
 | Aplikacja nie startuje | Słabe sekrety przy `APP_ENV=production` | Użyj losowych tokenów — walidator w `Settings.validate_production_safety`. |
 
 ---
@@ -266,6 +270,8 @@ docker compose up -d --build
 - **Redis nie jest wymagany.**
 
 Logi API: `docker compose logs api -f`
+
+> **Uwaga — zmiany w backendzie:** w `docker-compose.yml` montowane są tylko wolumeny `./storage` i `./templates`. Kod `app/` jest **wbudowany w obraz** przy buildzie — po edycji Pythona uruchom `docker compose up -d --build api` (sam `restart api` nie wystarczy).
 
 ### Backend lokalnie (bez Dockera)
 
@@ -319,6 +325,7 @@ Formularz rejestracyjny składa się z **kilku warstw**. Przy każdej zmianie tr
 | **Treść regulaminu / oświadczeń (UI)** | `frontend/src/content/participantDeclarations.js` | Tekst przewijany na tablecie przed wysłaniem (`DeclarationsPanel`). |
 | **Pola formularza na tablecie** | `scripts/seed_active_form.py` → `schema_json` (+ częściowo `frontend/src/lib/registrationFormShared.js`) | Jakie pola są wymagane, etykiety, walidacja PESEL itd. Kiosk pobiera schemat z API (`GET /api/v1/kiosk/forms/active`). |
 | **Szablon PDF (layout, checkboxy, podpis)** | `templates/forms/*.pdf` + `schema_json.pdf_mapping` w seedzie | Wygląd wydruku, pozycja podpisu, nazwy pól AcroForm w PDF. |
+| **Renderowanie tekstu w PDF** | `app/services/pdf.py` + `assets/fonts/LiberationSans-Regular.ttf` | Polskie znaki, dopasowanie czcionki do pola, wyrównanie pionowe. |
 | **Mapowanie danych → PDF** | `app/services/pdf_mapping.py` + sekcja `pdf_mapping` w `schema_json` | Które dane z formularza trafiają do którego pola/checkboxa w PDF. |
 | **Wersja formularza** | pole `version` w tabeli `forms` (seed) | Każde zgłoszenie zapisuje `form_version` z momentu wysłania. Uwaga: samo pole wersji nie przechowuje kopii `schema_json` ani szablonu PDF. |
 
@@ -375,6 +382,28 @@ Wspierane placeholdery tekstowe (m.in.): `full_name`, `identity_document`, `star
 
 Brakujące pole w payloadzie **nie psuje** generowania — w PDF wstawia się pusty string (`SafePayload`).
 
+#### B1. Jak działa tekst w PDF (polskie znaki, długie nazwiska)
+
+Generator w `app/services/pdf.py` **nie używa** standardowego `widget.update()` dla pól tekstowych — PyMuPDF obsługuje w widgetach tylko fonty Base-14 (Helvetica itd.), które **nie renderują polskich znaków** (ą, ę, ł, ó, ś, ź, ż) w podglądzie PNG ani na wydruku.
+
+Dla każdego pola z `pdf_mapping.text_fields`:
+
+1. Osadzany jest font **Liberation Sans** (`assets/fonts/LiberationSans-Regular.ttf`; fallback w kontenerze: `/usr/share/fonts/truetype/liberation/`).
+2. Tekst rysowany jest bezpośrednio na stronie (`insert_text`) z **automatycznym dopasowaniem czcionki**:
+   - domyślnie do **10 pt**, minimum **5 pt**,
+   - maleje, gdy tekst nie mieści się w **szerokości** (długie imię/nazwisko) lub **wysokości** prostokąta pola,
+   - wyśrodkowany **pionowo** w polu (np. „Data i miejscowość” nie jest przyklejona do góry).
+3. Oryginalny widget AcroForm jest usuwany (flatten) — PDF na wydruk to statyczna warstwa graficzna.
+
+**Checkboxy** i **podpis** (obraz PNG) działają osobno — tam logika się nie zmienia.
+
+Przy projektowaniu nowego szablonu PDF:
+
+- pola tekstowe powinny mieć sensowną **szerokość** (długie nazwiska) i **wysokość** (pole `podopieczny` w v3 ma ~12 pt wysokości — generator i tak dopasuje czcionkę, ale bardzo niskie pola wymuszają mniejszy font),
+- font osadzony w szablonie (np. `ARIAL.TTF`) **nie jest używany** przy wypełnianiu — liczy się prostokąt (`rect`) widgetu i mapowanie w seedzie.
+
+Po zmianach w `app/services/pdf.py` lub `assets/fonts/`: **`docker compose up -d --build api`**.
+
 #### C. Więcej / mniej checkboxów lub pól na tablecie (nie tylko na PDF)
 
 **Dotyczy:** nowe pole „Nr licencji”, dodatkowa zgoda, usunięcie pola.
@@ -399,7 +428,7 @@ W `pdf_mapping.checkboxes` klucze muszą odpowiadać wartościom enum (np. `"dri
 
 1. Zmiany w kodzie / szablonach na serwerze (git pull lub kopiowanie plików).
 2. Nowy PDF → upewnij się, że wolumen `./templates` na hoście zawiera plik.
-3. **Backend / schemat:** `docker compose restart api` (entrypoint odpala seed — nadpisuje aktywny formularz o kodzie `guest-registration`).
+3. **Backend / schemat:** po zmianach w `app/` → `docker compose up -d --build api`; po samej zmianie seeda wystarczy `docker compose restart api` (entrypoint odpala seed).
 4. **Frontend:** `docker compose up -d --build reverse-proxy` (statyczne pliki + ewentualny `KIOSK_IDLE_LOGOUT_SECONDS`).
 5. Na tablecie: twarde odświeżenie cache (Ctrl+F5) lub tryb prywatny.
 6. Test: jedno zgłoszenie testowe → podgląd PDF → opcjonalnie druk próbny z panelu admina.
@@ -417,19 +446,25 @@ docker compose exec api uv run python scripts/seed_active_form.py
 # „Wersja formularza: X.Y” (pole form.version z API)
 ```
 
-Na produkcji: po deployu wyślij **zgłoszenie testowe**, pobierz PDF (`GET /api/v1/kiosk/submissions/{id}/pdf` lub podgląd na ekranie wyniku) i sprawdź:
+Na produkcji: po deployu wyślij **zgłoszenie testowe**, pobierz PDF (`GET /api/v1/kiosk/submissions/{id}/pdf`) lub PNG (`GET /api/v1/kiosk/submissions/{id}/png`, podgląd na ekranie wyniku) i sprawdź:
 
-- czy wszystkie pola tekstowe są na właściwych miejscach,
+- czy wszystkie pola tekstowe są na właściwych miejscach (w tym **imię i nazwisko podopiecznego** przy roli opiekuna),
+- czy **polskie znaki** (ą, ę, ł, ó, ś, ź, ż) są widoczne w PDF, PNG i na wydruku,
+- czy długie imiona/nazwiska mieszczą się w polach (czytelna, ewentualnie mniejsza czcionka),
 - czy zaznaczone są właściwe checkboxy (rola, pojazd, zgody),
 - czy podpis jest w nowym prostokącie,
-- czy numer startowy i data się zgadzają.
+- czy numer startowy, data i miejscowość się zgadzają.
 
 ### Częste błędy
 
 | Problem | Przyczyna |
 |---------|-----------|
 | PDF 500 / „template not found” | Brak pliku pod `pdf_template_path` w `templates/forms/` na serwerze. |
+| PDF 500 / brak fontu polskich znaków | Brak `assets/fonts/LiberationSans-Regular.ttf` w obrazie API — przebuduj: `docker compose up -d --build api`. |
+| Polskie znaki widoczne w podglądzie przeglądarki, znikają w PNG / druku | Stary obraz API bez poprawki w `app/services/pdf.py` — przebuduj kontener API. |
 | Puste pole na PDF mimo wypełnienia na tablecie | Zła nazwa w `pdf_mapping.text_fields` (literówka w nazwie widgetu PDF). |
+| Puste pole **podopieczny** (opiekun prawny) | Brak `minor_first_name` / `minor_last_name` w `payload_json` albo brak mapowania `"podopieczny": "{minor_full_name}"` w seedzie. |
+| Tekst ucięty lub niewidoczny w wąskim/niskim polu | Za mały prostokąt widgetu w szablonie PDF — poszerz pole w AcroForm; generator zmniejsza czcionkę do min. 5 pt, ale ekstremalnie małe pola mogą nadal nie pomieścić tekstu. |
 | Checkbox nie zaznaczony | Brak wpisu w `pdf_mapping.checkboxes` / `consents` lub inna wartość enum niż w mapowaniu. |
 | Podpis poza polem | Złe współrzędne `pdf_mapping.signature.rect` (układ PDF: origin często lewy górny róg, jednostki punktów). |
 | Nowe pole nie widać na tablecie | Brak w `schema_json.properties` / `required` lub brak w stałej `PERSONAL_DATA_FIELDS` (pola poza listą nie renderują się automatycznie). |
