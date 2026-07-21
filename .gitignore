@@ -79,3 +79,6 @@ desktop.ini
 
 # Lokalne pliki aplikacji (PDF, podpisy)
 storage/
+
+# Folder tymczasowy / scratch
+/scratch/
