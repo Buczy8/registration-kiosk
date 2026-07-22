@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FormProvider, Controller } from "react-hook-form";
 
 import { listRelatedPersons } from "../api/account.js";
@@ -131,7 +131,18 @@ export default function GuestRegistrationForm({
     }
   }, [watchedVehicleType, vehicleType, onVehicleTypeChange]);
 
+  const localSubmittingRef = useRef(false);
+
+  // Synchronize internal submitting state back if parent state resets on error
+  useEffect(() => {
+    localSubmittingRef.current = submitting;
+  }, [submitting]);
+
   function handleValidSubmit(data) {
+    if (localSubmittingRef.current) {
+      return;
+    }
+    localSubmittingRef.current = true;
     const submissions = buildSubmissions(data);
     onSubmit(submissions.length === 1 ? submissions[0] : submissions);
   }
@@ -162,7 +173,7 @@ export default function GuestRegistrationForm({
 
   return (
     <FormProvider {...methods}>
-      <form className="guest-form" onSubmit={methods.handleSubmit(handleValidSubmit)}>
+      <form className={`guest-form ${submitting ? "guest-form--submitting" : ""}`} onSubmit={methods.handleSubmit(handleValidSubmit)}>
         <header className="form-header">
           <p className="eyebrow">{isAccountMode ? "Konto użytkownika" : "Kiosk gościa"}</p>
           <h1>Oświadczenie uczestnika – Autodrom Biłgoraj</h1>

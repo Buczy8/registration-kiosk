@@ -72,6 +72,11 @@ input[type="radio"] {
   gap: 16px;
 }
 
+.guest-form--submitting {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
 .form-header,
 .status-card,
 .result-card {
