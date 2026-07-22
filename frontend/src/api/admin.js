@@ -104,6 +104,13 @@ export async function queueSubmissionForPrint({ submissionId }) {
   return response.json();
 }
 
+export async function deleteAdminSubmission({ submissionId }) {
+  await apiRequest(`/admin/submissions/${submissionId}`, {
+    method: "DELETE",
+    contentType: null,
+  });
+}
+
 export async function getAdminPrintJobs({
   status = null,
   sequenceDate = null,

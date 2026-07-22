@@ -427,7 +427,12 @@ async def process_and_complete_print_job(
     job.status = PrintJobStatus.DONE
     job.finished_at = datetime.now(UTC)
     job.last_error = None
-    submission.status = SubmissionStatus.PRINT_DONE
-    await db.commit()
-
     return pdf_bytes, filename, existing_job_id, PrintJobStatus.DONE
+
+
+async def delete_admin_submission(db: AsyncSession, submission_id: UUID) -> None:
+    submission = await db.get(Submission, submission_id)
+    if not submission:
+        raise AdminSubmissionNotFound()
+    await db.delete(submission)
+    await db.commit()

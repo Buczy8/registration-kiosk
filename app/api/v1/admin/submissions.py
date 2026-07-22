@@ -106,3 +106,19 @@ async def queue_submission_for_print(
         job_id=job_id,
         status=job_status,
     )
+
+
+@router.delete("/{submission_id}", status_code=204)
+async def delete_submission(
+        submission_id: UUID,
+        admin: CurrentAdminUser,
+        db: AsyncSession = Depends(get_db),
+):
+    from fastapi import HTTPException
+    from app.services.admin import AdminSubmissionNotFound
+    try:
+        await admin_services.delete_admin_submission(db, submission_id)
+    except AdminSubmissionNotFound:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return Response(status_code=204)
+

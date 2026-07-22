@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   fetchAdminSubmissionPdf,
   getAdminSubmissionDetails,
   queueSubmissionForPrint,
+  deleteAdminSubmission,
 } from "../../api/admin.js";
 import PdfPreview from "../../components/PdfPreview.jsx";
 import { downloadPdfBlob } from "../../lib/adminPrint.js";
@@ -23,6 +24,7 @@ function humanizeStatus(value) {
 
 export default function AdminSubmissionDetailsPage() {
   const { submissionId } = useParams();
+  const navigate = useNavigate();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,21 @@ export default function AdminSubmissionDetailsPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm("Czy na pewno chcesz usunąć to zgłoszenie? Spowoduje to zwolnienie przypisanego numeru startowego.")) {
+      return;
+    }
+    setActionMessage(null);
+    setActing(true);
+    try {
+      await deleteAdminSubmission({ submissionId });
+      navigate("/admin/submissions");
+    } catch (e) {
+      setError(e.message || "Nie udało się usunąć zgłoszenia.");
+      setActing(false);
+    }
+  }
+
   function handleDownloadPdf() {
     if (!pdfBlob) return;
     setActionMessage(null);
@@ -107,6 +124,9 @@ export default function AdminSubmissionDetailsPage() {
             <Link className="secondary-button" to="/admin/submissions">
               &larr; Powrót
             </Link>
+            <button type="button" className="danger-button" disabled={acting} onClick={handleDelete}>
+              Usuń zgłoszenie
+            </button>
             <button type="button" className="primary-button" disabled={acting} onClick={handleQueuePrint}>
               {acting ? "Drukowanie…" : "Drukuj"}
             </button>
