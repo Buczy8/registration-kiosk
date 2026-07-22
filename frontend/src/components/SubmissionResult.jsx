@@ -59,52 +59,82 @@ export default function SubmissionResult({
 
   return (
     <section className="result-card result-screen">
-      <h1>Rejestracja zakończona</h1>
-      {isMultiple ? (
-        <p>Utworzono {submissions.length} zgłoszenia. Podgląd dokumentu dla każdego podopiecznego.</p>
-      ) : (
-        <p>Numer startowy</p>
-      )}
+      {/* Lewa kolumna: info + lista zgłoszeń + akcje */}
+      <div className="result-left">
+        <h1>Rejestracja zakończona</h1>
+        {isMultiple ? (
+          <p>Utworzono {submissions.length} zgłoszenia. Podgląd dokumentu dla każdego podopiecznego.</p>
+        ) : (
+          <p>Numer startowy</p>
+        )}
 
-      <ul className="submission-results">
-        {submissions.map((submission) => (
-          <li className="submission-result-item" key={submission.id}>
-            <p className="result-number">{submission.start_number}</p>
-            <p>Data sekwencji: {submission.sequence_date}</p>
-            <p>
-              Status:{" "}
-              <span className={`status-pill ${
-                submission.status === "print_done"
-                  ? "status-pill--success"
-                  : submission.status === "print_failed"
-                    ? "status-pill--danger"
-                    : submission.status === "print_queued"
-                      ? "status-pill--warning"
-                      : "status-pill--info"
-              }`}>
-                {submission.status === "submitted" ? "Zgłoszone" :
-                 submission.status === "print_queued" ? "W kolejce do druku" :
-                 submission.status === "print_done" ? "Wydrukowane" :
-                 submission.status === "print_failed" ? "Błąd druku" :
-                 submission.status}
-              </span>
-            </p>
-            {isMultiple && (
-              <button
-                className={
-                  activeSubmissionId === submission.id ? "primary-button" : "secondary-button"
-                }
-                type="button"
-                onClick={() => setActiveSubmissionId(submission.id)}
-              >
-                Podgląd PDF
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+        <ul className="submission-results">
+          {submissions.map((submission) => (
+            <li className="submission-result-item" key={submission.id}>
+              <p className="result-number">{submission.start_number}</p>
+              <p>Data sekwencji: {submission.sequence_date}</p>
+              <p>
+                Status:{" "}
+                <span className={`status-pill ${
+                  submission.status === "print_done"
+                    ? "status-pill--success"
+                    : submission.status === "print_failed"
+                      ? "status-pill--danger"
+                      : submission.status === "print_queued"
+                        ? "status-pill--warning"
+                        : "status-pill--info"
+                }`}>
+                  {submission.status === "submitted" ? "Zgłoszone" :
+                   submission.status === "print_queued" ? "W kolejce do druku" :
+                   submission.status === "print_done" ? "Wydrukowane" :
+                   submission.status === "print_failed" ? "Błąd druku" :
+                   submission.status}
+                </span>
+              </p>
+              {isMultiple && (
+                <button
+                  className={
+                    activeSubmissionId === submission.id ? "primary-button" : "secondary-button"
+                  }
+                  type="button"
+                  onClick={() => setActiveSubmissionId(submission.id)}
+                >
+                  Podgląd PDF
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
 
-      <div className="pdf-preview-panel">
+        <div className="actions">
+          {isAccountMode ? (
+            <>
+              {onNextDependent && (
+                <button className="primary-button" type="button" onClick={onNextDependent}>
+                  Kolejny podopieczny
+                </button>
+              )}
+              {onNewForm && !onNextDependent && (
+                <button className="primary-button" type="button" onClick={onNewForm}>
+                  Nowy formularz
+                </button>
+              )}
+              {onLogout && (
+                <button className="danger-button" type="button" onClick={onLogout}>
+                  Wyloguj
+                </button>
+              )}
+            </>
+          ) : (
+            <button className="primary-button" type="button" onClick={onNewSubmission}>
+              Nowa rejestracja
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Prawa kolumna: podgląd PDF */}
+      <div className="result-right pdf-preview-panel">
         <h2>Podgląd dokumentu</h2>
         {loadingPreview && <p>Ładowanie podglądu PDF...</p>}
         {previewError && (
@@ -114,32 +144,6 @@ export default function SubmissionResult({
         )}
         {!loadingPreview && !previewError && activePdfBlob && (
           <PdfPreview blob={activePdfBlob} title="Podgląd zgłoszenia PDF" />
-        )}
-      </div>
-
-      <div className="actions">
-        {isAccountMode ? (
-          <>
-            {onNextDependent && (
-              <button className="primary-button" type="button" onClick={onNextDependent}>
-                Kolejny podopieczny
-              </button>
-            )}
-            {onNewForm && !onNextDependent && (
-              <button className="primary-button" type="button" onClick={onNewForm}>
-                Nowy formularz
-              </button>
-            )}
-            {onLogout && (
-              <button className="secondary-button" type="button" onClick={onLogout}>
-                Wyloguj
-              </button>
-            )}
-          </>
-        ) : (
-          <button className="primary-button" type="button" onClick={onNewSubmission}>
-            Nowa rejestracja
-          </button>
         )}
       </div>
     </section>

@@ -234,12 +234,12 @@ export default function GuestRegistrationForm({
 
         <div className="actions">
           {onBack && (
-            <button className="secondary-button" type="button" onClick={onBack} disabled={submitting}>
+            <button className="ghost-button" type="button" onClick={onBack} disabled={submitting}>
               &larr; Wróć
             </button>
           )}
-          <button className="primary-button" type="submit" disabled={submitting}>
-            {submitting ? "Wysyłanie..." : "Wyślij"}
+          <button className="primary-button form-submit-button" type="submit" disabled={submitting}>
+            {submitting ? "Wysyłanie..." : "Wyślij formularz"}
           </button>
         </div>
       </form>

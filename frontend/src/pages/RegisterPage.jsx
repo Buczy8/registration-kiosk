@@ -107,7 +107,7 @@ export default function RegisterPage({ onBack, onSuccess }) {
           <div className="actions auth-actions">
             <button
               type="button"
-              className="secondary-button"
+              className="ghost-button"
               onMouseDown={(e) => {
                 e.preventDefault();
                 onBack();

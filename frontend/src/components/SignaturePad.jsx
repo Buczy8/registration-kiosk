@@ -180,7 +180,7 @@ export default function SignaturePad({ onChange, disabled = false }) {
         onPointerLeave={finishStroke}
       />
       <div className="signature-actions">
-        <button type="button" className="secondary-button" onClick={handleClear} disabled={disabled}>
+        <button type="button" className="warning-button" onClick={handleClear} disabled={disabled}>
           Wyczyść podpis
         </button>
       </div>

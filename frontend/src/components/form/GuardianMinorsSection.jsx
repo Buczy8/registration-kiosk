@@ -90,7 +90,7 @@ export default function GuardianMinorsSection({ properties, allowMultiple = true
                   <td>{fullName || `Podopieczny ${index + 1}`}</td>
                   <td className="minor-table-actions">
                     <button
-                      className="secondary-button"
+                      className="accent-button"
                       type="button"
                       onClick={() => setActiveIndex(index)}
                     >
@@ -98,7 +98,7 @@ export default function GuardianMinorsSection({ properties, allowMultiple = true
                     </button>
                     {allowMultiple && fields.length > 1 && (
                       <button
-                        className="secondary-button minor-remove-button"
+                        className="danger-button minor-remove-button"
                         type="button"
                         onClick={() => removeMinor(index)}
                       >

@@ -1,17 +1,44 @@
-* {
+/* =============================================================
+   KIOSK RESET & BASE  — tablet landscape (1024 × 768 +)
+   ============================================================= */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  /* Prevent pull-to-refresh & overscroll on kiosk browsers */
+  overscroll-behavior: none;
+  /* Disable text selection on a touch kiosk */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable selection in form inputs & editable areas */
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+body {
   background: #f3f4f6;
   color: #111827;
   font-family:
+    "Inter",
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  /* Improves touch text rendering */
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -20,47 +47,62 @@ select {
   font: inherit;
 }
 
-#root {
-  width: min(920px, 100%);
-  margin: 0 auto;
-  padding: 24px;
+/* Remove default tap highlight on touch devices */
+button,
+a,
+input[type="checkbox"],
+input[type="radio"] {
+  -webkit-tap-highlight-color: transparent;
 }
 
+/* ── Root container ─────────────────────────────────────────── */
+#root {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 28px;
+  min-height: 100dvh;
+}
+
+/* ── Shared card / panel base ───────────────────────────────── */
 .guest-form,
 .status-card,
 .result-card {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .form-header,
 .status-card,
 .result-card {
-  padding: 24px;
+  padding: 20px 24px;
   border: 1px solid #d1d5db;
   border-radius: 16px;
   background: #ffffff;
-  box-shadow: 0 10px 24px rgb(17 24 39 / 8%);
+  box-shadow: 0 6px 20px rgb(17 24 39 / 7%);
 }
 
 .form-header h1,
 .result-card h1 {
-  margin: 4px 0 8px;
+  margin: 4px 0 6px;
+  font-size: 1.4rem;
 }
 
+/* ── Eyebrow / label above headings ─────────────────────────── */
 .eyebrow {
   margin: 0;
   color: #2563eb;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
+/* ── Form card (fieldset wrapper) ───────────────────────────── */
 .form-card {
   display: grid;
-  gap: 16px;
-  padding: 20px;
+  gap: 14px;
+  padding: 18px 20px;
   border: 1px solid #d1d5db;
   border-radius: 14px;
   background: #ffffff;
@@ -69,19 +111,28 @@ select {
 .form-card legend {
   padding: 0 8px;
   font-weight: 700;
+  font-size: 0.95rem;
 }
 
+/* ── Field rows ─────────────────────────────────────────────── */
+/* Default: 2 columns. On landscape tablet we push to 3 where space allows. */
 .field-row {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* 3-column variant used in PersonalDataSection on wide screens */
+.field-row--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .field,
 .checkbox-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .checkbox-field {
@@ -95,9 +146,10 @@ select {
   color: #6b7280;
 }
 
+/* ── Radio groups ───────────────────────────────────────────── */
 .radio-group {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -111,7 +163,7 @@ select {
 .radio-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 20px;
+  gap: 10px 18px;
 }
 
 .radio-option {
@@ -121,9 +173,10 @@ select {
   font-weight: 500;
 }
 
+/* ── Identity & vehicle sub-sections ───────────────────────── */
 .identity-fields {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   padding-top: 4px;
   border-top: 1px solid #e5e7eb;
 }
@@ -133,14 +186,19 @@ select {
   font-weight: 700;
 }
 
+/* ── Declarations panel ─────────────────────────────────────── */
 .declarations-panel {
-  max-height: 280px;
+  max-height: 220px;
   overflow-y: auto;
-  padding: 16px;
+  padding: 14px 16px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
   background: #f9fafb;
   line-height: 1.5;
+  /* Allow smooth touch scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .declarations-panel-sentinel {
@@ -152,7 +210,7 @@ select {
   margin: 0;
   padding-left: 1.25rem;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .declarations-list > li > p {
@@ -167,7 +225,7 @@ select {
 .review-hint {
   margin: 0;
   color: #b45309;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
@@ -176,17 +234,18 @@ select {
   line-height: 1.55;
 }
 
+/* ── Minor (podopieczny) cards ──────────────────────────────── */
 .minor-vehicle-fields {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   padding-top: 4px;
   border-top: 1px solid #e5e7eb;
 }
 
 .minor-card {
   display: grid;
-  gap: 16px;
-  padding: 16px;
+  gap: 14px;
+  padding: 14px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #f9fafb;
@@ -206,8 +265,8 @@ select {
 
 .minor-table-card {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #ffffff;
@@ -226,8 +285,8 @@ select {
 }
 
 .minor-add-button {
-  min-height: 36px;
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 8px 16px;
 }
 
 .minor-table {
@@ -245,7 +304,7 @@ select {
 
 .minor-table th {
   color: #4b5563;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
@@ -261,13 +320,14 @@ select {
 }
 
 .minor-remove-button {
-  min-height: 36px;
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 8px 16px;
 }
 
+/* ── Submission results list ────────────────────────────────── */
 .submission-results {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -275,21 +335,22 @@ select {
 
 .submission-result-item {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 14px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #f9fafb;
 }
 
+/* ── PDF Preview ────────────────────────────────────────────── */
 .pdf-preview-panel {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .pdf-preview-panel h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .pdf-preview {
@@ -304,16 +365,16 @@ select {
 
 .pdf-preview-status {
   margin: 0;
-  padding: 16px;
+  padding: 14px 16px;
 }
 
 .pdf-preview-canvas-stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -329,25 +390,75 @@ select {
   box-shadow: 0 1px 4px rgb(17 24 39 / 12%);
 }
 
-.result-screen .submission-results {
+/* ── Result screen — landscape two-column layout ────────────── */
+/*
+  Structure expected in JSX:
+    <section class="result-card result-screen">
+      <div class="result-left">   ← h1, p, submission list, actions
+      <div class="result-right pdf-preview-panel">  ← PDF
+    </section>
+*/
+.result-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: 20px;
+  align-items: start;
+  /* Let the card grow to fill available vertical space */
+  min-height: calc(100dvh - 80px);
+}
+
+/* Left column: stacks its children vertically */
+.result-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.result-left h1 {
+  margin: 0;
+}
+
+.result-left > p {
+  margin: 0;
+}
+
+.result-left .submission-results {
   gap: 10px;
 }
 
-.result-screen .submission-result-item {
+.result-left .submission-result-item {
   padding: 12px 16px;
 }
 
-.result-screen .result-number {
-  font-size: 2rem;
+.result-left .result-number {
+  font-size: 2.2rem;
 }
 
+/* Right column: PDF preview, sticky so it doesn't scroll away */
+.result-right {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.result-screen .pdf-preview-canvas-stack {
+  max-height: calc(100dvh - 12rem);
+}
+
+/* ── Inputs & selects ───────────────────────────────────────── */
 .field input,
 .field select {
   width: 100%;
-  padding: 10px 12px;
+  /* Larger touch target on tablet */
+  padding: 12px 14px;
   border: 1px solid #9ca3af;
   border-radius: 10px;
   background: #ffffff;
+  font-size: 1rem;
 }
 
 .field input:focus,
@@ -356,24 +467,27 @@ select {
   outline: 3px solid rgb(37 99 235 / 18%);
 }
 
-.field--invalid input {
+.field--invalid input,
+.field--invalid select {
   border-color: #dc2626;
 }
 
 .field-error {
-  margin-top: 4px;
+  margin-top: 2px;
   color: #b91c1c;
-  font-size: 0.875rem;
+  font-size: 0.84rem;
 }
 
+/* ── Hint / helper text ─────────────────────────────────────── */
 .hint {
   margin: 0;
   color: #4b5563;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
+/* ── Alert banners ──────────────────────────────────────────── */
 .alert {
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: 1px solid #fca5a5;
   border-radius: 12px;
   background: #fef2f2;
@@ -381,23 +495,26 @@ select {
 }
 
 .alert-success {
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
   background: #f0fdf4;
   color: #15803d;
 }
 
-
+/* ── Buttons ────────────────────────────────────────────────── */
 .primary-button,
 .secondary-button {
   width: fit-content;
-  min-height: 44px;
-  padding: 10px 18px;
+  /* Minimum touch target per WCAG / HIG: 44px */
+  min-height: 48px;
+  padding: 12px 22px;
   border: 0;
   border-radius: 999px;
   cursor: pointer;
   font-weight: 700;
+  font-size: 1rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .primary-button {
@@ -411,10 +528,24 @@ select {
   color: #111827;
 }
 
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgb(37 99 235 / 18%);
+}
+
+.primary-button:active,
+.secondary-button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
 .primary-button:disabled,
 .secondary-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+  transform: none;
+  box-shadow: none;
 }
 
 .actions {
@@ -423,13 +554,16 @@ select {
   gap: 12px;
 }
 
+/* ── Result number ──────────────────────────────────────────── */
 .result-number {
   margin: 0;
   color: #2563eb;
-  font-size: 2.4rem;
+  font-size: 2.6rem;
   font-weight: 800;
+  line-height: 1;
 }
 
+/* ── Signature ──────────────────────────────────────────────── */
 .signature-footer-label {
   margin: 0 0 8px;
   font-weight: 700;
@@ -437,11 +571,11 @@ select {
 
 .signature-section {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .signature-place-field {
-  max-width: 380px;
+  max-width: 340px;
 }
 
 .signature-pad-field {
@@ -451,13 +585,14 @@ select {
 
 .signature-pad {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .signature-canvas {
   display: block;
   width: 100%;
-  height: 180px;
+  /* Taller canvas on tablet so signing is comfortable */
+  height: 200px;
   touch-action: none;
   border: 1px solid #d1d5db;
   border-radius: 12px;
@@ -472,110 +607,119 @@ select {
   gap: 12px;
 }
 
-@media (max-width: 640px) {
-  #root {
-    padding: 12px;
-  }
-
-  .field-row,
-  .signature-section {
-    grid-template-columns: 1fr;
-  }
-
-  .primary-button,
-  .secondary-button {
-    width: 100%;
-  }
-
-  .pdf-preview-canvas-stack {
-    max-height: min(52dvh, 420px);
-  }
-
-  .start-screen,
-  .login-screen,
-  .register-screen {
-    min-height: calc(100dvh - 24px);
-  }
-
-  .login-screen,
-  .register-screen {
-    padding: 16px 0 24px;
-  }
-
-  .login-screen:focus-within,
-  .register-screen:focus-within {
-    padding-top: 12px;
-    padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
-  }
-}
-
-@media (min-width: 768px) {
-  #root:has(.result-screen) {
-    width: min(1100px, 100%);
-    padding: 16px;
-  }
-
-  .result-screen {
-    gap: 14px;
-    padding: 20px;
-  }
-
-  .result-screen .pdf-preview-panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    flex: 1;
-  }
-
-  .result-screen .pdf-preview-canvas-stack {
-    max-height: calc(100dvh - 16rem);
-  }
-}
-
-/* --- Start Screen Styles --- */
+/* ─────────────────────────────────────────────────────────────
+   START SCREEN — landscape: card side-by-side with hero
+   ───────────────────────────────────────────────────────────── */
 .start-screen {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100dvh - 48px);
+  min-height: 100dvh;
+  width: 100%;
+  padding: 24px;
+}
+
+.start-card {
+  display: grid;
+  /* Landscape: left info column | right buttons column */
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 48px;
+  row-gap: 16px;
+  align-items: center;
+  padding: 40px 48px;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgb(17 24 39 / 10%);
+  width: 100%;
+  max-width: 860px;
+}
+
+/* Title spans left column rows 1-2 */
+.start-card h1 {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: 2rem;
+  color: #111827;
+  line-height: 1.2;
+}
+
+/* Subtitle in left column row 2 */
+.start-card > p {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  color: #4b5563;
+  font-size: 1.1rem;
+}
+
+/* Alert message (if any) spans both columns at top */
+.start-card .alert {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-bottom: 0;
+}
+
+/* Actions in right column, spanning rows 1-3 */
+.start-actions {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   width: 100%;
 }
 
+/* ── Touch-optimised button modifier ─────────────────────────── */
+.touch-button {
+  min-height: 72px;
+  font-size: 1.3rem;
+  padding: 14px 24px;
+  border-radius: 16px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease-in-out, background-color 0.2s;
+}
+
+.touch-button:active {
+  transform: scale(0.97);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   AUTH SCREENS (Login / Register) — landscape
+   ───────────────────────────────────────────────────────────── */
 .login-screen,
 .register-screen {
   display: flex;
   align-items: safe center;
   justify-content: center;
-  min-height: calc(100dvh - 48px);
+  min-height: 100dvh;
   width: 100%;
-  padding: 24px 0 32px;
+  padding: 20px 0 28px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
 
-/* Po otwarciu klawiatury ekran przewija się, zamiast ucinać pola formularza. */
-.login-screen:focus-within,
-.register-screen:focus-within {
-  align-items: flex-start;
-  padding-top: 16px;
-  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
-}
-
+/* Allow card to stretch a bit more in landscape */
 .auth-card {
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   flex-shrink: 0;
 }
 
 .auth-card h2 {
-  margin: 0 0 20px;
+  margin: 0 0 18px;
   font-size: 1.5rem;
 }
 
 .auth-form {
   display: grid;
-  gap: 20px;
+  gap: 18px;
 }
 
 .auth-form .field input {
@@ -592,81 +736,31 @@ select {
   gap: 12px;
 }
 
-.start-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 48px 32px;
-  border: 1px solid #d1d5db;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 10px 24px rgb(17 24 39 / 8%);
-  width: 100%;
-  max-width: 540px;
+/* ─────────────────────────────────────────────────────────────
+   ADMIN
+   ───────────────────────────────────────────────────────────── */
+.admin-screen {
+  display: grid;
   gap: 24px;
 }
 
-.start-card h1 {
-  margin: 0;
-  font-size: 2rem;
-  color: #111827;
-}
-
-.start-card p {
-  margin: 0;
-  color: #4b5563;
-  font-size: 1.15rem;
-}
-
-.start-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  margin-top: 16px;
-}
-
-/* Modyfikator dla przycisków obsługiwanych dotykowo */
-.touch-button {
-  min-height: 80px; 
-  font-size: 1.4rem;
-  padding: 16px 24px;
-  border-radius: 16px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.1s ease-in-out, background-color 0.2s;
-}
-
-.touch-button:active {
-  transform: scale(0.98);
-}
-
-/* --- Admin --- */
-.admin-screen {
-  display: grid;
-  gap: 28px;
-}
-
 .admin-header {
-  padding: 32px;
+  padding: 28px 32px;
 }
 
 .admin-header h1 {
-  margin: 8px 0 14px;
+  margin: 8px 0 12px;
 }
 
 .admin-header .hint {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   font-size: 1.05rem;
 }
 
 .admin-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
 }
 
 .admin-mono {
@@ -681,9 +775,9 @@ select {
   background: #0b1220;
   color: #e5e7eb;
   overflow: auto;
-  max-height: 420px;
+  max-height: 380px;
   line-height: 1.45;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .admin-table-scroll {
@@ -696,7 +790,7 @@ select {
   align-items: end;
 }
 
-/* --- Admin UX --- */
+/* ── Admin UX ────────────────────────────────────────────────── */
 .admin-tab {
   text-decoration: none;
   padding: 10px 16px;
@@ -748,7 +842,7 @@ select {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   font-weight: 700;
   border: 1px solid transparent;
 }
@@ -777,11 +871,10 @@ select {
   border-color: #bfdbfe;
 }
 
-
 .admin-section-subtitle {
   margin: 0;
   color: #4b5563;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 600;
 }
 
@@ -791,7 +884,7 @@ select {
 
 .admin-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 
@@ -806,7 +899,7 @@ select {
 .admin-stat-label {
   margin: 0 0 8px;
   color: #4b5563;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -820,7 +913,7 @@ select {
 
 .admin-stat-hint {
   margin: 8px 0 0;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
 }
 
 .admin-last-print {
@@ -829,7 +922,9 @@ select {
   min-width: 140px;
 }
 
-/* --- Preloader & Animacje --- */
+/* ─────────────────────────────────────────────────────────────
+   PRELOADER & ANIMATIONS
+   ───────────────────────────────────────────────────────────── */
 .app-loader-screen,
 .app-loader-overlay {
   display: flex;
@@ -841,7 +936,7 @@ select {
 }
 
 .app-loader-screen {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: radial-gradient(circle at center, #f9fafb, #f3f4f6);
 }
 
@@ -859,8 +954,8 @@ body.app-submitting {
 }
 
 .app-loader-spinner {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   border: 3px solid #e5e7eb;
   border-top-color: #2563eb;
@@ -875,7 +970,7 @@ body.app-submitting {
   }
 }
 
-/* Wejściowa animacja ekranów (fade-in + slide-up) */
+/* Screen entrance animations */
 .start-screen,
 .login-screen,
 .register-screen,
@@ -883,7 +978,7 @@ body.app-submitting {
 .admin-home-container,
 .admin-users-container,
 .admin-submissions-container {
-  animation: app-fade-in-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: app-fade-in-slide 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .result-screen {
@@ -891,18 +986,14 @@ body.app-submitting {
 }
 
 @keyframes app-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes app-fade-in-slide {
   from {
     opacity: 0;
-    transform: translateY(15px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -910,16 +1001,294 @@ body.app-submitting {
   }
 }
 
-/* Delikatne przejście dla przycisków */
-.primary-button, .secondary-button {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+/* =============================================================
+   RESPONSIVE OVERRIDES
+   ============================================================= */
+
+/* ── Narrow landscape (phones, small tablets ≤ 767px) ───────── */
+@media (max-width: 767px) {
+  #root {
+    padding: 12px 16px;
+  }
+
+  /* Collapse multi-col to single col */
+  .field-row,
+  .field-row--3,
+  .signature-section {
+    grid-template-columns: 1fr;
+  }
+
+  .primary-button,
+  .secondary-button {
+    width: 100%;
+  }
+
+  .pdf-preview-canvas-stack {
+    max-height: min(50dvh, 400px);
+  }
+
+  /* Start screen: stack vertically on small screens */
+  .start-card {
+    grid-template-columns: 1fr;
+    padding: 32px 24px;
+    gap: 16px;
+  }
+
+  .start-card h1 {
+    grid-column: 1;
+    grid-row: auto;
+    font-size: 1.6rem;
+  }
+
+  .start-card > p {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .start-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .start-screen,
+  .login-screen,
+  .register-screen {
+    min-height: calc(100dvh - 24px);
+    padding: 16px 0 24px;
+  }
+
+  /* Result screen: single column on small screens */
+  .result-screen {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .result-right {
+    position: static; /* disable sticky on mobile */
+  }
+
+  .result-screen .pdf-preview-canvas-stack {
+    max-height: min(55dvh, 480px);
+  }
 }
 
-.primary-button:hover, .secondary-button:hover {
+/* ── Keyboard open on auth screens (focus-within) ──────────── */
+@media (max-width: 767px) {
+  .login-screen:focus-within,
+  .register-screen:focus-within {
+    align-items: flex-start;
+    padding-top: 12px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── Tablet landscape (768px – 1024px) ──────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  #root {
+    padding: 16px 20px;
+  }
+
+  /* Allow 3-column field rows on tablet */
+  .field-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-screen .pdf-preview-canvas-stack {
+    max-height: calc(100dvh - 12rem);
+  }
+}
+
+/* ── Full landscape tablet / desktop (≥ 1024px) ─────────────── */
+@media (min-width: 1024px) {
+  #root {
+    padding: 20px 32px;
+  }
+
+  /* Allow 3-column field rows in the main form */
+  .field-row--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .result-screen .pdf-preview-canvas-stack {
+    max-height: calc(100dvh - 13rem);
+  }
+
+  /* Admin result view: extra wide */
+  #root:has(.result-screen) {
+    max-width: 1400px;
+    padding: 16px 32px;
+  }
+}
+
+/* =============================================================
+   SEMANTIC BUTTON VARIANTS — kiosk colour palette
+   ============================================================= */
+
+/* ── Danger / destructive (Wyloguj, Usuń) ───────────────────── */
+.danger-button {
+  background: #dc2626;
+  color: #ffffff;
+  border: 0;
+}
+
+.danger-button:hover {
+  background: #b91c1c;
+  box-shadow: 0 6px 16px rgb(220 38 38 / 30%);
+}
+
+.danger-button:active {
+  background: #991b1b;
+}
+
+/* ── Edit / accent (Edytuj podopiecznego) ───────────────────── */
+.accent-button {
+  background: #0ea5e9;
+  color: #ffffff;
+  border: 0;
+}
+
+.accent-button:hover {
+  background: #0284c7;
+  box-shadow: 0 6px 16px rgb(14 165 233 / 30%);
+}
+
+.accent-button:active {
+  background: #0369a1;
+}
+
+/* ── Warning / soft (Wyczyść podpis) ────────────────────────── */
+.warning-button {
+  background: #f59e0b;
+  color: #ffffff;
+  border: 0;
+}
+
+.warning-button:hover {
+  background: #d97706;
+  box-shadow: 0 6px 16px rgb(245 158 11 / 30%);
+}
+
+.warning-button:active {
+  background: #b45309;
+}
+
+/* ── Ghost / wróć (Wróć, nav back) ─────────────────────────── */
+.ghost-button {
+  background: transparent;
+  color: #4b5563;
+  border: 2px solid #d1d5db;
+}
+
+.ghost-button:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  color: #111827;
+  box-shadow: none;
+}
+
+.ghost-button:active {
+  background: #f3f4f6;
+}
+
+/* All semantic variants share base button sizing & transitions */
+.danger-button,
+.accent-button,
+.warning-button,
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  font: 700 1rem inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.danger-button:hover,
+.accent-button:hover,
+.warning-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
-.primary-button:active, .secondary-button:active {
+.danger-button:active,
+.accent-button:active,
+.warning-button:active,
+.ghost-button:active {
   transform: translateY(0);
 }
+
+.danger-button:disabled,
+.accent-button:disabled,
+.warning-button:disabled,
+.ghost-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+/* =============================================================
+   KIOSK TOUCH IMPROVEMENTS
+   ============================================================= */
+
+/* Bigger checkboxes and radios for fingers */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: #2563eb;
+  flex-shrink: 0;
+}
+
+/* Tighter focus ring for kiosk — still visible but not distracting */
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Slightly larger select arrow target area */
+.field select {
+  padding-right: 36px;
+  appearance: auto;
+  cursor: pointer;
+}
+
+/* Active tab in minor table highlight */
+.minor-table tr.is-active .accent-button {
+  background: #0369a1;
+}
+
+/* Submission result item — add left accent border for active */
+.result-left .submission-result-item {
+  border-left: 4px solid #e5e7eb;
+  transition: border-color 0.2s;
+}
+
+.result-left .submission-result-item:has(.primary-button) {
+  border-left-color: #2563eb;
+}
+
+/* =============================================================
+   FORM SUBMIT BUTTON — large, prominent call-to-action
+   ============================================================= */
+.form-submit-button {
+  min-height: 56px;
+  padding: 14px 32px;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  /* Subtle gradient to stand out from other primary buttons */
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 14px rgb(37 99 235 / 35%);
+}
+
+.form-submit-button:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 8px 20px rgb(37 99 235 / 40%);
+}
+
