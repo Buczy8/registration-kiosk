@@ -50,12 +50,22 @@ export default function AppRouter() {
     navigate("/");
   }
 
+  // Wylogowanie zalogowanego użytkownika po czasie bezczynności
   useIdleLogout({
     enabled: isAuthenticated,
     timeoutSeconds: user?.is_superuser ? adminIdleLogoutSeconds : defaultUserIdleLogoutSeconds,
     onIdle: () => {
       handleLogout();
       setStartInfoMessage("Sesja wygasła ze względów bezpieczeństwa.");
+    },
+  });
+
+  // Automatyczny powrót do startu dla gościa na ekranie wyniku po czasie bezczynności
+  useIdleLogout({
+    enabled: !isAuthenticated && location.pathname === "/result",
+    timeoutSeconds: defaultUserIdleLogoutSeconds,
+    onIdle: () => {
+      handleGuestNewSubmission();
     },
   });
 
